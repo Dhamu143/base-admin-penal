@@ -1,0 +1,41 @@
+/* @import 'bootstrap/dist/css/bootstrap.min.css'; */
+
+body {
+  font-family: "Source Sans Pro", sans-serif;
+  color: #656565;
+  font-size: 0.875rem;
+}
+
+/* code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+} */
+
+.sidebar {
+  width: 260px !important; 
+  min-width: 260px !important;
+  max-width: 260px !important;
+}
+.sidebar-nav li span {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow: visible !important;
+  /* display: inline-block; */
+  max-width: 100%;
+}
+/* .sidebar-nav li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+} */
+.sidebar-nav li span {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
+.sidebar-nav li,
+.sidebar-nav li a,
+.sidebar-nav li div {
+  max-width: 100%;
+  overflow: visible !important;
+}
