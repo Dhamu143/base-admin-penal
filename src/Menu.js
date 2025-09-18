@@ -8,168 +8,245 @@ const Menu = [
     translate: "sidebar.nav.SUBMENU",
     path: "/dashboard",
     icon: "icon-grid",
-    permissions: ["admin"]
+    permissions: ["admin"],
+  },
+  // {
+  //   name: "Community Management",
+  //   path: "/hub-management",
+  //   icon: "icon-cup",
+  //   permissions: ["admin", "community"],
+  //   submenu: [
+  //     {
+  //       name: "Religion",
+  //       path: "/religion",
+  //     },
+  //     {
+  //       name: "Native Place(state)",
+  //       path: "/native-place",
+  //     },
+  //     {
+  //       name: "Mother Tounge(Language)",
+  //       path: "/language",
+  //     },
+  //     {
+  //       name: "Caste",
+  //       path: "/caste",
+  //     },
+  //     {
+  //       name: "Community Setup",
+  //       path: "/community-setup",
+  //       permissions: ["community"],
+  //     },
+  //     {
+  //       name: "Community & Caste Requested",
+  //       path: "/hub-requested",
+  //     },
+  //   ],
+  // },
+  {
+    name: "God Master",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/godmaster",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
   },
   {
-    name: "Community Management",
-    path: "/hub-management",
-    icon: "icon-cup",
-    permissions: ["admin", "community"],
-    submenu: [
-      {
-        name: "Religion",
-        path: "/religion",
-      },
-      {
-        name: "Native Place(state)",
-        path: "/native-place",
-      },
-      {
-        name: "Mother Tounge(Language)",
-        path: "/language",
-      },
-      {
-        name: "Caste",
-        path: "/caste",
-      },
-      {
-        name: "Community Setup",
-        path: "/community-setup",
-        permissions: ["community"],
-      },
-      {
-        name: "Community & Caste Requested",
-        path: "/hub-requested",
-      },
-    ],
+    name: "Aarti",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/aarti",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Festival",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/festival",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Mantra",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/mantra",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Bhajan",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/bhajan",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Ringtones",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/ringtones",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Sloka",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/sloka",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Articles",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/articles",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "God",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/god",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Quiz",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/quiz",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Temple",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/temple",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
   },
   {
     name: "Users",
     translate: "sidebar.nav.SUBMENU",
-    path: "/user",
+    path: "/users",
     icon: "icon-people",
-    permissions: ["admin", "users"]
+    permissions: ["admin", "users"],
   },
+  // {
+  //   name: "Sanstha",
+  //   translate: "sidebar.nav.SUBMENU",
+  //   path: "/sanstha",
+  //   icon: "icon-list",
+  //   permissions: ["admin", "sanstha"]
+  // },
+  // {
+  //   name: "Sponsors and Advertisements",
+  //   translate: "sidebar.nav.SUBMENU",
+  //   path: "/sponsor",
+  //   icon: "icon-layers",
+  //   permissions: ["admin", "sponsor"]
+  // },
   {
-    name: "Sanstha",
-    translate: "sidebar.nav.SUBMENU",
-    path: "/sanstha",
-    icon: "icon-list",
-    permissions: ["admin", "sanstha"]
-  },
-  {
-    name: "Sponsors and Advertisements",
-    translate: "sidebar.nav.SUBMENU",
-    path: "/sponsor",
-    icon: "icon-layers",
-    permissions: ["admin", "sponsor"]
-  },
-    {
     name: "Posts",
     translate: "sidebar.nav.SUBMENU",
     path: "/post",
     icon: "icon-list",
-    permissions: ["admin", "post"]
+    permissions: ["admin", "post"],
   },
-   {
-    name: "Social Project",
-    path: "",
-    icon: "icon-list",
-    permissions: ["admin", "Social Project"],
-    submenu: [
-      {
-        name: "Social project category",
-        path: "/project-category",
-      },
-      {
-        name: "Social project",
-        path: "/social-project",
-      },
-    ],
-  },
-   {
+  //  {
+  //   name: "Social Project",
+  //   path: "",
+  //   icon: "icon-list",
+  //   permissions: ["admin", "Social Project"],
+  //   submenu: [
+  //     {
+  //       name: "Social project category",
+  //       path: "/project-category",
+  //     },
+  //     {
+  //       name: "Social project",
+  //       path: "/social-project",
+  //     },
+  //   ],
+  // },
+  {
     name: "Events",
     translate: "sidebar.nav.SUBMENU",
     path: "/event",
     icon: "icon-layers",
-    permissions: ["admin", "Events"]
+    permissions: ["admin", "Events"],
   },
-  {
-    name: "Fundraising (Donation)",
-    path: "/fundraising",
-    icon: "icon-cup",
-    permissions: ["admin", "Fundraising (Donation)"],
-    submenu: [
-      {
-        name: "Facility Booking",
-        path: "/facility-booking",
-      },
-      {
-        name: "Contribution",
-        path: "/contribution",
-      },
-      {
-        name: "Members Waiting for Approval",
-        path: "/requsteduser",
-      },
-      {
-        name: "Social Project Donation",
-        path: "/socialproject-donation",
-      },
-        {
-        name: "Boli Booking",
-        path: "/boli-booking",
-      },
-    ],
-  },
+  // {
+  //   name: "Fundraising (Donation)",
+  //   path: "/fundraising",
+  //   icon: "icon-cup",
+  //   permissions: ["admin", "Fundraising (Donation)"],
+  //   submenu: [
+  //     {
+  //       name: "Facility Booking",
+  //       path: "/facility-booking",
+  //     },
+  //     {
+  //       name: "Contribution",
+  //       path: "/contribution",
+  //     },
+  //     {
+  //       name: "Members Waiting for Approval",
+  //       path: "/requsteduser",
+  //     },
+  //     {
+  //       name: "Social Project Donation",
+  //       path: "/socialproject-donation",
+  //     },
+  //       {
+  //       name: "Boli Booking",
+  //       path: "/boli-booking",
+  //     },
+  //   ],
+  // },
   {
     name: "Payment History",
     translate: "sidebar.nav.SUBMENU",
     path: "/payment-history",
     icon: "icon-cup",
-    permissions: ["admin", "Payment History"]
+    permissions: ["admin", "Payment History"],
   },
   {
     name: "Teams",
     translate: "sidebar.nav.SUBMENU",
     path: "/teams",
     icon: "icon-speedometer",
-    permissions: ["admin", "teams"]
+    permissions: ["admin", "teams"],
   },
   {
     name: "Payment Settings",
     translate: "sidebar.nav.SUBMENU",
     path: "/payment-settings",
     icon: "icon-layers",
-    permissions: ["admin", "payment"]
+    permissions: ["admin", "payment"],
   },
-  {
-    name: "Compliance Date",
-    translate: "sidebar.nav.SUBMENU",
-    path: "/compliance",
-    icon: "icon-layers",
-    permissions: ["admin", "compliance"]
-  },
+  // {
+  //   name: "Compliance Date",
+  //   translate: "sidebar.nav.SUBMENU",
+  //   path: "/compliance",
+  //   icon: "icon-layers",
+  //   permissions: ["admin", "compliance"]
+  // },
   {
     name: "Faq",
     translate: "sidebar.nav.SUBMENU",
     path: "/faq",
     icon: "icon-grid",
-    permissions: ["admin", "faq"]
+    permissions: ["admin", "faq"],
   },
   {
     name: "Support",
     translate: "sidebar.nav.SUBMENU",
     path: "/support",
     icon: "icon-cup",
-    permissions: ["admin", "support"]
+    permissions: ["admin", "support"],
   },
   {
     name: "Announcement",
     translate: "sidebar.nav.SUBMENU",
     path: "/announcement",
     icon: "icon-people",
-    permissions: ["admin", "announcement"]
+    permissions: ["admin", "announcement"],
   },
   // {
   //   name: "Payment Gateways",
@@ -178,14 +255,14 @@ const Menu = [
   //   icon: "icon-grid",
   //   permissions: ["admin", "payment"]
   // },
-  {
-    name: "Plans & Offers",
-    translate: "sidebar.nav.SUBMENU",
-    path: "/offer",
-    icon: "icon-speedometer",
-    permissions: ["admin", "offer"]
-  },
-  // {   
+  // {
+  //   name: "Plans & Offers",
+  //   translate: "sidebar.nav.SUBMENU",
+  //   path: "/offer",
+  //   icon: "icon-speedometer",
+  //   permissions: ["admin", "offer"]
+  // },
+  // {
   //   name: "Products",
   //   path: "/admin/products",
   //   icon: "icon-grid",

@@ -1,82 +1,114 @@
 import React, { useState } from "react";
 
-const PostPreview = ({ value }) => {
-  const [open, setOpen] = useState(false);
+const DynamicImage = ({
+  src, // image or video URL
+  alt = "Preview", // alt text
+  size = 60, // width & height in px
+  className = "",
+  style = {},
+  ...rest
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
 
-  const isVideo = value?.file?.endsWith(".mp4") || value?.file?.endsWith(".webm");
+  // Use default fallback from public folder
+  const finalSrc = src || "/user.jpg";
+
+  // Detect video file
+  const isVideo = /\.(mp4|webm|mov)$/i.test(finalSrc);
+
+  // Thumbnail styles
+  const thumbnailStyle = {
+    width: `${size}px`,
+    height: `${size}px`,
+    objectFit: "cover",
+    borderRadius: "50%", // fully circular
+    border: "1px solid #ccc", // 1px gray border
+    cursor: "pointer",
+    ...style,
+  };
 
   return (
     <>
-      {/* Table Cell Thumbnail */}
-      <td onClick={() => setOpen(true)} style={{ cursor: "pointer" }}>
+      {/* --- Thumbnail --- */}
+      <div
+        onClick={() => setIsOpen(true)}
+        className={`dynamic-image-thumbnail ${className}`}
+        aria-label={`Open preview for ${alt}`}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === "Enter" && setIsOpen(true)}
+        {...rest}
+      >
         {isVideo ? (
           <video
-            src={value.file}
-            width="50"
-            height="50"
-            style={{ borderRadius: "50%" }}
+            src={finalSrc}
+            style={thumbnailStyle}
             muted
+            playsInline
+            key={finalSrc + "#t=0.1"}
           />
         ) : (
-          <img
-            src={value.file}
-            alt="post"
-            style={{ width: "50px", height: "50px", borderRadius: "50%" }}
-          />
+          <img src={finalSrc} alt={alt} style={thumbnailStyle} />
         )}
-      </td>
-
-      {/* Modal */}
-      {open && (
-        <div
-      className="modal fade show"
-      style={{
-        display: "block",
-        backgroundColor: "rgba(0,0,0,0.5)",
-        top: "50px",
-      }}
-    >
-      <div className="modal-dialog modal-lg"  style={{maxHeight:"40%"}}>
-        <div className="modal-content">
-          {/* Header */}
-          <div className="modal-header">
-            <h5 className="modal-title">Image or Video Preview</h5>
-            <button type="button" className="close" onClick={() => setOpen(false)}>
-              <span>&times;</span>
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="modal-body text-center">
-            {isVideo ? (
-              <video controls style={{ width: "100%",  height: "300px", borderRadius: "10px" }}>
-                <source src={value.file} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            ) : (
-              <img
-                src={value.file}
-                alt="Post Preview"
-                style={{ width: "550px", height:"350px", borderRadius: "10px", objectFit:"contain" }}
-              />
-            )}
-            {value.caption && (
-              <p style={{ marginTop: "10px" }}>{value.caption}</p>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
-              Close
-            </button>
-          </div>
-        </div>
       </div>
-    </div>
+
+      {/* --- Modal Preview --- */}
+      {isOpen && (
+        <>
+          <div
+            className="modal-backdrop fade show"
+            onClick={() => setIsOpen(false)}
+          ></div>
+          <div
+            className="modal fade show"
+            style={{ display: "block" }}
+            onClick={() => setIsOpen(false)}
+          >
+            <div className="modal-dialog modal-lg modal-dialog-centered">
+              <div
+                className="modal-content"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="modal-header">
+                  <h5 className="modal-title">{alt}</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Close"
+                  ></button>
+                </div>
+                <div className="modal-body text-center p-2">
+                  {isVideo ? (
+                    <video
+                      controls
+                      autoPlay
+                      className="w-100"
+                      style={{ maxHeight: "80vh" }}
+                      key={finalSrc}
+                    >
+                      <source src={finalSrc} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <img
+                      src={finalSrc}
+                      alt={alt}
+                      className="img-fluid rounded-full"
+                      style={{
+                        maxHeight: "80vh",
+                        objectFit: "contain",
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </>
   );
 };
 
-export default PostPreview;
+export default DynamicImage;

@@ -14,7 +14,7 @@ function RequstedUser() {
         >
           <div>Members Waiting for Approval</div>
         </div>
-        <TableFilter />
+        {/* <TableFilter /> */}
       </div>
     </>
   );

@@ -15,7 +15,7 @@ function Teams() {
            
           </div>
         </div>
-        <TableFilter />
+        {/* <TableFilter /> */}
       </div>
     </>
   );

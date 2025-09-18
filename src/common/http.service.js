@@ -5,13 +5,14 @@ const API_URL = process.env.REACT_APP_API_URL;
 // const API_URL = 'https://testapi.apnamandal.com/api';
 // const API_URL = 'http://192.168.1.10:3000/api';
 
-
 // Create a custom event for loading state
-const LOADING_EVENT = 'api-loading-state';
+const LOADING_EVENT = "api-loading-state";
 
 // Function to dispatch loading state
 const setLoading = (isLoading) => {
-  window.dispatchEvent(new CustomEvent(LOADING_EVENT, { detail: { isLoading } }));
+  window.dispatchEvent(
+    new CustomEvent(LOADING_EVENT, { detail: { isLoading } })
+  );
 };
 
 // Add request interceptor to show loader
@@ -40,39 +41,43 @@ axios.interceptors.response.use(
 );
 
 class HttpService {
-  get(url, params = {},customHeaders = {}) {
+  get(url, params = {}, customHeaders = {}) {
     return call("GET", url, params, customHeaders);
   }
 
-  post(url, params = {}, payload = {},customHeaders = {}) {
-    return call("POST", url, params, payload ,customHeaders);
+  post(url, params = {}, payload = {}, customHeaders = {}) {
+    return call("POST", url, params, payload, customHeaders);
   }
 
-  delete(url, params = {}, payload = {},customHeaders = {}) {
-    return call("DELETE", url, params, payload,customHeaders);
+  delete(url, params = {}, payload = {}, customHeaders = {}) {
+    return call("DELETE", url, params, payload, customHeaders);
   }
 
-  put(url, params = {}, payload = {},customHeaders = {}) {
-    return call("PUT", url, params, payload,customHeaders);
+  put(url, params = {}, payload = {}, customHeaders = {}) {
+    return call("PUT", url, params, payload, customHeaders);
   }
 }
-
 function call(method, URL, params, payload = {}, customHeaders = {}) {
   const defaultHeaders = {
-    "Content-Type": "application/json",
     Authorization: `Bearer ${localStorage.getItem("token")}`,
   };
 
   const opts = {
     method,
     url: API_URL + URL,
-    headers: {
-      ...defaultHeaders,
-      ...customHeaders,
-    },
+    headers: { ...defaultHeaders, ...customHeaders },
   };
+
   if (params) opts.params = params;
   if (payload) opts.data = payload;
+
+  // If payload is FormData, remove Content-Type (let Axios set it)
+  if (payload instanceof FormData) {
+    delete opts.headers["Content-Type"];
+  } else {
+    opts.headers["Content-Type"] = "application/json";
+  }
+
   return axios(opts);
 }
 

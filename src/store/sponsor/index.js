@@ -121,10 +121,10 @@ export const uploadSponsorImage = async (file) => {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response =await httpService.post( `/upload/sponsor`,{},formData,  
+    const response =await httpService.post( `/admin/upload/image`,{},formData,  
       { "Content-Type": "multipart/form-data" }
     );
-  console.log(response)
+  console.log("image data",response)
 
     return response.data.data.data.file;
 

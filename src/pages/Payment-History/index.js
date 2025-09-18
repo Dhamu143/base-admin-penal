@@ -15,7 +15,7 @@ function PaymentHistory() {
            
           </div>
         </div>
-        <TableFilter />
+        {/* <TableFilter /> */}
       </div>
     </>
   );

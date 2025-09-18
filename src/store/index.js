@@ -21,7 +21,7 @@ import facilityReducer from "../store/facilities/index";
 import complianceDateReducer from "../store/compliancesDate/index";
 import complianceReducer from "../store/compliances/index";
 import facilitybookingReducer from "../store/facilitybooking/index";
-import contributionReducer from  "../store/contribution/index";
+import contributionReducer from "../store/contribution/index";
 import PendingMembershipReducer from "../store/pendingmembers/index";
 import fundrasingReducer from "../store/fundrasing/index";
 import postReducer from "../store/post/index";
@@ -31,6 +31,18 @@ import socialprojectbookingReducer from "../store/socialprojectbooking/index";
 import eventReducer from "../store/event/index";
 import bolibookingReducer from "../store/boliBooking/index";
 import directoriesReducer from "../store/directories/directories";
+import godmaster from "../store/godmaster/index";
+import aartisReducer from "./aarti";
+import bhajansReducer from "./bhajan";
+import festivalsReducer from "./festival";
+import mantrasReducer from "./mantra";
+import god from "./god";
+import sloks from "./sloks";
+import ringtones from "./ringtone";
+import articles from "./Articles";
+import userReducer from "./user2";
+import temple from "./temple";
+import quizReducer from "./quiz";
 
 export const store = configureStore({
   reducer: {
@@ -63,7 +75,18 @@ export const store = configureStore({
     languageReducer,
     religionReducer,
     nativeplaceReducer,
-  
+    gods: godmaster,
+    aartis: aartisReducer,
+    bhajans: bhajansReducer,
+    festivals: festivalsReducer,
+    mantras: mantrasReducer,
+    God: god,
+    sloks: sloks,
+    ringtones,
+    articles,
+    users: userReducer,
+    temple,
+    quizzes: quizReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
