@@ -1,23 +1,15 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
-
-// It's best to define this in a central api.js file and import it
-const api = axios.create({
-  baseURL: "https://setu.apnamandal.com/api",
-});
+import httpService from "../../common/http.service";
 
 // --- ASYNC THUNKS FOR THE /aarti ENDPOINT ---
 
-/**
- * Fetch all aartis
- */
+// Fetch all aartis
 export const fetchAartis = createAsyncThunk(
   "aarti/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/aarti");
-      // Assuming the response structure is similar to the god endpoint
-      return response.data.data.data;
+      const response = await httpService.get("/aarti");
+      return response.data?.data?.data;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Could not fetch aartis."
@@ -26,17 +18,13 @@ export const fetchAartis = createAsyncThunk(
   }
 );
 
-/**
- * Add a new aarti. The payload must include the `master` ID.
- * @param {object} aartiData - { name, sort, description, language, master }
- */
+// Add a new aarti
 export const addAarti = createAsyncThunk(
   "aarti/add",
   async (aartiData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/aarti/create", aartiData);
-      // The response for a single created item might be less nested
-      return response.data.data;
+      const response = await httpService.post("/aarti/create", {}, aartiData);
+      return response.data?.data;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Could not add aarti."
@@ -45,16 +33,13 @@ export const addAarti = createAsyncThunk(
   }
 );
 
-/**
- * Update an existing aarti
- * @param {object} payload - { id, ...aartiData }
- */
+// Update an existing aarti
 export const updateAarti = createAsyncThunk(
   "aarti/update",
   async ({ id, ...aartiData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/aarti/${id}`, aartiData);
-      return response.data.data;
+      const response = await httpService.put(`/aarti/${id}`, {}, aartiData);
+      return response.data?.data;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Could not update aarti."
@@ -63,16 +48,13 @@ export const updateAarti = createAsyncThunk(
   }
 );
 
-/**
- * Delete an aarti by its ID
- * @param {string} id - The _id of the aarti to delete
- */
+// Delete an aarti
 export const deleteAarti = createAsyncThunk(
   "aarti/delete",
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/aarti/${id}`);
-      return id; // Return the ID for easy removal from state
+      await httpService.delete(`/aarti/${id}`);
+      return id;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Could not delete aarti."
@@ -81,19 +63,18 @@ export const deleteAarti = createAsyncThunk(
   }
 );
 
-// --- SLICE DEFINITION ---
-
+// --- SLICE ---
 const aartiSlice = createSlice({
-  name: "aarti", // This name will be used in the store
+  name: "aarti",
   initialState: {
     list: [],
-    status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+    status: "idle",
     error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch Aartis
+      // Fetch
       .addCase(fetchAartis.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -106,9 +87,9 @@ const aartiSlice = createSlice({
         state.status = "failed";
         state.error = action.payload;
       })
-      // Add Aarti
+
+      // Add
       .addCase(addAarti.fulfilled, (state, action) => {
-        // Add the new aarti to the list for an immediate UI update
         state.list.push(action.payload);
         state.status = "succeeded";
       })
@@ -116,13 +97,14 @@ const aartiSlice = createSlice({
         state.status = "failed";
         state.error = action.payload;
       })
-      // Update Aarti
+
+      // Update
       .addCase(updateAarti.fulfilled, (state, action) => {
         const index = state.list.findIndex(
           (aarti) => aarti._id === action.payload._id
         );
         if (index !== -1) {
-          state.list[index] = action.payload; // Update the item
+          state.list[index] = action.payload;
         }
         state.status = "succeeded";
       })
@@ -130,9 +112,9 @@ const aartiSlice = createSlice({
         state.status = "failed";
         state.error = action.payload;
       })
-      // Delete Aarti
+
+      // Delete
       .addCase(deleteAarti.fulfilled, (state, action) => {
-        // Remove the aarti from the list using the returned ID
         state.list = state.list.filter((aarti) => aarti._id !== action.payload);
         state.status = "succeeded";
       })

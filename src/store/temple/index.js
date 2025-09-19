@@ -1,108 +1,96 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
+import httpService from "../../common/http.service";
 
-// Create a reusable axios instance
-const api = axios.create({
-  baseURL: "https://setu.apnamandal.com/api",
-});
-
-// --- ASYNC THUNKS (API Logic) ---
-
+// Fetch all temples
 export const fetchTemples = createAsyncThunk(
   "temple/fetchAll",
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const response = await api.get("/temple");
-      // Extracts the list from: { data: { data: [...] } }
-      return response.data.data.data;
+      let url = "/temple?";
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) url += `${key}=${value}&`;
+      });
+      const response = await httpService.get(url);
+      return Array.isArray(response.data.data.data)
+        ? response.data.data.data
+        : [];
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not fetch temples."
-      );
+      return rejectWithValue(err.message || "Could not fetch temples.");
     }
   }
 );
 
+// Add temple
 export const addTemple = createAsyncThunk(
   "temple/add",
   async (templeData, { rejectWithValue }) => {
     try {
-      // CHANGED: The API endpoint for creating a temple is now correct.
-      const response = await api.post("/temple/create", templeData);
+      const response = await httpService.post("/temple/create", {}, templeData);
       return response.data.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not add temple."
-      );
+      return rejectWithValue(err.message || "Could not add temple.");
     }
   }
 );
 
+// Update temple
 export const updateTemple = createAsyncThunk(
   "temple/update",
   async ({ id, ...templeData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/temple/${id}`, templeData);
+      const response = await httpService.put(`/temple/${id}`, {}, templeData);
       return response.data.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not update temple."
-      );
+      return rejectWithValue(err.message || "Could not update temple.");
     }
   }
 );
 
+// Delete temple
 export const deleteTemple = createAsyncThunk(
   "temple/delete",
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/temple/${id}`);
-      return id; // Return the ID for filtering in the reducer
+      await httpService.delete(`/temple/${id}`);
+      return id;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not delete temple."
-      );
+      return rejectWithValue(err.message || "Could not delete temple.");
     }
   }
 );
 
-// --- SLICE DEFINITION ---
-
+// Slice
 const templeSlice = createSlice({
   name: "temple",
   initialState: {
     list: [],
-    status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+    status: "idle",
     error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // --- Handle Specific Fulfilled Cases First ---
       .addCase(fetchTemples.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list = action.payload;
+        state.list = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(addTemple.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list.push(action.payload); // Fast UI update
+        state.list.push(action.payload);
       })
       .addCase(updateTemple.fulfilled, (state, action) => {
         state.status = "succeeded";
         const index = state.list.findIndex(
           (temple) => temple._id === action.payload._id
         );
-        if (index !== -1) {
-          state.list[index] = action.payload; // Fast UI update
-        }
+        if (index !== -1) state.list[index] = action.payload;
       })
       .addCase(deleteTemple.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.list = state.list.filter(
           (temple) => temple._id !== action.payload
-        ); // Fast UI update
+        );
       })
-      // --- General Matchers Now Placed at the End ---
       .addMatcher(
         (action) => action.type.endsWith("/pending"),
         (state) => {

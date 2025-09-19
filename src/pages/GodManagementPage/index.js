@@ -37,9 +37,11 @@ export default function GodManagementPage() {
     description: "",
     featureimage: "",
     sort: "",
-    language: "", // Default to Gujarati
+    language: "",
     master: "",
+    active: "", // 👈 added
   };
+
   const [formData, setFormData] = useState(initialFormState);
   useEffect(() => {
     // Fetch the list only if it hasn't been fetched yet
@@ -163,10 +165,19 @@ export default function GodManagementPage() {
       <div className="card shadow-sm">
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
           <h4 className="mb-0 text-primary-emphasis">✨ God Management</h4>
-          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-            <em className="fas fa-plus me-2"></em> Add New God
+          <button
+            className="btn btn-labeled btn-success"
+            type="button"
+            style={{ fontSize: "17px" }}
+            onClick={() => handleOpenModal()}
+          >
+            <span className="btn-label">
+              <em className="fas fa-plus"></em>
+            </span>
+            Add New God
           </button>
         </div>
+
         <div className="card-body">
           <div className="table-responsive">
             <table className="table table-hover align-middle">
@@ -217,7 +228,7 @@ export default function GodManagementPage() {
                       <td>{god.sort}</td>
                       <td className="text-center">
                         <button
-                          className="btn btn-sm btn-outline-secondary me-2"
+                          className="btn btn-sm btn-outline-secondary me-2 mr-2"
                           onClick={() => handleOpenModal(god)}
                           title="Edit"
                         >

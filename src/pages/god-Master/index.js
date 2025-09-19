@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify"; // Using toast for notifications
 
 // Redux Actions
 import {
@@ -26,15 +27,15 @@ export default function FeatureManagementPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [editingGod, setEditingGod] = useState(null);
   const [godToDelete, setGodToDelete] = useState(null);
-
-  // --- NEW: State for validation errors and image uploading status ---
   const [errors, setErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
 
+  // MODIFICATION: Added 'percentage' to the initial form state
   const initialFormState = {
     name: "",
     featureimage: "",
     sort: "",
+    percentage: "", // New field
     isActive: true,
   };
   const [formData, setFormData] = useState(initialFormState);
@@ -53,13 +54,15 @@ export default function FeatureManagementPage() {
         name: god.name || "",
         featureimage: god.featureimage || "",
         sort: god.sort || 0,
+        // MODIFICATION: Populate percentage field for editing
+        percentage: god.percentage || 0, // New field
         isActive: god.isActive,
       });
     } else {
       setEditingGod(null);
       setFormData(initialFormState);
     }
-    setErrors({}); // Clear errors on open
+    setErrors({});
     setIsModalOpen(true);
   };
 
@@ -76,28 +79,20 @@ export default function FeatureManagementPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
-    // Clear error for the field being edited
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
     }
   };
 
-  // --- REFINED: Streamlined image handling logic ---
   const handleImageChange = async (data) => {
-    // Clear previous image URL and any existing errors
     setFormData((prev) => ({ ...prev, featureimage: "" }));
     setErrors((prev) => ({ ...prev, featureimage: null }));
-
     if (!data?.file) return;
 
     setIsUploading(true);
-    // Use the temporary blob URL for an instant preview
     setFormData((prev) => ({ ...prev, featureimage: data.url }));
-
     try {
-      // Upload the file to get the permanent URL
       const uploadedUrl = await uploadImage(data.file);
-      // Replace the temporary preview URL with the permanent one
       setFormData((prev) => ({ ...prev, featureimage: uploadedUrl }));
     } catch (err) {
       console.error("Upload failed:", err);
@@ -105,13 +100,12 @@ export default function FeatureManagementPage() {
         ...prev,
         featureimage: err.message || "Image upload failed. Please try again.",
       }));
-      setFormData((prev) => ({ ...prev, featureimage: "" })); // Clear image on failure
+      setFormData((prev) => ({ ...prev, featureimage: "" }));
     } finally {
       setIsUploading(false);
     }
   };
 
-  // --- NEW: Validation Function ---
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "God name is required.";
@@ -120,6 +114,12 @@ export default function FeatureManagementPage() {
     if (formData.sort === "" || isNaN(formData.sort)) {
       newErrors.sort = "Sort order must be a valid number.";
     }
+    // MODIFICATION: Add validation for the percentage field
+    if (formData.percentage === "" || isNaN(formData.percentage)) {
+      newErrors.percentage = "Percentage must be a valid number.";
+    } else if (formData.percentage < 0 || formData.percentage > 100) {
+      newErrors.percentage = "Percentage must be between 0 and 100.";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -127,12 +127,10 @@ export default function FeatureManagementPage() {
 
   const handleSaveFeature = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
-    if (!validateForm()) {
-      return; // Stop if form is not valid
-    }
     if (isUploading) {
-      alert("Please wait for the image to finish uploading.");
+      toast.warn("Please wait for the image to finish uploading.");
       return;
     }
 
@@ -141,12 +139,14 @@ export default function FeatureManagementPage() {
       const action = editingGod
         ? updateGod({ id: editingGod._id, ...formData })
         : addGod(formData);
-
       await dispatch(action).unwrap();
+      toast.success(
+        editingGod ? "God updated successfully!" : "God added successfully!"
+      );
       handleCloseModal();
     } catch (err) {
       console.error("Failed to save the feature:", err);
-      alert(err.message || "An error occurred while saving.");
+      toast.error(err.message || "An error occurred while saving.");
     } finally {
       setIsSaving(false);
     }
@@ -157,17 +157,14 @@ export default function FeatureManagementPage() {
     setIsSaving(true);
     try {
       await dispatch(deleteGod(godToDelete._id)).unwrap();
+      toast.success(`"${godToDelete.name}" was deleted successfully.`);
       setGodToDelete(null);
     } catch (err) {
       console.error("Failed to delete the feature:", err);
-      alert(err.message || "An error occurred while deleting.");
+      toast.error(err.message || "An error occurred while deleting.");
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleDeleteClick = (god) => {
-    setGodToDelete(god);
   };
 
   return (
@@ -176,9 +173,11 @@ export default function FeatureManagementPage() {
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
           <h4 className="mb-0 text-primary-emphasis">✨ God Management</h4>
           <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-            <em className="fas fa-plus me-2"></em> Add New God
+            <i className="fas fa-plus me-2"></i>
+            Add New God
           </button>
         </div>
+
         <div className="card-body">
           <div className="table-responsive">
             <table className="table table-hover align-middle">
@@ -186,6 +185,8 @@ export default function FeatureManagementPage() {
                 <tr>
                   <th style={{ width: "10%" }}>Image</th>
                   <th>Name</th>
+                  {/* MODIFICATION: Added Percentage column */}
+                  <th>Percentage</th>
                   <th>Sort Order</th>
                   <th>Status</th>
                   <th className="text-center">Actions</th>
@@ -194,15 +195,15 @@ export default function FeatureManagementPage() {
               <tbody>
                 {status === "loading" && (
                   <tr>
-                    <td colSpan="5" className="text-center py-5">
+                    <td colSpan="6" className="text-center py-5">
                       <div className="spinner-border text-primary"></div>
                     </td>
                   </tr>
                 )}
                 {status === "failed" && (
                   <tr>
-                    <td colSpan="5" className="text-center py-5 text-danger">
-                      <em className="fas fa-exclamation-triangle me-2"></em>{" "}
+                    <td colSpan="6" className="text-center py-5 text-danger">
+                      <i className="fas fa-exclamation-triangle me-2"></i>{" "}
                       Error: {error}
                     </td>
                   </tr>
@@ -212,7 +213,7 @@ export default function FeatureManagementPage() {
                       <tr key={god._id}>
                         <td>
                           <DynamicImage
-                            src={god.featureimage || "/img/user.jpg"} // Default placeholder
+                            src={god.featureimage || "/img/user.jpg"}
                             alt={god.name || "User"}
                             style={{
                               width: "60px",
@@ -224,6 +225,8 @@ export default function FeatureManagementPage() {
                           />
                         </td>
                         <td className="fw-bold">{god.name}</td>
+                        {/* MODIFICATION: Display percentage data */}
+                        <td>{god.percentage ?? 0}%</td>
                         <td>{god.sort}</td>
                         <td>
                           <span
@@ -242,21 +245,21 @@ export default function FeatureManagementPage() {
                             onClick={() => handleOpenModal(god)}
                             title="Edit"
                           >
-                            <em className="fas fa-pencil-alt"></em>
+                            <i className="fas fa-pencil-alt"></i>
                           </button>
                           <button
                             className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDeleteClick(god)}
+                            onClick={() => setGodToDelete(god)}
                             title="Delete"
                           >
-                            <em className="fas fa-trash"></em>
+                            <i className="fas fa-trash"></i>
                           </button>
                         </td>
                       </tr>
                     ))
                   : status === "succeeded" && (
                       <tr>
-                        <td colSpan="5" className="text-center py-5 text-muted">
+                        <td colSpan="6" className="text-center py-5 text-muted">
                           No Gods Found.
                         </td>
                       </tr>
@@ -281,7 +284,7 @@ export default function FeatureManagementPage() {
                 <form onSubmit={handleSaveFeature} noValidate>
                   <div className="modal-header bg-primary text-white">
                     <h5 className="modal-title">
-                      <em className="fas fa-gopuram me-2"></em>
+                      <i className="fas fa-gopuram me-2"></i>
                       {editingGod ? `Edit: ${editingGod.name}` : "Add New God"}
                     </h5>
                     <button
@@ -292,40 +295,31 @@ export default function FeatureManagementPage() {
                   </div>
                   <div className="modal-body p-4">
                     <div className="mb-3">
-                      <label htmlFor="name" className="form-label fw-semibold">
-                        Name
+                      <label htmlFor="name" className="form-label fw-bold">
+                        Name <span className="text-danger">*</span>
                       </label>
-                      <div className="input-group">
-                        <span className="input-group-text">
-                          <em className="fas fa-user"></em>
-                        </span>
-                        <input
-                          type="text"
-                          className={`form-control ${
-                            errors.name ? "is-invalid" : ""
-                          }`}
-                          id="name"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleFormChange}
-                          placeholder="e.g., Ganesha, Shiva"
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        className={`form-control ${
+                          errors.name ? "is-invalid" : ""
+                        }`}
+                        id="name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleFormChange}
+                        placeholder="e.g., Ganesha, Shiva"
+                      />
                       {errors.name && (
-                        <div className="text-danger small mt-1">
-                          {errors.name}
-                        </div>
+                        <div className="invalid-feedback">{errors.name}</div>
                       )}
                     </div>
 
-                    <div className="mb-3">
-                      <label htmlFor="sort" className="form-label fw-semibold">
-                        Sort Order
-                      </label>
-                      <div className="input-group">
-                        <span className="input-group-text">
-                          <em className="fas fa-sort-numeric-down"></em>
-                        </span>
+                    <div className="row">
+                      {/* MODIFICATION: Placed Sort and Percentage side-by-side */}
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="sort" className="form-label fw-bold">
+                          Sort Order <span className="text-danger">*</span>
+                        </label>
                         <input
                           type="number"
                           className={`form-control ${
@@ -336,12 +330,35 @@ export default function FeatureManagementPage() {
                           value={formData.sort}
                           onChange={handleFormChange}
                         />
+                        {errors.sort && (
+                          <div className="invalid-feedback">{errors.sort}</div>
+                        )}
                       </div>
-                      {errors.sort && (
-                        <div className="text-danger small mt-1">
-                          {errors.sort}
-                        </div>
-                      )}
+                      <div className="col-md-6 mb-3">
+                        <label
+                          htmlFor="percentage"
+                          className="form-label fw-bold"
+                        >
+                          Percentage (%) <span className="text-danger">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          className={`form-control ${
+                            errors.percentage ? "is-invalid" : ""
+                          }`}
+                          id="percentage"
+                          name="percentage"
+                          value={formData.percentage}
+                          onChange={handleFormChange}
+                        />
+                        {errors.percentage && (
+                          <div className="invalid-feedback">
+                            {errors.percentage}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mb-3">
@@ -349,7 +366,7 @@ export default function FeatureManagementPage() {
                         label="Feature Image"
                         value={{ url: formData.featureimage, type: "image" }}
                         onChange={handleImageChange}
-                        isUploading={isUploading} // Pass uploading state to component
+                        isUploading={isUploading}
                       />
                       {errors.featureimage && (
                         <div className="text-danger small mt-1">
@@ -368,16 +385,13 @@ export default function FeatureManagementPage() {
                         checked={formData.isActive}
                         onChange={handleFormChange}
                       />
-                      <label
-                        className="form-check-label fw-semibold"
-                        htmlFor="isActive"
-                      >
+                      <label className="form-check-label" htmlFor="isActive">
                         Active Status
                       </label>
                     </div>
                   </div>
 
-                  <div className="modal-footer">
+                  <div className="modal-footer bg-light">
                     <button
                       type="button"
                       className="btn btn-secondary"
@@ -391,14 +405,14 @@ export default function FeatureManagementPage() {
                       className="btn btn-primary"
                       disabled={isSaving || isUploading}
                     >
-                      {isSaving ? (
+                      {isSaving || isUploading ? (
                         <>
                           <span className="spinner-border spinner-border-sm me-2"></span>
                           Saving...
                         </>
                       ) : (
                         <>
-                          <em className="fas fa-save me-2"></em> Save Changes
+                          <i className="fas fa-save me-2"></i> Save Changes
                         </>
                       )}
                     </button>
@@ -410,90 +424,19 @@ export default function FeatureManagementPage() {
         </>
       )}
 
-      {/* --- Delete Confirmation Modal --- */}
-      {/* --- Reusable Delete Confirmation Modal --- */}
       <ConfirmationModal
         show={godToDelete !== null}
         onClose={() => setGodToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
-        confirmText="Delete"
         isLoading={isSaving}
         confirmButtonVariant="danger"
       >
-        {/* This content is passed as 'children' to the modal */}
         <p className="fs-5 text-center">
           Are you sure you want to delete <br />
-          <strong className="text-danger">
-            {/* Use optional chaining `?.` for safety as the object might be null during fade-out */}
-            {godToDelete?.name}
-          </strong>
-          ?
+          <strong className="text-danger">{godToDelete?.name}</strong>?
         </p>
-        <p className="text-muted text-center">This action cannot be undone.</p>
       </ConfirmationModal>
-      {/* {godToDelete && (
-        <>
-          <div className="modal-backdrop fade show"></div>
-          <div
-            className="modal fade show"
-            style={{ display: "block" }}
-            tabIndex="-1"
-          >
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow-lg">
-                <div className="modal-header bg-danger text-white">
-                  <h5 className="modal-title">
-                    <em className="fas fa-exclamation-triangle me-2"></em>{" "}
-                    Confirm Deletion
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close btn-close-white"
-                    onClick={() => setGodToDelete(null)}
-                  ></button>
-                </div>
-                <div className="modal-body">
-                  <p className="fs-5 text-center">
-                    Are you sure you want to delete <br />
-                    <strong className="text-danger">{godToDelete.name}</strong>?
-                  </p>
-                  <p className="text-muted text-center">
-                    This action cannot be undone.
-                  </p>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setGodToDelete(null)}
-                    disabled={isSaving}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={confirmDelete}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2"></span>
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <em className="fas fa-trash-alt me-2"></em> Delete
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )} */}
     </>
   );
 }

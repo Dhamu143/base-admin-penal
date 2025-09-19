@@ -84,7 +84,7 @@ const DynamicImage = ({
                       controls
                       autoPlay
                       className="w-100"
-                      style={{ maxHeight: "80vh" }}
+                      style={{ maxHeight: "60vh" }}
                       key={finalSrc}
                     >
                       <source src={finalSrc} type="video/mp4" />
@@ -96,7 +96,7 @@ const DynamicImage = ({
                       alt={alt}
                       className="img-fluid rounded-full"
                       style={{
-                        maxHeight: "80vh",
+                        maxHeight: "60vh",
                         objectFit: "contain",
                       }}
                     />

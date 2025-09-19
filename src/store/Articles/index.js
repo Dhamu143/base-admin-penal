@@ -1,15 +1,7 @@
-// store/articles/index.js (or articlesSlice.js)
+// store/articles/index.js
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
-
-// --- Axios instance ---
-const api = axios.create({
-  baseURL: "https://setu.apnamandal.com/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+import httpService from "../../common/http.service";
 
 // --- Async Thunks ---
 
@@ -18,11 +10,12 @@ export const fetchArticles = createAsyncThunk(
   "articles/fetchArticles",
   async (_, { rejectWithValue }) => {
     try {
-      // NOTE: API endpoint is case-sensitive
-      const response = await api.get("/articles");
-      return response.data.data;
+      const response = await httpService.get("/articles");
+      return response.data?.data; // Expecting { data: [], pagination: {} }
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to fetch articles"
+      );
     }
   }
 );
@@ -32,24 +25,31 @@ export const addArticle = createAsyncThunk(
   "articles/addArticle",
   async (articleData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/Articles/create", articleData);
-      return response.data.data;
+      const response = await httpService.post(
+        "/articles/create",
+        {},
+        articleData
+      );
+      return response.data?.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to add article"
+      );
     }
   }
 );
 
-// Update an existing article
+// Update an article
 export const updateArticle = createAsyncThunk(
   "articles/updateArticle",
-  async (articleData, { rejectWithValue }) => {
+  async ({ id, ...data }, { rejectWithValue }) => {
     try {
-      const { id, ...data } = articleData;
-      const response = await api.put(`/articles/${id}`, data);
-      return response.data.data;
+      const response = await httpService.put(`/articles/${id}`, {}, data);
+      return response.data?.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to update article"
+      );
     }
   }
 );
@@ -59,19 +59,21 @@ export const deleteArticle = createAsyncThunk(
   "articles/deleteArticle",
   async (articleId, { rejectWithValue }) => {
     try {
-      await api.delete(`/articles/${articleId}`);
+      await httpService.delete(`/articles/${articleId}`);
       return articleId;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to delete article"
+      );
     }
   }
 );
 
-// --- Slice Definition ---
+// --- Slice ---
 const initialState = {
   list: [],
   pagination: {},
-  status: "idle", // 'idle', 'loading', 'succeeded', 'failed'
+  status: "idle",
   error: null,
 };
 
@@ -81,27 +83,27 @@ const articlesSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // --- Fetch ---
+      // Fetch
       .addCase(fetchArticles.pending, (state) => {
         state.status = "loading";
         state.error = null;
       })
       .addCase(fetchArticles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list = action.payload.data || [];
-        state.pagination = action.payload.pagination || {};
+        state.list = action.payload?.data || [];
+        state.pagination = action.payload?.pagination || {};
       })
       .addCase(fetchArticles.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload || "Failed to fetch articles";
+        state.error = action.payload;
       })
 
-      // --- Add ---
+      // Add
       .addCase(addArticle.fulfilled, (state, action) => {
         state.list.push(action.payload);
       })
 
-      // --- Update ---
+      // Update
       .addCase(updateArticle.fulfilled, (state, action) => {
         const index = state.list.findIndex(
           (article) => article._id === action.payload._id
@@ -111,7 +113,7 @@ const articlesSlice = createSlice({
         }
       })
 
-      // --- Delete ---
+      // Delete
       .addCase(deleteArticle.fulfilled, (state, action) => {
         state.list = state.list.filter(
           (article) => article._id !== action.payload

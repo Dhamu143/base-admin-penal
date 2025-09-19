@@ -57,6 +57,14 @@ import ArticleManagementPage from "./pages/ArticleManagementPage/index.js";
 import UserManagementPage from "./pages/UserManagementPage/index.js";
 import TempleManagementPage from "./pages/TempleManagementPage/index.js";
 import QuizManagement from "./pages/QuizManagement/index.js";
+import AartiFormPage from "./pages/AartiManagementPage/AartiFormPage.js";
+import FestivalFormPage from "./pages/FestivalManagementPage/FestivalFormPage.js";
+import MantraFormPage from "./pages/MantraManagementPage/MantraFormPage.js";
+import BhajanFormPage from "./pages/Bhajan/BhajanFormPage.js";
+import SlokFormPage from "./pages/SlokManagementPage/SlokFormPage.js";
+import ArticleFormPage from "./pages/ArticleManagementPage/ArticleFormPage.js";
+import TempleFormPage from "./pages/TempleManagementPage/TempleFormPage.js";
+import QuizFormPage from "./pages/QuizManagement/QuizFormPage.js";
 
 function App() {
   const navigate = useNavigate();
@@ -92,28 +100,43 @@ function App() {
       <Routes>
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
-
           <Route path="/godMaster" element={<GodMaster />} />
           <Route path="/aarti" element={<AartiManagementPage />} />
+          {/* Create New Aarti */}
+          <Route path="/aarti/new" element={<AartiFormPage />} />
+          {/* Edit Existing Aarti */}
+          <Route path="/aarti/:id/edit" element={<AartiFormPage />} />
           <Route path="/bhajan" element={<BhajanManagementPage />} />
+          <Route path="/bhajans/new" element={<BhajanFormPage />} />
+          <Route path="/bhajans/edit/:id" element={<BhajanFormPage />} />
           <Route path="/festival" element={<FestivalManagementPage />} />
+          <Route path="/festivals/new" element={<FestivalFormPage />} />
+          <Route path="/festivals/edit/:id" element={<FestivalFormPage />} />
           <Route path="/mantra" element={<MantraManagementPage />} />
+          <Route path="/mantras/new" element={<MantraFormPage />} />
+          <Route path="/mantras/edit/:id" element={<MantraFormPage />} />
           <Route path="/god" element={<GodManagementPage />} />
           <Route path="/sloka" element={<SlokManagementPage />} />
+          <Route path="/sloks/new" element={<SlokFormPage />} />
+          <Route path="/sloks/edit/:id" element={<SlokFormPage />} />
           <Route path="/ringtones" element={<RingtoneManagementPage />} />
           <Route path="/articles" element={<ArticleManagementPage />} />
+          <Route path="/articles/new" element={<ArticleFormPage />} />
+          <Route path="/articles/edit/:id" element={<ArticleFormPage />} />
           <Route path="/users" element={<UserManagementPage />} />
           <Route path="/temple" element={<TempleManagementPage />} />
+          <Route path="/temple/new" element={<TempleFormPage />} />
+          <Route path="/temple/edit/:id" element={<TempleFormPage />} />
+          \
           <Route path="/quiz" element={<QuizManagement />} />
-
-
+          <Route path="/quizzes/new" element={<QuizFormPage />} />
+          <Route path="/quizzes/edit/:id" element={<QuizFormPage />} />
           {/* 
           <Route path="/user" element={<User />} />
           <Route path="/user/:page" element={<User />} />
           <Route path="/user/new" element={<NewUser />} />
           <Route path="/user/edit/:id" element={<NewUser />} />
           <Route path="/user/details/:id" element={<UserDetails />} /> */}
-
           {/*        
           <Route path="/payment" element={<Paymentsetting />} />
           <Route path="/payment/:page" element={<Paymentsetting />} />

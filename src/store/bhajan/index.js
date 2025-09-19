@@ -1,73 +1,104 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios"; // Import axios directly here
+import { createSlice, createAsyncThunk, isAllOf } from "@reduxjs/toolkit";
+import { toast } from "react-toastify";
+import httpService from "../../common/http.service";
 
-const API_URL = "https://setu.apnamandal.com/api/bhajan";
-
-// Async Thunks now contain the axios calls directly
-export const fetchBhajans = createAsyncThunk("bhajans/fetchAll", async () => {
-  const response = await axios.get(API_URL);
-  return response.data.data.data; // Assumes this is the correct path to your array
-});
-
-export const addBhajan = createAsyncThunk("bhajans/add", async (bhajanData) => {
-  const response = await axios.post(`${API_URL}/create`, bhajanData);
-  return response.data.data;
-});
-
-export const updateBhajan = createAsyncThunk(
-  "bhajans/update",
-  async ({ id, ...bhajanData }) => {
-    const response = await axios.put(`${API_URL}/${id}`, bhajanData);
-    return response.data.data;
+// --- Async Thunks ---
+export const fetchBhajans = createAsyncThunk(
+  "bhajans/fetchAll",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await httpService.get("/bhajan");
+      return response.data?.data?.data;
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message);
+      return rejectWithValue(error?.response?.data?.message || error.message);
+    }
   }
 );
 
-export const deleteBhajan = createAsyncThunk("bhajans/delete", async (id) => {
-  await axios.delete(`${API_URL}/${id}`);
-  return id;
-});
+export const addBhajan = createAsyncThunk(
+  "bhajans/add",
+  async (bhajanData, { rejectWithValue }) => {
+    try {
+      const response = await httpService.post("/bhajan/create", {}, bhajanData);
+      // toast.success("Bhajan added successfully!");
+      return response.data?.data;
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message);
+      return rejectWithValue(error?.response?.data?.message || error.message);
+    }
+  }
+);
 
-const bhajanSlice = createSlice({
+export const updateBhajan = createAsyncThunk(
+  "bhajans/update",
+  async ({ id, ...bhajanData }, { rejectWithValue }) => {
+    try {
+      const response = await httpService.put(`/bhajan/${id}`, {}, bhajanData);
+      // toast.success("Bhajan updated successfully!");
+      return response.data?.data;
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message);
+      return rejectWithValue(error?.response?.data?.message || error.message);
+    }
+  }
+);
+
+export const deleteBhajan = createAsyncThunk(
+  "bhajans/delete",
+  async (id, { rejectWithValue }) => {
+    try {
+      await httpService.delete(`/bhajan/${id}`);
+      // toast.success("Bhajan deleted successfully!");
+      return id;
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message);
+      return rejectWithValue(error?.response?.data?.message || error.message);
+    }
+  }
+);
+
+// --- Slice ---
+export const bhajanSlice = createSlice({
   name: "bhajans",
   initialState: {
     list: [],
-    status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+    status: "idle",
     error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
-    builder
-      // Fetch
-      .addCase(fetchBhajans.pending, (state) => {
-        state.status = "loading";
-      })
-      .addCase(fetchBhajans.fulfilled, (state, action) => {
-        state.status = "succeeded";
-        state.list = action.payload;
-      })
-      .addCase(fetchBhajans.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.error.message;
-      })
-      // Add
-      .addCase(addBhajan.fulfilled, (state, action) => {
-        state.list.push(action.payload);
-      })
-      // Update
-      .addCase(updateBhajan.fulfilled, (state, action) => {
-        const index = state.list.findIndex(
-          (bhajan) => bhajan._id === action.payload._id
-        );
-        if (index !== -1) {
-          state.list[index] = action.payload;
-        }
-      })
-      // Delete
-      .addCase(deleteBhajan.fulfilled, (state, action) => {
-        state.list = state.list.filter(
-          (bhajan) => bhajan._id !== action.payload
-        );
-      });
+    // Fetch
+    builder.addMatcher(isAllOf(fetchBhajans.pending), (state) => {
+      state.status = "loading";
+      state.error = null;
+    });
+    builder.addMatcher(isAllOf(fetchBhajans.fulfilled), (state, action) => {
+      state.status = "succeeded";
+      state.list = action.payload;
+    });
+    builder.addMatcher(isAllOf(fetchBhajans.rejected), (state, action) => {
+      state.status = "failed";
+      state.error = action.payload;
+    });
+
+    // Add
+    builder.addMatcher(isAllOf(addBhajan.fulfilled), (state, action) => {
+      state.list.push(action.payload);
+    });
+
+    // Update
+    builder.addMatcher(isAllOf(updateBhajan.fulfilled), (state, action) => {
+      const index = state.list.findIndex(
+        (bhajan) => bhajan._id === action.payload._id
+      );
+      if (index !== -1) state.list[index] = action.payload;
+    });
+
+    // Delete
+    builder.addMatcher(isAllOf(deleteBhajan.fulfilled), (state, action) => {
+      state.list = state.list.filter((bhajan) => bhajan._id !== action.payload);
+    });
   },
 });
 
