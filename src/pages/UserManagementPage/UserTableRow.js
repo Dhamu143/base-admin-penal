@@ -11,8 +11,8 @@ export default function UserTableRow({ user, onDeleteClick }) {
           src={user.featureimage || "/img/user.jpg"}
           alt={user.firstName}
           style={{
-            width: "45px",
-            height: "45px",
+            // width: "45px",
+            // height: "45px",
             borderRadius: "50%",
             objectFit: "cover",
           }}

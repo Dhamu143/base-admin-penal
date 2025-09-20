@@ -14,7 +14,7 @@ function NewCaste() {
   const { id } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [gotraList, setGotraList] = useState([]);  
+  const [gotraList, setGotraList] = useState([]);
   const languages =
     useSelector((state) => state?.languageReducer?.language) || [];
   const nativeplace =
@@ -55,7 +55,7 @@ function NewCaste() {
         formik.setFieldValue("religion_id", selectedCaste?.religion?._id || "");
         formik.setFieldValue("significance", selectedCaste?.significance);
         formik.setFieldValue("gotra", selectedCaste?.gotra || []);
-          setGotraList(selectedCaste?.gotra || []);
+        setGotraList(selectedCaste?.gotra || []);
       }
     }
   }, [caste, id]);
@@ -91,7 +91,7 @@ function NewCaste() {
       };
       console.log(temp_obj);
       if (id) {
-        dispatch(appUpdateCaste({ ...temp_obj, id })); 
+        dispatch(appUpdateCaste({ ...temp_obj, id }));
       } else {
         // console.log(temp_obj, "temp_obj");
         dispatch(appCreateCaste(temp_obj));
@@ -104,7 +104,7 @@ function NewCaste() {
   const handleAddValue = () => {
     setGotraList([...gotraList, ""]);
   };
-  
+
   const handleRemove = (index) => {
     setGotraList(gotraList.filter((_, i) => i !== index));
   };
@@ -312,7 +312,7 @@ function NewCaste() {
                               fontWeight: "bold",
                               cursor: "pointer",
                               borderRadius: "4px",
-                              marginLeft:"5px"
+                              marginLeft: "5px",
                             }}
                           >
                             Remove
@@ -321,100 +321,6 @@ function NewCaste() {
                       ))}
                     </div>
                   </div>
-                  {/* <div className="form-group">
-                    <label>Gotra </label>
-                    <div>
-                      <div
-                        style={{
-                          // display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          marginBottom: "12px",
-                        }}
-                      >
-                        <input
-                          type="text"
-                          value={inputValue}
-                          onChange={handleInputChange}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddValue();
-                            }
-                          }}
-                          placeholder="Add Gotra"
-                          style={{
-                            flex: 1,
-                            padding: "8px",
-                            // borderRadius: "20px",
-                            border: "1px solid #ccc",
-                            outline: "none",
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleAddValue();
-                          }}
-                          style={{
-                            padding: "8px 16px",
-                            border: "none",
-                            fontWeight: "bold",
-                            cursor: "pointer",
-                            marginLeft:"4px"
-                          }}
-                        >
-                          Add
-                        </button>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "8px",
-                        }}
-                      >
-                        {gotravalues.map((value, index) => (
-                          <span
-                            key={index}
-                            style={{
-                              display: "column",
-                              alignItems: "center",
-                              background: "#f1f1f1",
-                              // borderRadius: "20px",
-                              padding: "6px 12px",
-                              fontSize: "15px",
-                            }}
-                          >
-                            {value}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveValue(value)}
-                              style={{
-                                marginLeft: "8px",
-                                background: "transparent",
-                                border: "none",
-                                color: "#dc3545",
-                                fontWeight: "bold",
-                                fontSize: "16px",
-                                cursor: "pointer",
-                                // borderRadius: "50%",
-                                width: "24px",
-                                height: "24px",
-                                 display: "column",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                              title="Remove"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div> */}
                 </div>
               </div>
               <div>

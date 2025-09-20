@@ -1,50 +1,40 @@
 // src/store/user/index.js
-
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: "https://setu.apnamandal.com/api",
-});
+import httpService from "../../common/http.service";
 
 // --- ASYNC THUNKS FOR THE /users ENDPOINT ---
 
+// Fetch all users
 export const fetchUsers = createAsyncThunk(
   "users/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/users");
-      // Return both the user list and the pagination info
-      console.log("users", response);
+      const response = await httpService.get("/users");
+      // Assuming API response: { data: { data: [...], pagination: {...} } }
       return {
         users: response.data.data.data,
         pagination: response.data.data.pagination,
       };
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not fetch users."
-      );
+      return rejectWithValue(err.message || "Could not fetch users.");
     }
   }
 );
 
+// Delete a user
 export const deleteUser = createAsyncThunk(
   "users/delete",
   async (id, { rejectWithValue }) => {
     try {
-      // Assuming the delete endpoint is /users/:id
-      await api.delete(`/users/${id}`);
-      return id; // Return the ID on success for filtering
+      await httpService.delete(`/users/${id}`);
+      return id; // Return deleted user's ID
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not delete user."
-      );
+      return rejectWithValue(err.message || "Could not delete user.");
     }
   }
 );
 
 // --- SLICE DEFINITION ---
-
 const userSlice = createSlice({
   name: "users",
   initialState: {
@@ -70,12 +60,12 @@ const userSlice = createSlice({
         state.status = "failed";
         state.error = action.payload;
       })
+
       // Delete User
       .addCase(deleteUser.fulfilled, (state, action) => {
         state.list = state.list.filter((user) => user._id !== action.payload);
       })
       .addCase(deleteUser.rejected, (state, action) => {
-        // You can set an error state here if needed
         console.error("Delete failed:", action.payload);
       });
   },

@@ -1,15 +1,9 @@
 // src/store/godmaster/godSlice.js
-// (Or wherever you prefer to keep your slices)
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
+import httpService from "../../common/http.service";
 
-// Create a single, reusable axios instance for this API
-const api = axios.create({
-  baseURL: "https://setu.apnamandal.com/api",
-});
-
-// --- ASYNC THUNKS (API Logic is defined here) ---
+// --- ASYNC THUNKS ---
 
 /**
  * Fetch all Gods
@@ -19,13 +13,11 @@ export const fetchGods = createAsyncThunk(
   "god/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get("/god");
-      // Extracts the list from: { success: true, data: { data: [...] } }
+      const response = await httpService.get("/god");
+      // API response: { success: true, data: { data: [...] } }
       return response.data.data.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not fetch gods."
-      );
+      return rejectWithValue(err.message || "Could not fetch gods.");
     }
   }
 );
@@ -38,13 +30,10 @@ export const addGod = createAsyncThunk(
   "god/add",
   async (godData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/god/create", godData);
-      // Extracts the new god object from: { success: true, data: { ... } }
-      return response.data.data;
+      const response = await httpService.post("/god/create", {}, godData);
+      return response.data.data; // new god object
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not add god."
-      );
+      return rejectWithValue(err.message || "Could not add god.");
     }
   }
 );
@@ -57,13 +46,10 @@ export const updateGod = createAsyncThunk(
   "god/update",
   async ({ id, ...godData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/god/${id}`, godData);
-      // Extracts the updated god object from: { success: true, data: { ... } }
-      return response.data.data;
+      const response = await httpService.put(`/god/${id}`, {}, godData);
+      return response.data.data; // updated god object
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not update god."
-      );
+      return rejectWithValue(err.message || "Could not update god.");
     }
   }
 );
@@ -76,19 +62,15 @@ export const deleteGod = createAsyncThunk(
   "god/delete",
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/god/${id}`);
-      // Return the ID on success for filtering in the reducer
-      return id;
+      await httpService.delete(`/god/${id}`);
+      return id; // return id to remove from state
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not delete god."
-      );
+      return rejectWithValue(err.message || "Could not delete god.");
     }
   }
 );
 
-// --- SLICE DEFINITION (State Management Logic) ---
-
+// --- SLICE ---
 const godSlice = createSlice({
   name: "god",
   initialState: {
@@ -99,7 +81,7 @@ const godSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // --- Fetch Gods Cases ---
+      // --- Fetch ---
       .addCase(fetchGods.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -113,51 +95,28 @@ const godSlice = createSlice({
         state.error = action.payload;
       })
 
-      // --- Add God Cases ---
-      .addCase(addGod.pending, (state) => {
-        state.status = "loading";
-      })
+      // --- Add ---
       .addCase(addGod.fulfilled, (state, action) => {
         state.status = "succeeded";
-        // Add the new god to the list for a fast UI update without a refetch
         state.list.push(action.payload);
       })
-      .addCase(addGod.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
-      })
 
-      // --- Update God Cases ---
-      .addCase(updateGod.pending, (state) => {
-        state.status = "loading";
-      })
+      // --- Update ---
       .addCase(updateGod.fulfilled, (state, action) => {
         state.status = "succeeded";
-        // Find the god in the list and update it for a fast UI update
         const index = state.list.findIndex(
           (god) => god._id === action.payload._id
         );
         if (index !== -1) {
-          state.list[index] = action.payload;
+          // Merge old object with updated fields
+          state.list[index] = { ...state.list[index], ...action.payload };
         }
       })
-      .addCase(updateGod.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
-      })
 
-      // --- Delete God Cases ---
-      .addCase(deleteGod.pending, (state) => {
-        state.status = "loading";
-      })
+      // --- Delete ---
       .addCase(deleteGod.fulfilled, (state, action) => {
         state.status = "succeeded";
-        // Immediately remove the item from the list for a fast UI update
         state.list = state.list.filter((god) => god._id !== action.payload);
-      })
-      .addCase(deleteGod.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
       });
   },
 });
