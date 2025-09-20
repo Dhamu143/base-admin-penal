@@ -4,12 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-import { fetchAartis, deleteAarti } from "../../store/aarti/index";
+import { fetchStories, deleteStory } from "../../store/story/index";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import { staticLanguages } from "../../constants/languages";
 import CustomPagination from "../../common/Pagination";
 
-// Options are defined outside the component for better performance
 const languageOptions = [
   { value: "", label: "All Languages" },
   ...staticLanguages.map((lang) => ({
@@ -18,54 +17,54 @@ const languageOptions = [
   })),
 ];
 
-export default function AartiManagementPage() {
+export default function StoryManagementPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { list: aartis, pagination, status, error } = useSelector(
-    (state) => state.aartis
+  const { list: stories, pagination, status, error } = useSelector(
+    (state) => state.story
   );
 
-  const [aartiToDelete, setAartiToDelete] = useState(null);
+  const [storyToDelete, setStoryToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [filters, setFilters] = useState({ language: "" });
 
   const itemsPerPage = 10;
 
-  const loadAartis = (params = {}) => {
-    dispatch(fetchAartis({ ...params, pageSize: itemsPerPage }))
+  const loadStories = (params = {}) => {
+    dispatch(fetchStories({ ...params, pageSize: itemsPerPage }))
       .unwrap()
-      .catch((err) => toast.error(err || "Failed to load aartis."));
+      .catch((err) => toast.error(err || "Failed to load stories."));
   };
 
   useEffect(() => {
-    loadAartis({ page: 1 });
+    loadStories({ page: 1 });
   }, [dispatch]);
 
   const handleLanguageChange = (selectedOption) => {
     const value = selectedOption ? selectedOption.value : "";
     setFilters((prev) => ({ ...prev, language: value }));
-    loadAartis({ language: value, page: 1 });
+    loadStories({ language: value, page: 1 });
   };
 
   const handleResetFilters = () => {
     setFilters({ language: "" });
-    loadAartis({ language: "", page: 1 });
+    loadStories({ language: "", page: 1 });
   };
 
   const handlePageChange = (newPage) =>
-    loadAartis({ ...filters, page: newPage });
+    loadStories({ ...filters, page: newPage });
 
   const confirmDelete = async () => {
-    if (!aartiToDelete) return;
+    if (!storyToDelete) return;
     setIsDeleting(true);
     try {
-      await dispatch(deleteAarti(aartiToDelete._id)).unwrap();
-      toast.success(`Aarti "${aartiToDelete.name}" deleted successfully.`);
-      loadAartis({ ...filters, page: pagination?.currentPage || 1 });
-      setAartiToDelete(null);
+      await dispatch(deleteStory(storyToDelete._id)).unwrap();
+      toast.success(`Story "${storyToDelete.name}" deleted successfully.`);
+      loadStories({ ...filters, page: pagination?.currentPage || 1 });
+      setStoryToDelete(null);
     } catch (err) {
-      toast.error(err || "Failed to delete aarti.");
+      toast.error(err || "Failed to delete story.");
     } finally {
       setIsDeleting(false);
     }
@@ -79,26 +78,24 @@ export default function AartiManagementPage() {
     <div className="card shadow-sm">
       {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">📜 Aarti Management</h4>
+        <h4 className="mb-0 text-primary-emphasis">📚 Story Management</h4>
         <button
           className="btn btn-labeled btn-success"
           type="button"
           style={{ fontSize: "17px" }}
-          onClick={() => navigate("/aarti/new")}
+          onClick={() => navigate("/story/new")}
         >
           <span className="btn-label me-2">
             <i className="fas fa-plus"></i>
           </span>
-          Add New Aarti
+          Add New Story
         </button>
       </div>
 
-      {/* ✨ --- MODIFIED FILTERS SECTION --- ✨ */}
+      {/* Filters Section */}
       <div className="card-body border-bottom">
         <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
           <div style={{ minWidth: "300px" }}>
-            {" "}
-            {/* Set a minimum width for the dropdown */}
             <label className="form-label fw-bold small mb-1">
               Filter by Language
             </label>
@@ -112,15 +109,11 @@ export default function AartiManagementPage() {
             />
           </div>
           <div className="mt-md-auto">
-            {" "}
-            {/* Aligns button to the bottom in flex view */}
             <button
               className="btn btn-outline-secondary w-100 ml-4"
               onClick={handleResetFilters}
             >
-              <span className="mr-2">
-                <i className="fas fa-undo me-2"></i>
-              </span>
+              <i className="fas fa-undo me-2"></i>
               Reset
             </button>
           </div>
@@ -131,10 +124,9 @@ export default function AartiManagementPage() {
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
-            {/* ... table head and body remain the same ... */}
             <thead className="table-light">
               <tr>
-                <th>Name</th>
+                <th>Title</th>
                 <th>Language</th>
                 <th>Description</th>
                 <th>Sort</th>
@@ -159,20 +151,20 @@ export default function AartiManagementPage() {
                   </td>
                 </tr>
               )}
-              {status === "succeeded" && aartis.length === 0 && (
+              {status === "succeeded" && stories.length === 0 && (
                 <tr>
                   <td colSpan="6" className="text-center text-muted py-5">
-                    No Aartis Found.
+                    No Stories Found.
                   </td>
                 </tr>
               )}
               {status === "succeeded" &&
-                aartis.map((aarti) => (
-                  <tr key={aarti._id}>
-                    <td className="fw-semibold">{aarti.name}</td>
+                stories.map((storyItem) => (
+                  <tr key={storyItem._id}>
+                    <td className="fw-semibold">{storyItem.name}</td>
                     <td>
                       {staticLanguages.find(
-                        (lang) => lang._id === aarti.language
+                        (lang) => lang._id === storyItem.language
                       )?.language || "N/A"}
                     </td>
                     <td
@@ -182,33 +174,33 @@ export default function AartiManagementPage() {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                       }}
-                      title={aarti.description.replace(/<[^>]+>/g, "")}
+                      title={storyItem.description.replace(/<[^>]+>/g, "")}
                     >
-                      {aarti.description.replace(/<[^>]+>/g, "")}
+                      {storyItem.description.replace(/<[^>]+>/g, "")}
                     </td>
-                    <td>{aarti.sort}</td>
+                    <td>{storyItem.sort}</td>
                     <td>
                       <span
                         className={`badge fs-6 ${
-                          aarti.isActive
+                          storyItem.isActive
                             ? "text-bg-success"
                             : "text-bg-secondary"
                         }`}
                       >
-                        {aarti.isActive ? "Active" : "Inactive"}
+                        {storyItem.isActive ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary me-2"
-                        onClick={() => navigate(`/aarti/${aarti._id}/edit`)}
+                        onClick={() => navigate(`/story/${storyItem._id}/edit`)}
                         title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
                       </button>
                       <button
                         className="btn btn-sm btn-outline-danger"
-                        onClick={() => setAartiToDelete(aarti)}
+                        onClick={() => setStoryToDelete(storyItem)}
                         title="Delete"
                       >
                         <i className="fas fa-trash"></i>
@@ -236,8 +228,8 @@ export default function AartiManagementPage() {
 
       {/* Delete Modal */}
       <ConfirmationModal
-        show={aartiToDelete !== null}
-        onClose={() => setAartiToDelete(null)}
+        show={storyToDelete !== null}
+        onClose={() => setStoryToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
         confirmText="Delete"
@@ -246,7 +238,7 @@ export default function AartiManagementPage() {
       >
         <p className="fs-5 text-center">
           Are you sure you want to delete <br />
-          <strong className="text-danger">{aartiToDelete?.name}</strong>?
+          <strong className="text-danger">{storyToDelete?.name}</strong>?
         </p>
         <p className="text-muted text-center">This action cannot be undone.</p>
       </ConfirmationModal>

@@ -43,7 +43,9 @@ import articles from "./Articles";
 import userReducer from "./user2";
 import temple from "./temple";
 import quizReducer from "./quiz";
-
+import news from "./news";
+import story from "./story";
+import stuti from "./stuti";
 export const store = configureStore({
   reducer: {
     auth,
@@ -87,6 +89,9 @@ export const store = configureStore({
     users: userReducer,
     temple,
     quizzes: quizReducer,
+    news,
+    story,
+    stuti,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -6,8 +6,7 @@ import Select from "react-select";
 
 // --- Redux Actions ---
 import { fetchQuizzes, addQuiz, updateQuiz } from "../../store/quiz";
-import { fetchGods } from "../../store/godmaster";
-import { fetchGods as fetchgods } from "../../store/god";
+import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 
 export default function QuizFormPage() {
@@ -16,9 +15,12 @@ export default function QuizFormPage() {
   const { id } = useParams();
 
   // --- Redux State ---
-  const { list: quizzes, status } = useSelector((state) => state.quizzes);
-  const { list: godMasterList } = useSelector((state) => state.gods);
-  const { list: GodList } = useSelector((state) => state.God);
+  const { list: quizzes, status: quizStatus } = useSelector(
+    (state) => state.quizzes
+  );
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
   // --- Component State ---
   const [formData, setFormData] = useState({
@@ -30,20 +32,25 @@ export default function QuizFormPage() {
     correctanswer: "",
     sort: "",
     language: "",
-    master: "",
     god: "",
     isActive: true,
   });
+
+  const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
   // --- Effects ---
-  useEffect(() => {
-    if (status === "idle") dispatch(fetchQuizzes());
-    dispatch(fetchGods());
-    dispatch(fetchgods());
 
-    if (id && quizzes.length > 0) {
+  // Fetches initial data reliably
+  useEffect(() => {
+    if (quizStatus === "idle") dispatch(fetchQuizzes());
+    if (godStatus === "idle") dispatch(fetchAllGods());
+  }, [quizStatus, godStatus, dispatch]);
+
+  // Populates the form for editing and filters the god list simultaneously
+  useEffect(() => {
+    if (id && quizzes.length > 0 && allGods.length > 0) {
       const quiz = quizzes.find((q) => q._id === id);
       if (quiz) {
         setFormData({
@@ -54,14 +61,16 @@ export default function QuizFormPage() {
           option4: quiz.options?.[3] || "",
           correctanswer: quiz.correctanswer || "",
           sort: quiz.sort || 0,
-          language: quiz.language || "",
-          master: quiz.master || "",
-          god: quiz.god || "",
+          language: quiz.language,
+          god: quiz.god?._id || quiz.god,
           isActive: quiz.isActive !== undefined ? quiz.isActive : true,
         });
+
+        const godsByLang = allGods.filter((g) => g.language === quiz.language);
+        setFilteredGods(godsByLang);
       }
     }
-  }, [id, quizzes, dispatch, status]);
+  }, [id, quizzes, allGods]);
 
   // --- Validation ---
   const validateForm = () => {
@@ -70,23 +79,18 @@ export default function QuizFormPage() {
       question,
       option1,
       option2,
-      option3,
-      option4,
       correctanswer,
       language,
-      master,
       god,
       sort,
     } = formData;
     if (!question.trim()) newErrors.question = "Question is required.";
     if (!option1.trim()) newErrors.option1 = "Option 1 is required.";
     if (!option2.trim()) newErrors.option2 = "Option 2 is required.";
-    if (!option3.trim()) newErrors.option3 = "Option 3 is required.";
-    if (!option4.trim()) newErrors.option4 = "Option 4 is required.";
+    // Options 3 and 4 are now optional
     if (!correctanswer)
       newErrors.correctanswer = "Please select a correct answer.";
     if (!language) newErrors.language = "Language is required.";
-    if (!master) newErrors.master = "Master is required.";
     if (!god) newErrors.god = "God is required.";
     if (sort === "" || isNaN(sort))
       newErrors.sort = "Sort order must be a number.";
@@ -108,17 +112,21 @@ export default function QuizFormPage() {
         formData.option2,
         formData.option3,
         formData.option4,
-      ],
+      ].filter((opt) => opt && opt.trim() !== ""), // Filter out empty strings
       correctanswer: formData.correctanswer,
       sort: Number(formData.sort),
       language: formData.language,
-      master: formData.master,
       god: formData.god,
       isActive: formData.isActive,
     };
 
     try {
-      const action = id ? updateQuiz({ id, ...payload }) : addQuiz(payload);
+      // ✨ THIS IS THE FIX ✨
+      // The updateQuiz action from your slice expects the payload to be inside a 'data' object.
+      const action = id
+        ? updateQuiz({ id, data: payload }) // Correctly wrap the payload in 'data' for updates
+        : addQuiz(payload); // addQuiz does not need the 'data' wrapper based on your slice
+
       await dispatch(action).unwrap();
       toast.success(
         id ? "Quiz updated successfully!" : "Quiz added successfully!"
@@ -136,7 +144,6 @@ export default function QuizFormPage() {
     const newValue = type === "checkbox" ? checked : value;
     setFormData((prev) => {
       const updated = { ...prev, [name]: newValue };
-      // If an option is updated, check if the correct answer is still valid
       if (
         name.startsWith("option") &&
         updated.correctanswer &&
@@ -147,21 +154,46 @@ export default function QuizFormPage() {
           updated.option4,
         ].includes(updated.correctanswer)
       ) {
-        updated.correctanswer = ""; // Reset if no longer valid
+        updated.correctanswer = "";
       }
       return updated;
     });
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
-  // Create a dynamic list of options for the correct answer dropdown
+  const handleSelectChange = (fieldName, option) => {
+    const value = option ? option.value : "";
+    setFormData((prev) => {
+      const newState = { ...prev, [fieldName]: value };
+      if (fieldName === "language") {
+        newState.god = ""; // Reset god selection
+        if (Array.isArray(allGods)) {
+          const godsByLang = allGods.filter((g) => g.language === value);
+          setFilteredGods(godsByLang);
+        }
+      }
+      return newState;
+    });
+  };
+
+  // Helper function for react-select
+  const getSelectedOption = (options, id) => {
+    if (!id || !options) return null;
+    return options.find((item) => item.value === id) || null;
+  };
+
+  const languageOptions = staticLanguages.map((l) => ({
+    value: l._id,
+    label: `${l.nativeName} (${l.language})`,
+  }));
+  const godOptions = filteredGods.map((g) => ({ value: g._id, label: g.name }));
   const answerOptions = [
     formData.option1,
     formData.option2,
     formData.option3,
     formData.option4,
   ]
-    .filter((opt) => opt.trim() !== "")
+    .filter((opt) => opt && opt.trim() !== "")
     .map((opt) => ({ value: opt, label: opt }));
 
   return (
@@ -243,9 +275,7 @@ export default function QuizFormPage() {
                 )}
               </div>
               <div className="col-md-6 mb-3">
-                <label className="form-label fw-bold">
-                  Option 3 <span className="text-danger">*</span>
-                </label>
+                <label className="form-label fw-bold">Option 3</label>
                 <input
                   type="text"
                   name="option3"
@@ -260,9 +290,7 @@ export default function QuizFormPage() {
                 )}
               </div>
               <div className="col-md-6 mb-3">
-                <label className="form-label fw-bold">
-                  Option 4 <span className="text-danger">*</span>
-                </label>
+                <label className="form-label fw-bold">Option 4</label>
                 <input
                   type="text"
                   name="option4"
@@ -283,14 +311,8 @@ export default function QuizFormPage() {
               </label>
               <Select
                 options={answerOptions}
-                value={
-                  answerOptions.find(
-                    (opt) => opt.value === formData.correctanswer
-                  ) || null
-                }
-                onChange={(opt) =>
-                  setFormData((p) => ({ ...p, correctanswer: opt.value }))
-                }
+                value={getSelectedOption(answerOptions, formData.correctanswer)}
+                onChange={(opt) => handleSelectChange("correctanswer", opt)}
                 isDisabled={answerOptions.length < 1}
                 placeholder="Select from the options above..."
               />
@@ -305,24 +327,15 @@ export default function QuizFormPage() {
             {/* --- Section 2: Settings --- */}
             <h5 className="mb-4 text-primary">Categorization & Settings</h5>
             <div className="row">
-              <div className="col-md-4 mb-3">
+              <div className="col-md-6 mb-3">
                 <label className="form-label fw-bold">
                   Language <span className="text-danger">*</span>
                 </label>
                 <Select
-                  options={staticLanguages.map((l) => ({
-                    value: l._id,
-                    label: l.nativeName,
-                  }))}
-                  value={
-                    staticLanguages
-                      .filter((l) => l._id === formData.language)
-                      .map((l) => ({ value: l._id, label: l.nativeName }))[0] ||
-                    null
-                  }
-                  onChange={(opt) =>
-                    setFormData((p) => ({ ...p, language: opt.value }))
-                  }
+                  options={languageOptions}
+                  value={getSelectedOption(languageOptions, formData.language)}
+                  onChange={(option) => handleSelectChange("language", option)}
+                  placeholder="Select Language..."
                 />
                 {errors.language && (
                   <div className="text-danger small mt-1">
@@ -330,46 +343,21 @@ export default function QuizFormPage() {
                   </div>
                 )}
               </div>
-              <div className="col-md-4 mb-3">
-                <label className="form-label fw-bold">
-                  Master <span className="text-danger">*</span>
-                </label>
-                <Select
-                  options={godMasterList.map((g) => ({
-                    value: g._id,
-                    label: g.name,
-                  }))}
-                  value={
-                    godMasterList
-                      .filter((g) => g._id === formData.master)
-                      .map((g) => ({ value: g._id, label: g.name }))[0] || null
-                  }
-                  onChange={(opt) =>
-                    setFormData((p) => ({ ...p, master: opt.value }))
-                  }
-                />
-                {errors.master && (
-                  <div className="text-danger small mt-1">{errors.master}</div>
-                )}
-              </div>
-              <div className="col-md-4 mb-3">
+              <div className="col-md-6 mb-3">
                 <label className="form-label fw-bold">
                   God <span className="text-danger">*</span>
                 </label>
                 <Select
-                  options={GodList.map((g) => ({
-                    value: g._id,
-                    label: g.name,
-                  }))}
-                  value={
-                    GodList.filter((g) => g._id === formData.god).map((g) => ({
-                      value: g._id,
-                      label: g.name,
-                    }))[0] || null
+                  options={godOptions}
+                  value={getSelectedOption(godOptions, formData.god)}
+                  onChange={(option) => handleSelectChange("god", option)}
+                  placeholder={
+                    formData.language
+                      ? "Select God..."
+                      : "Select Language first..."
                   }
-                  onChange={(opt) =>
-                    setFormData((p) => ({ ...p, god: opt.value }))
-                  }
+                  isDisabled={!formData.language}
+                  isLoading={godStatus === "loading"}
                 />
                 {errors.god && (
                   <div className="text-danger small mt-1">{errors.god}</div>
@@ -407,7 +395,7 @@ export default function QuizFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-2"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/quiz")}
                 disabled={isSaving}
               >
@@ -423,7 +411,6 @@ export default function QuizFormPage() {
                 ) : (
                   <i className="fas fa-save me-2"></i>
                 )}
-                {"  "}
                 {id ? "Update Quiz" : "Create Quiz"}
               </button>
             </div>

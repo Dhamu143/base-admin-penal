@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom"; // MODIFICATION: For navigation
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import Select from "react-select"; // Import react-select
 
 // --- Redux Actions ---
 import { fetchArticles, deleteArticle } from "../../store/Articles/index";
-import { fetchGods as fetchgods } from "../../store/god/index"; // Needed for getGodNameById
+import { fetchGods as fetchgods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
@@ -21,24 +22,41 @@ const styles = `
   }
 `;
 
-// MODIFICATION: Renamed component for clarity
+// Prepare options for react-select
+const languageOptions = [
+  { value: "", label: "All Languages" },
+  ...staticLanguages.map((lang) => ({
+    value: lang._id,
+    label: `${lang.language} (${lang.nativeName})`,
+  })),
+];
+
 export default function ArticleListPage() {
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // MODIFICATION: Initialize navigate hook
+  const navigate = useNavigate();
 
   const { list: articles, status, error } = useSelector(
     (state) => state.articles
   );
-  // MODIFICATION: Fetch 'Gods' list to display names in the table
   const { list: Gods, status: GodStatus } = useSelector((state) => state.God);
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState(null);
+  // --- NEW: State for filters ---
+  const [filters, setFilters] = useState({ language: "" });
 
   useEffect(() => {
     if (status === "idle") dispatch(fetchArticles());
     if (GodStatus === "idle") dispatch(fetchgods());
   }, [status, GodStatus, dispatch]);
+
+  // --- NEW: Client-side filtering using useMemo for performance ---
+  const filteredArticles = useMemo(() => {
+    if (!filters.language) {
+      return articles; // No filter, return all articles
+    }
+    return articles.filter((article) => article.language === filters.language);
+  }, [articles, filters.language]);
 
   const getLanguageNameById = (langId) => {
     const language = staticLanguages.find((lang) => lang._id === langId);
@@ -48,6 +66,16 @@ export default function ArticleListPage() {
   const getGodNameById = (id) => {
     const god = Gods.find((g) => g._id === id);
     return god ? god.name : "N/A";
+  };
+
+  // --- NEW: Handlers for the filter ---
+  const handleLanguageChange = (selectedOption) => {
+    const value = selectedOption ? selectedOption.value : "";
+    setFilters((prev) => ({ ...prev, language: value }));
+  };
+
+  const handleResetFilters = () => {
+    setFilters({ language: "" });
   };
 
   const confirmDelete = async () => {
@@ -64,6 +92,11 @@ export default function ArticleListPage() {
     }
   };
 
+  // Find the currently selected language object for react-select's value prop
+  const selectedLanguage = languageOptions.find(
+    (opt) => opt.value === filters.language
+  );
+
   return (
     <>
       <style>{styles}</style>
@@ -76,12 +109,38 @@ export default function ArticleListPage() {
             style={{ fontSize: "17px" }}
             onClick={() => navigate("/articles/new")}
           >
-            <span className="btn-label">
+            <span className="btn-label me-2">
               <em className="fas fa-plus"></em>
             </span>
             Add New Article
           </button>
         </div>
+
+        {/* --- NEW: Filter Section --- */}
+        <div className="card-body border-bottom">
+          <div className="row g-3 align-items-center">
+            <div style={{ minWidth: "300px" }}>
+              <div className="col-md-10">
+                <Select
+                  placeholder="Filter by language..."
+                  options={languageOptions}
+                  value={selectedLanguage}
+                  onChange={handleLanguageChange}
+                  isClearable={true}
+                />
+              </div>
+            </div>
+            <div className="col-md-2">
+              <button
+                className="btn btn-secondary w-100"
+                onClick={handleResetFilters}
+              >
+                <i className="fas fa-undo me-2"></i>Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="card-body">
           <div className="table-responsive">
             <table className="table table-hover align-middle">
@@ -112,8 +171,9 @@ export default function ArticleListPage() {
                     </td>
                   </tr>
                 )}
-                {status === "succeeded" && articles.length > 0
-                  ? articles.map((article) => (
+                {/* --- MODIFIED: Map over filteredArticles --- */}
+                {status === "succeeded" && filteredArticles.length > 0
+                  ? filteredArticles.map((article) => (
                       <tr key={article._id}>
                         <td className="fw-bold">
                           <span className="truncate-text" title={article.title}>
@@ -162,9 +222,8 @@ export default function ArticleListPage() {
                           </span>
                         </td>
                         <td className="text-center">
-                          {/* MODIFICATION: Edit button navigates to the form page with the Article's ID */}
                           <button
-                            className="btn btn-sm btn-outline-secondary me-2 mr-2"
+                            className="btn btn-sm btn-outline-primary me-2"
                             onClick={() =>
                               navigate(`/articles/edit/${article._id}`)
                             }

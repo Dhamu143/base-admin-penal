@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
+import { toast } from "react-toastify";
 
 // --- Actions ---
 import {
@@ -10,8 +11,7 @@ import {
   addMantra,
   updateMantra,
 } from "../../store/mantra/index";
-import { fetchGods } from "../../store/godmaster/index";
-import { fetchGods as fetchOtherGods } from "../../store/god/index";
+import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
 export default function MantraFormPage() {
@@ -20,52 +20,68 @@ export default function MantraFormPage() {
   const { id } = useParams();
 
   // --- Redux State ---
-  const { list: mantras, status } = useSelector((state) => state.mantras);
-  const { list: gods } = useSelector((state) => state.gods);
-  const { list: Gods } = useSelector((state) => state.God);
+  const { list: mantras, status: mantraStatus } = useSelector(
+    (state) => state.mantras
+  );
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
   // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: 0,
     isActive: true,
-    master: "",
-    god: "", // Changed from 'Gods' for consistency
+    god: "",
     description: "",
     language: "",
   });
+
+  const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
   // --- Effects ---
-  useEffect(() => {
-    // Fetch data if it's not already loaded (handles page refresh)
-    if (status === "idle") dispatch(fetchMantras());
-    dispatch(fetchGods());
-    dispatch(fetchOtherGods());
 
-    // If an ID is present in the URL, find the mantra and populate the form
+  // Effect for fetching initial data
+  useEffect(() => {
+    if (mantraStatus === "idle") dispatch(fetchMantras());
+    if (godStatus === "idle") dispatch(fetchAllGods());
+  }, [mantraStatus, godStatus, dispatch]);
+
+  // Effect for populating form data when editing
+  useEffect(() => {
     if (id && mantras.length > 0) {
       const mantra = mantras.find((m) => m._id === id);
       if (mantra) {
         setFormData({
-          name: mantra.name,
-          sort: mantra.sort,
+          name: mantra.name || "",
+          sort: mantra.sort || 0,
           isActive: mantra.isActive,
-          master: mantra.master?._id || mantra.master,
-          god: mantra.Gods?._id || mantra.Gods || mantra.god, // Handle both 'Gods' and 'god'
-          description: mantra.description,
+          god: mantra.god?._id || mantra.god,
+          description: mantra.description || "",
           language: mantra.language,
         });
       }
     }
-  }, [id, mantras, dispatch, status]);
+  }, [id, mantras]);
+
+  // Effect to filter the God list based on selected language
+  useEffect(() => {
+    if (formData.language && allGods.length > 0) {
+      const godsByLang = allGods.filter(
+        (g) => g.language === formData.language
+      );
+      setFilteredGods(godsByLang);
+    } else {
+      setFilteredGods([]);
+    }
+  }, [formData.language, allGods]);
 
   // --- Validation ---
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Mantra name is required.";
-    if (!formData.master) newErrors.master = "Please select a God Master.";
     if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.language) newErrors.language = "Please select a language.";
     if (!formData.description.trim())
@@ -76,20 +92,24 @@ export default function MantraFormPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- Form Submission ---
+  // --- Event Handlers ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSaving(true);
     try {
-      const action = id
-        ? updateMantra({ id, ...formData })
-        : addMantra(formData);
+      const payload = { ...formData };
+      const action = id ? updateMantra({ id, ...payload }) : addMantra(payload);
+
       await dispatch(action).unwrap();
-      navigate("/mantra"); // Navigate back to the list page on success
+      toast.success(
+        id ? "Mantra updated successfully!" : "Mantra added successfully!"
+      );
+      navigate("/mantra");
     } catch (err) {
       console.error("Failed to save mantra:", err);
+      toast.error(err?.message || "An error occurred while saving.");
     } finally {
       setIsSaving(false);
     }
@@ -102,6 +122,18 @@ export default function MantraFormPage() {
       [name]: type === "checkbox" ? checked : value,
     }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+  };
+
+  // Helper function for react-select value
+  const getSelectedOption = (list, id) => {
+    if (!id || !list) return null;
+    const selected = list.find((item) => item._id === id);
+    return selected
+      ? {
+          value: selected._id,
+          label: selected.name || selected.nativeName,
+        }
+      : null;
   };
 
   return (
@@ -149,48 +181,7 @@ export default function MantraFormPage() {
                     <div className="invalid-feedback">{errors.name}</div>
                   )}
                 </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    God (Master) <span className="text-danger">*</span>
-                  </label>
-                  <Select
-                    options={gods.map((g) => ({ value: g._id, label: g.name }))}
-                    value={
-                      gods
-                        .filter((g) => g._id === formData.master)
-                        .map((g) => ({ value: g._id, label: g.name }))[0] ||
-                      null
-                    }
-                    onChange={(opt) =>
-                      setFormData((prev) => ({ ...prev, master: opt.value }))
-                    }
-                  />
-                  {errors.master && (
-                    <div className="text-danger small mt-1">
-                      {errors.master}
-                    </div>
-                  )}
-                </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    God <span className="text-danger">*</span>
-                  </label>
-                  <Select
-                    options={Gods.map((g) => ({ value: g._id, label: g.name }))}
-                    value={
-                      Gods.filter((g) => g._id === formData.god).map((g) => ({
-                        value: g._id,
-                        label: g.name,
-                      }))[0] || null
-                    }
-                    onChange={(opt) =>
-                      setFormData((prev) => ({ ...prev, god: opt.value }))
-                    }
-                  />
-                  {errors.god && (
-                    <div className="text-danger small mt-1">{errors.god}</div>
-                  )}
-                </div>
+
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Language <span className="text-danger">*</span>
@@ -198,24 +189,53 @@ export default function MantraFormPage() {
                   <Select
                     options={staticLanguages.map((l) => ({
                       value: l._id,
-                      label: l.nativeName,
+                      label: `${l.nativeName} (${l.language})`,
                     }))}
-                    value={
-                      staticLanguages
-                        .filter((l) => l._id === formData.language)
-                        .map((l) => ({
-                          value: l._id,
-                          label: l.nativeName,
-                        }))[0] || null
+                    value={getSelectedOption(
+                      staticLanguages,
+                      formData.language
+                    )}
+                    onChange={(option) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        language: option?.value || "",
+                        god: "", // Reset god selection when language changes
+                      }))
                     }
-                    onChange={(opt) =>
-                      setFormData((prev) => ({ ...prev, language: opt.value }))
-                    }
+                    placeholder="Select Language..."
                   />
                   {errors.language && (
                     <div className="text-danger small mt-1">
                       {errors.language}
                     </div>
+                  )}
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    God <span className="text-danger">*</span>
+                  </label>
+                  <Select
+                    options={filteredGods.map((g) => ({
+                      value: g._id,
+                      label: g.name,
+                    }))}
+                    value={getSelectedOption(filteredGods, formData.god)}
+                    onChange={(option) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        god: option?.value || "",
+                      }))
+                    }
+                    placeholder={
+                      formData.language
+                        ? "Select God..."
+                        : "Select Language first..."
+                    }
+                    isDisabled={!formData.language}
+                  />
+                  {errors.god && (
+                    <div className="text-danger small mt-1">{errors.god}</div>
                   )}
                 </div>
               </div>
@@ -277,7 +297,7 @@ export default function MantraFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-2"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/mantra")}
                 disabled={isSaving}
               >
@@ -293,7 +313,6 @@ export default function MantraFormPage() {
                 ) : (
                   <i className="fas fa-save me-2"></i>
                 )}
-                {"  "}
                 {id ? "Update Mantra" : "Create Mantra"}
               </button>
             </div>

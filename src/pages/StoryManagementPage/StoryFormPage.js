@@ -3,19 +3,19 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
-import { fetchAartis, addAarti, updateAarti } from "../../store/aarti/index";
+import { fetchStories, addStory, updateStory } from "../../store/story/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
-export default function AartiFormPage() {
+export default function StoryFormPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { list: aartis, status: aartisStatus } = useSelector(
-    (state) => state.aartis
+  const { list: stories, status: storiesStatus } = useSelector(
+    (state) => state.story
   );
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+  const { masterList: allMasters, masterStatus } = useSelector(
     (state) => state.God
   );
 
@@ -24,44 +24,44 @@ export default function AartiFormPage() {
     sort: "",
     isActive: true,
     language: "",
-    god: "",
+    master: "",
     description: "",
   });
 
-  const [filteredGods, setFilteredGods] = useState([]);
+  const [filteredMasters, setFilteredMasters] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (aartisStatus === "idle") dispatch(fetchAartis());
-    if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [aartisStatus, godStatus, dispatch]);
+    if (storiesStatus === "idle") dispatch(fetchStories());
+    if (masterStatus === "idle") dispatch(fetchAllGods());
+  }, [storiesStatus, masterStatus, dispatch]);
 
   useEffect(() => {
-    if (id && aartis.length > 0) {
-      const aarti = aartis.find((a) => a._id === id);
-      if (aarti) {
+    if (id && stories.length > 0) {
+      const storyItem = stories.find((s) => s._id === id);
+      if (storyItem) {
         setFormData({
-          name: aarti.name,
-          sort: aarti.sort,
-          isActive: aarti.isActive,
-          language: aarti.language,
-          god: aarti.god?._id || aarti.god,
-          description: aarti.description,
+          name: storyItem.name,
+          sort: storyItem.sort,
+          isActive: storyItem.isActive,
+          language: storyItem.language,
+          master: storyItem.master?._id || storyItem.master,
+          description: storyItem.description,
         });
       }
     }
-  }, [id, aartis]);
+  }, [id, stories]);
 
   useEffect(() => {
-    if (formData.language && allGods.length > 0) {
-      setFilteredGods(
-        allGods.filter((god) => god.language === formData.language)
+    if (formData.language && allMasters.length > 0) {
+      setFilteredMasters(
+        allMasters.filter((master) => master.language === formData.language)
       );
     } else {
-      setFilteredGods([]);
+      setFilteredMasters([]);
     }
-  }, [formData.language, allGods]);
+  }, [formData.language, allMasters]);
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -73,9 +73,9 @@ export default function AartiFormPage() {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = "Aarti name is required.";
+    if (!formData.name.trim()) newErrors.name = "Story title is required.";
     if (!formData.language) newErrors.language = "Please select a language.";
-    if (!formData.god) newErrors.god = "Please select a God.";
+    if (!formData.master) newErrors.master = "Please select a Master.";
     if (!formData.description.trim())
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(formData.sort))
@@ -91,11 +91,11 @@ export default function AartiFormPage() {
     setIsSaving(true);
     try {
       if (id) {
-        await dispatch(updateAarti({ id, ...formData })).unwrap();
+        await dispatch(updateStory({ id, ...formData })).unwrap();
       } else {
-        await dispatch(addAarti(formData)).unwrap();
+        await dispatch(addStory(formData)).unwrap();
       }
-      navigate("/aarti");
+      navigate("/story");
     } catch (err) {
       console.error(err);
     } finally {
@@ -119,17 +119,17 @@ export default function AartiFormPage() {
         <div>
           <span
             style={{ cursor: "pointer", color: "#0d6efd" }}
-            onClick={() => navigate("/aarti")}
+            onClick={() => navigate("/story")}
           >
-            Aarti
+            Story
           </span>
           {" / "}
-          <span>{id ? "Edit Aarti" : "New Aarti"}</span>
+          <span>{id ? "Edit Story" : "New Story"}</span>
         </div>
         <button
           type="button"
           className="btn btn-outline-primary btn-sm"
-          onClick={() => navigate("/aarti")}
+          onClick={() => navigate("/story")}
         >
           <i className="fas fa-arrow-left me-2"></i> Back
         </button>
@@ -140,12 +140,12 @@ export default function AartiFormPage() {
           <div className="row">
             {/* Left Column */}
             <div className="col-md-6">
-              <h5 className="mb-3 text-primary">Aarti Details</h5>
+              <h5 className="mb-3 text-primary">Story Details</h5>
 
-              {/* Name */}
+              {/* Name/Title */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
-                  Aarti Name <span className="text-danger">*</span>
+                  Story Title <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
@@ -153,7 +153,7 @@ export default function AartiFormPage() {
                   className={`form-control ${errors.name ? "is-invalid" : ""}`}
                   value={formData.name}
                   onChange={handleFormChange}
-                  placeholder="e.g., Jai Ganesha Deva"
+                  placeholder="Enter story title"
                 />
                 {errors.name && (
                   <div className="invalid-feedback">{errors.name}</div>
@@ -175,7 +175,7 @@ export default function AartiFormPage() {
                     setFormData((prev) => ({
                       ...prev,
                       language: option?.value || "",
-                      god: "",
+                      master: "",
                     }))
                   }
                   placeholder="Select Language..."
@@ -187,32 +187,34 @@ export default function AartiFormPage() {
                 )}
               </div>
 
-              {/* God */}
+              {/* Master */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
-                  God <span className="text-danger">*</span>
+                  Master <span className="text-danger">*</span>
                 </label>
                 <Select
-                  options={filteredGods.map((god) => ({
-                    value: god._id,
-                    label: god.name,
+                  options={filteredMasters.map((master) => ({
+                    value: master._id,
+                    label: master.name,
                   }))}
-                  value={getSelectedOption(filteredGods, formData.god)}
+                  value={getSelectedOption(filteredMasters, formData.master)}
                   onChange={(option) =>
                     setFormData((prev) => ({
                       ...prev,
-                      god: option?.value || "",
+                      master: option?.value || "",
                     }))
                   }
                   placeholder={
                     formData.language
-                      ? "Select God..."
+                      ? "Select Master..."
                       : "Select Language first..."
                   }
-                  isDisabled={!formData.language || filteredGods.length === 0}
+                  isDisabled={
+                    !formData.language || filteredMasters.length === 0
+                  }
                 />
-                {errors.god && (
-                  <div className="text-danger small mt-1">{errors.god}</div>
+                {errors.master && (
+                  <div className="text-danger small mt-1">{errors.master}</div>
                 )}
               </div>
 
@@ -246,7 +248,7 @@ export default function AartiFormPage() {
 
             {/* Right Column */}
             <div className="col-md-6">
-              <h5 className="mb-3 text-primary">Aarti Content</h5>
+              <h5 className="mb-3 text-primary">Story Content</h5>
               <RichTextEditor
                 value={formData.description}
                 minHeight={350}
@@ -254,7 +256,7 @@ export default function AartiFormPage() {
                 onChange={(html) =>
                   setFormData((prev) => ({ ...prev, description: html }))
                 }
-                placeholder="Enter the full aarti text here..."
+                placeholder="Enter the full story here..."
                 error={errors.description}
               />
               {errors.description && (
@@ -270,7 +272,7 @@ export default function AartiFormPage() {
             <button
               type="button"
               className="btn btn-outline-secondary"
-              onClick={() => navigate("/aarti")}
+              onClick={() => navigate("/story")}
               disabled={isSaving}
             >
               Cancel
@@ -285,7 +287,7 @@ export default function AartiFormPage() {
               ) : (
                 <i className="fas fa-save me-2"></i>
               )}
-              {id ? "Update Aarti" : "Create Aarti"}
+              {id ? "Update Story" : "Create Story"}
             </button>
           </div>
         </form>

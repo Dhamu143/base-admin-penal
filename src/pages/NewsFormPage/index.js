@@ -4,12 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-import { fetchAartis, deleteAarti } from "../../store/aarti/index";
+import { fetchNews, deleteNews } from "../../store/news/index"; // <-- Changed
 import ConfirmationModal from "../../common/ConfirmationModal";
 import { staticLanguages } from "../../constants/languages";
 import CustomPagination from "../../common/Pagination";
 
-// Options are defined outside the component for better performance
 const languageOptions = [
   { value: "", label: "All Languages" },
   ...staticLanguages.map((lang) => ({
@@ -18,54 +17,55 @@ const languageOptions = [
   })),
 ];
 
-export default function AartiManagementPage() {
+export default function NewsManagementPage() {
+  // <-- Changed
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { list: aartis, pagination, status, error } = useSelector(
-    (state) => state.aartis
+  const { list: news, pagination, status, error } = useSelector(
+    (state) => state.news // <-- Changed
   );
 
-  const [aartiToDelete, setAartiToDelete] = useState(null);
+  const [newsToDelete, setNewsToDelete] = useState(null); // <-- Changed
   const [isDeleting, setIsDeleting] = useState(false);
   const [filters, setFilters] = useState({ language: "" });
 
   const itemsPerPage = 10;
 
-  const loadAartis = (params = {}) => {
-    dispatch(fetchAartis({ ...params, pageSize: itemsPerPage }))
+  const loadNews = (params = {}) => {
+    // <-- Changed
+    dispatch(fetchNews({ ...params, pageSize: itemsPerPage })) // <-- Changed
       .unwrap()
-      .catch((err) => toast.error(err || "Failed to load aartis."));
+      .catch((err) => toast.error(err || "Failed to load news.")); // <-- Changed
   };
 
   useEffect(() => {
-    loadAartis({ page: 1 });
+    loadNews({ page: 1 });
   }, [dispatch]);
 
   const handleLanguageChange = (selectedOption) => {
     const value = selectedOption ? selectedOption.value : "";
     setFilters((prev) => ({ ...prev, language: value }));
-    loadAartis({ language: value, page: 1 });
+    loadNews({ language: value, page: 1 });
   };
 
   const handleResetFilters = () => {
     setFilters({ language: "" });
-    loadAartis({ language: "", page: 1 });
+    loadNews({ language: "", page: 1 });
   };
 
-  const handlePageChange = (newPage) =>
-    loadAartis({ ...filters, page: newPage });
+  const handlePageChange = (newPage) => loadNews({ ...filters, page: newPage });
 
   const confirmDelete = async () => {
-    if (!aartiToDelete) return;
+    if (!newsToDelete) return; // <-- Changed
     setIsDeleting(true);
     try {
-      await dispatch(deleteAarti(aartiToDelete._id)).unwrap();
-      toast.success(`Aarti "${aartiToDelete.name}" deleted successfully.`);
-      loadAartis({ ...filters, page: pagination?.currentPage || 1 });
-      setAartiToDelete(null);
+      await dispatch(deleteNews(newsToDelete._id)).unwrap(); // <-- Changed
+      toast.success(`News "${newsToDelete.name}" deleted successfully.`); // <-- Changed
+      loadNews({ ...filters, page: pagination?.currentPage || 1 });
+      setNewsToDelete(null); // <-- Changed
     } catch (err) {
-      toast.error(err || "Failed to delete aarti.");
+      toast.error(err || "Failed to delete news item."); // <-- Changed
     } finally {
       setIsDeleting(false);
     }
@@ -79,26 +79,25 @@ export default function AartiManagementPage() {
     <div className="card shadow-sm">
       {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">📜 Aarti Management</h4>
+        <h4 className="mb-0 text-primary-emphasis">📰 News Management</h4>{" "}
+        {/* <-- Changed */}
         <button
           className="btn btn-labeled btn-success"
           type="button"
           style={{ fontSize: "17px" }}
-          onClick={() => navigate("/aarti/new")}
+          onClick={() => navigate("/news/new")} // <-- Changed
         >
           <span className="btn-label me-2">
             <i className="fas fa-plus"></i>
           </span>
-          Add New Aarti
+          Add New News {/* <-- Changed */}
         </button>
       </div>
 
-      {/* ✨ --- MODIFIED FILTERS SECTION --- ✨ */}
+      {/* Filters Section */}
       <div className="card-body border-bottom">
         <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
           <div style={{ minWidth: "300px" }}>
-            {" "}
-            {/* Set a minimum width for the dropdown */}
             <label className="form-label fw-bold small mb-1">
               Filter by Language
             </label>
@@ -112,15 +111,11 @@ export default function AartiManagementPage() {
             />
           </div>
           <div className="mt-md-auto">
-            {" "}
-            {/* Aligns button to the bottom in flex view */}
             <button
               className="btn btn-outline-secondary w-100 ml-4"
               onClick={handleResetFilters}
             >
-              <span className="mr-2">
-                <i className="fas fa-undo me-2"></i>
-              </span>
+              <i className="fas fa-undo me-2"></i>
               Reset
             </button>
           </div>
@@ -131,10 +126,9 @@ export default function AartiManagementPage() {
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
-            {/* ... table head and body remain the same ... */}
             <thead className="table-light">
               <tr>
-                <th>Name</th>
+                <th>Title</th>
                 <th>Language</th>
                 <th>Description</th>
                 <th>Sort</th>
@@ -159,20 +153,23 @@ export default function AartiManagementPage() {
                   </td>
                 </tr>
               )}
-              {status === "succeeded" && aartis.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="text-center text-muted py-5">
-                    No Aartis Found.
-                  </td>
-                </tr>
-              )}
               {status === "succeeded" &&
-                aartis.map((aarti) => (
-                  <tr key={aarti._id}>
-                    <td className="fw-semibold">{aarti.name}</td>
+              news.length === 0 && ( // <-- Changed
+                  <tr>
+                    <td colSpan="6" className="text-center text-muted py-5">
+                      No News Found. {/* <-- Changed */}
+                    </td>
+                  </tr>
+                )}
+              {status === "succeeded" &&
+                news.map((
+                  newsItem // <-- Changed
+                ) => (
+                  <tr key={newsItem._id}>
+                    <td className="fw-semibold">{newsItem.name}</td>
                     <td>
                       {staticLanguages.find(
-                        (lang) => lang._id === aarti.language
+                        (lang) => lang._id === newsItem.language
                       )?.language || "N/A"}
                     </td>
                     <td
@@ -182,33 +179,33 @@ export default function AartiManagementPage() {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                       }}
-                      title={aarti.description.replace(/<[^>]+>/g, "")}
+                      title={newsItem.description.replace(/<[^>]+>/g, "")}
                     >
-                      {aarti.description.replace(/<[^>]+>/g, "")}
+                      {newsItem.description.replace(/<[^>]+>/g, "")}
                     </td>
-                    <td>{aarti.sort}</td>
+                    <td>{newsItem.sort}</td>
                     <td>
                       <span
                         className={`badge fs-6 ${
-                          aarti.isActive
+                          newsItem.isActive
                             ? "text-bg-success"
                             : "text-bg-secondary"
                         }`}
                       >
-                        {aarti.isActive ? "Active" : "Inactive"}
+                        {newsItem.isActive ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary me-2"
-                        onClick={() => navigate(`/aarti/${aarti._id}/edit`)}
+                        onClick={() => navigate(`/news/${newsItem._id}/edit`)} // <-- Changed
                         title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
                       </button>
                       <button
                         className="btn btn-sm btn-outline-danger"
-                        onClick={() => setAartiToDelete(aarti)}
+                        onClick={() => setNewsToDelete(newsItem)} // <-- Changed
                         title="Delete"
                       >
                         <i className="fas fa-trash"></i>
@@ -236,8 +233,8 @@ export default function AartiManagementPage() {
 
       {/* Delete Modal */}
       <ConfirmationModal
-        show={aartiToDelete !== null}
-        onClose={() => setAartiToDelete(null)}
+        show={newsToDelete !== null} // <-- Changed
+        onClose={() => setNewsToDelete(null)} // <-- Changed
         onConfirm={confirmDelete}
         title="Confirm Deletion"
         confirmText="Delete"
@@ -246,7 +243,8 @@ export default function AartiManagementPage() {
       >
         <p className="fs-5 text-center">
           Are you sure you want to delete <br />
-          <strong className="text-danger">{aartiToDelete?.name}</strong>?
+          <strong className="text-danger">{newsToDelete?.name}</strong>?{" "}
+          {/* <-- Changed */}
         </p>
         <p className="text-muted text-center">This action cannot be undone.</p>
       </ConfirmationModal>

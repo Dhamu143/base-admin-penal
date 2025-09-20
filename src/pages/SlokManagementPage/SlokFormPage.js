@@ -1,5 +1,3 @@
-// pages/SlokFormPage.jsx
-
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
@@ -9,8 +7,7 @@ import RichTextEditor from "../../common/RichTextEditor";
 
 // --- Actions ---
 import { fetchSloks, addSlok, updateSlok } from "../../store/sloks/index";
-import { fetchGods } from "../../store/godmaster/index";
-import { fetchGods as fetchOtherGods } from "../../store/god/index";
+import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
 export default function SlokFormPage() {
@@ -19,32 +16,35 @@ export default function SlokFormPage() {
   const { id } = useParams();
 
   // --- Redux State ---
-  const { list: sloks, status } = useSelector((state) => state.sloks);
-  const { list: gods } = useSelector((state) => state.gods);
-  const { list: Gods } = useSelector((state) => state.God);
+  const { list: sloks, status: slokStatus } = useSelector(
+    (state) => state.sloks
+  );
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
   // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: 0,
     isActive: true,
-    isFree: true, // Field for Free/Premium
-    master: "",
+    isFree: true,
     god: "",
     description: "",
     language: "",
   });
+
+  const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
   // --- Effects ---
   useEffect(() => {
-    // Fetch data if not already loaded (handles page refresh)
-    if (status === "idle") dispatch(fetchSloks());
-    dispatch(fetchGods());
-    dispatch(fetchOtherGods());
+    if (slokStatus === "idle") dispatch(fetchSloks());
+    if (godStatus === "idle") dispatch(fetchAllGods());
+  }, [slokStatus, godStatus, dispatch]);
 
-    // If editing, find the Slok and populate the form
+  useEffect(() => {
     if (id && sloks.length > 0) {
       const slok = sloks.find((s) => s._id === id);
       if (slok) {
@@ -53,20 +53,30 @@ export default function SlokFormPage() {
           sort: slok.sort || 0,
           isActive: slok.isActive,
           isFree: slok.isFree !== undefined ? slok.isFree : true,
-          master: slok.master?._id || slok.master,
           god: slok.god?._id || slok.god,
           description: slok.description || "",
           language: slok.language || "",
         });
       }
     }
-  }, [id, sloks, dispatch, status]);
+  }, [id, sloks]);
+
+  // filter gods by language
+  useEffect(() => {
+    if (formData.language && allGods.length > 0) {
+      const godsByLang = allGods.filter(
+        (g) => g.language === formData.language
+      );
+      setFilteredGods(godsByLang);
+    } else {
+      setFilteredGods([]);
+    }
+  }, [formData.language, allGods]);
 
   // --- Validation ---
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Sloka name is required.";
-    if (!formData.master) newErrors.master = "Please select a God Master.";
     if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.language) newErrors.language = "Please select a language.";
     if (!formData.description.trim())
@@ -77,7 +87,7 @@ export default function SlokFormPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- Form Submission ---
+  // --- Handlers ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -105,6 +115,17 @@ export default function SlokFormPage() {
       [name]: type === "checkbox" ? checked : value,
     }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+  };
+
+  const getSelectedOption = (list, id) => {
+    if (!id || !list) return null;
+    const selected = list.find((item) => item._id === id);
+    return selected
+      ? {
+          value: selected._id,
+          label: selected.name || selected.nativeName,
+        }
+      : null;
   };
 
   return (
@@ -152,48 +173,8 @@ export default function SlokFormPage() {
                     <div className="invalid-feedback">{errors.name}</div>
                   )}
                 </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    God (Master) <span className="text-danger">*</span>
-                  </label>
-                  <Select
-                    options={gods.map((g) => ({ value: g._id, label: g.name }))}
-                    value={
-                      gods
-                        .filter((g) => g._id === formData.master)
-                        .map((g) => ({ value: g._id, label: g.name }))[0] ||
-                      null
-                    }
-                    onChange={(opt) =>
-                      setFormData((prev) => ({ ...prev, master: opt.value }))
-                    }
-                  />
-                  {errors.master && (
-                    <div className="text-danger small mt-1">
-                      {errors.master}
-                    </div>
-                  )}
-                </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    God <span className="text-danger">*</span>
-                  </label>
-                  <Select
-                    options={Gods.map((g) => ({ value: g._id, label: g.name }))}
-                    value={
-                      Gods.filter((g) => g._id === formData.god).map((g) => ({
-                        value: g._id,
-                        label: g.name,
-                      }))[0] || null
-                    }
-                    onChange={(opt) =>
-                      setFormData((prev) => ({ ...prev, god: opt.value }))
-                    }
-                  />
-                  {errors.god && (
-                    <div className="text-danger small mt-1">{errors.god}</div>
-                  )}
-                </div>
+
+                {/* Language */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Language <span className="text-danger">*</span>
@@ -201,24 +182,54 @@ export default function SlokFormPage() {
                   <Select
                     options={staticLanguages.map((l) => ({
                       value: l._id,
-                      label: l.nativeName,
+                      label: `${l.nativeName} (${l.language})`,
                     }))}
-                    value={
-                      staticLanguages
-                        .filter((l) => l._id === formData.language)
-                        .map((l) => ({
-                          value: l._id,
-                          label: l.nativeName,
-                        }))[0] || null
+                    value={getSelectedOption(
+                      staticLanguages,
+                      formData.language
+                    )}
+                    onChange={(option) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        language: option?.value || "",
+                        god: "", // reset god on language change
+                      }))
                     }
-                    onChange={(opt) =>
-                      setFormData((prev) => ({ ...prev, language: opt.value }))
-                    }
+                    placeholder="Select Language..."
                   />
                   {errors.language && (
                     <div className="text-danger small mt-1">
                       {errors.language}
                     </div>
+                  )}
+                </div>
+
+                {/* God */}
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    God <span className="text-danger">*</span>
+                  </label>
+                  <Select
+                    options={filteredGods.map((g) => ({
+                      value: g._id,
+                      label: g.name,
+                    }))}
+                    value={getSelectedOption(filteredGods, formData.god)}
+                    onChange={(option) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        god: option?.value || "",
+                      }))
+                    }
+                    placeholder={
+                      formData.language
+                        ? "Select God..."
+                        : "Select Language first..."
+                    }
+                    isDisabled={!formData.language}
+                  />
+                  {errors.god && (
+                    <div className="text-danger small mt-1">{errors.god}</div>
                   )}
                 </div>
               </div>
@@ -293,7 +304,7 @@ export default function SlokFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-2"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/sloka")}
                 disabled={isSaving}
               >
@@ -309,7 +320,6 @@ export default function SlokFormPage() {
                 ) : (
                   <i className="fas fa-save me-2"></i>
                 )}
-                {"  "}
                 {id ? "Update Sloka" : "Create Sloka"}
               </button>
             </div>

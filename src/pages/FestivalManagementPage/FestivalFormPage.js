@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
 import Select from "react-select";
-import RichTextEditor from "../../common/RichTextEditor"; // MODIFICATION: Using RichTextEditor for consistency
+import RichTextEditor from "../../common/RichTextEditor";
 
 // --- Actions ---
 import {
@@ -10,8 +11,7 @@ import {
   addFestival,
   updateFestival,
 } from "../../store/festival/index";
-import { fetchGods } from "../../store/godmaster/index";
-import { fetchGods as fetchOtherGods } from "../../store/god/index";
+import { fetchAllGods } from "../../store/god/index"; // Only fetching Gods now
 import { staticLanguages } from "../../constants/languages";
 
 export default function FestivalFormPage() {
@@ -19,48 +19,79 @@ export default function FestivalFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { list: festivals, status } = useSelector((state) => state.festivals);
-  const { list: gods } = useSelector((state) => state.gods);
-  const { list: Gods } = useSelector((state) => state.God);
+  // --- Redux State ---
+  const { list: festivals, status: festivalStatus } = useSelector(
+    (state) => state.festivals
+  );
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
+  // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
     isActive: true,
-    master: "",
     god: "",
     description: "",
     language: "",
   });
+
+  const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // --- Effects ---
   useEffect(() => {
-    // Fetch data if it's not already loaded, handles page refresh case
-    if (status === "idle") dispatch(fetchFestivals());
-    dispatch(fetchGods());
-    dispatch(fetchOtherGods());
+    if (festivalStatus === "idle") dispatch(fetchFestivals());
+    if (godStatus === "idle") dispatch(fetchAllGods());
+  }, [festivalStatus, godStatus, dispatch]);
 
+  useEffect(() => {
     if (id && festivals.length > 0) {
       const festival = festivals.find((f) => f._id === id);
       if (festival) {
         setFormData({
-          name: festival.name,
-          sort: festival.sort,
+          name: festival.name || "",
+          sort: festival.sort || 0,
           isActive: festival.isActive,
-          master: festival.master?._id || festival.master,
           god: festival.god?._id || festival.god,
-          description: festival.description,
+          description: festival.description || "",
           language: festival.language,
         });
       }
     }
-  }, [id, festivals, dispatch, status]);
+  }, [id, festivals]);
+
+  useEffect(() => {
+    if (formData.language && allGods.length > 0) {
+      const godsByLang = allGods.filter(
+        (g) => g.language === formData.language
+      );
+      setFilteredGods(godsByLang);
+    } else {
+      setFilteredGods([]);
+    }
+  }, [formData.language, allGods]);
+
+  // --- Event Handlers ---
+  const handleFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const getSelectedOption = (list, id) => {
+    if (!id || !list) return null;
+    const selected = list.find((item) => item._id === id);
+    return selected ? { value: selected._id, label: selected.name } : null;
+  };
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Festival name is required.";
-    if (!formData.master) newErrors.master = "Please select a God Master.";
     if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.language) newErrors.language = "Please select a language.";
     if (!formData.description.trim())
@@ -81,9 +112,12 @@ export default function FestivalFormPage() {
         ? updateFestival({ id, ...formData })
         : addFestival(formData);
       await dispatch(action).unwrap();
-      navigate("/festival"); // Navigate back to the list
+      toast.success(
+        id ? "Festival updated successfully!" : "Festival added successfully!"
+      );
+      navigate("/festival");
     } catch (err) {
-      console.error(err);
+      toast.error(err?.message || "An error occurred while saving.");
     } finally {
       setIsSaving(false);
     }
@@ -109,6 +143,7 @@ export default function FestivalFormPage() {
           <i className="fas fa-arrow-left me-2"></i> Back
         </button>
       </div>
+
       <div className="card shadow-sm">
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
@@ -116,6 +151,8 @@ export default function FestivalFormPage() {
               {/* Left Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Festival Details</h5>
+
+                {/* Festival Name */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Festival Name <span className="text-danger">*</span>
@@ -127,57 +164,15 @@ export default function FestivalFormPage() {
                       errors.name ? "is-invalid" : ""
                     }`}
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, name: e.target.value }))
-                    }
+                    onChange={handleFormChange}
                     placeholder="e.g., Diwali, Navratri"
                   />
                   {errors.name && (
                     <div className="invalid-feedback">{errors.name}</div>
                   )}
                 </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    God (Master) <span className="text-danger">*</span>
-                  </label>
-                  <Select
-                    options={gods.map((g) => ({ value: g._id, label: g.name }))}
-                    value={
-                      gods
-                        .filter((g) => g._id === formData.master)
-                        .map((g) => ({ value: g._id, label: g.name }))[0] ||
-                      null
-                    }
-                    onChange={(opt) =>
-                      setFormData((prev) => ({ ...prev, master: opt.value }))
-                    }
-                  />
-                  {errors.master && (
-                    <div className="text-danger small mt-1">
-                      {errors.master}
-                    </div>
-                  )}
-                </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    God <span className="text-danger">*</span>
-                  </label>
-                  <Select
-                    options={Gods.map((g) => ({ value: g._id, label: g.name }))}
-                    value={
-                      Gods.filter((g) => g._id === formData.god).map((g) => ({
-                        value: g._id,
-                        label: g.name,
-                      }))[0] || null
-                    }
-                    onChange={(opt) =>
-                      setFormData((prev) => ({ ...prev, god: opt.value }))
-                    }
-                  />
-                  {errors.god && (
-                    <div className="text-danger small mt-1">{errors.god}</div>
-                  )}
-                </div>
+
+                {/* Language */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Language <span className="text-danger">*</span>
@@ -185,19 +180,20 @@ export default function FestivalFormPage() {
                   <Select
                     options={staticLanguages.map((l) => ({
                       value: l._id,
-                      label: l.nativeName,
+                      label: `${l.nativeName} (${l.language})`,
                     }))}
-                    value={
-                      staticLanguages
-                        .filter((l) => l._id === formData.language)
-                        .map((l) => ({
-                          value: l._id,
-                          label: l.nativeName,
-                        }))[0] || null
+                    value={getSelectedOption(
+                      staticLanguages,
+                      formData.language
+                    )}
+                    onChange={(option) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        language: option?.value || "",
+                        god: "", // Reset God on language change
+                      }))
                     }
-                    onChange={(opt) =>
-                      setFormData((prev) => ({ ...prev, language: opt.value }))
-                    }
+                    placeholder="Select Language..."
                   />
                   {errors.language && (
                     <div className="text-danger small mt-1">
@@ -205,6 +201,37 @@ export default function FestivalFormPage() {
                     </div>
                   )}
                 </div>
+
+                {/* God Select */}
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    God <span className="text-danger">*</span>
+                  </label>
+                  <Select
+                    options={filteredGods.map((g) => ({
+                      value: g._id,
+                      label: g.name,
+                    }))}
+                    value={getSelectedOption(filteredGods, formData.god)}
+                    onChange={(option) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        god: option?.value || "",
+                      }))
+                    }
+                    placeholder={
+                      formData.language
+                        ? "Select God..."
+                        : "Select Language first..."
+                    }
+                    isDisabled={!formData.language}
+                  />
+                  {errors.god && (
+                    <div className="text-danger small mt-1">{errors.god}</div>
+                  )}
+                </div>
+
+                {/* Sort Order & Active */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -217,12 +244,7 @@ export default function FestivalFormPage() {
                         errors.sort ? "is-invalid" : ""
                       }`}
                       value={formData.sort}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          sort: e.target.value,
-                        }))
-                      }
+                      onChange={handleFormChange}
                     />
                     {errors.sort && (
                       <div className="invalid-feedback">{errors.sort}</div>
@@ -236,18 +258,14 @@ export default function FestivalFormPage() {
                         role="switch"
                         name="isActive"
                         checked={formData.isActive}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            isActive: e.target.checked,
-                          }))
-                        }
+                        onChange={handleFormChange}
                       />
                       <label className="form-check-label">Active</label>
                     </div>
                   </div>
                 </div>
               </div>
+
               {/* Right Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Description & Settings</h5>
@@ -271,10 +289,11 @@ export default function FestivalFormPage() {
                 </div>
               </div>
             </div>
+
             <div className="d-flex justify-content-end gap-2 mt-4">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-2"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/festival")}
                 disabled={isSaving}
               >
@@ -290,7 +309,6 @@ export default function FestivalFormPage() {
                 ) : (
                   <i className="fas fa-save me-2"></i>
                 )}
-                {"    "}
                 {id ? "Update Festival" : "Create Festival"}
               </button>
             </div>

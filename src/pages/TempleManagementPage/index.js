@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { fetchTemples, deleteTemple } from "../../store/temple";
+import { fetchAllGods } from "../../store/god/index";
+import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 
@@ -11,48 +13,68 @@ export default function TempleListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // --- Redux Store ---
   const { list: temples, status, error } = useSelector((state) => state.temple);
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
+  // --- Local State ---
   const [isDeleting, setIsDeleting] = useState(false);
   const [templeToDelete, setTempleToDelete] = useState(null);
-
-  // Filters state
-  const [selectedFilters, setSelectedFilters] = useState({
-    name: "",
+  const [filters, setFilters] = useState({
     language: "",
     god: "",
-    godMaster: "",
   });
 
-  // Extract unique options from current temples
-  const nameOptions = useMemo(() => {
-    const names = temples.map((t) => t.name).filter(Boolean);
-    return [...new Set(names)];
-  }, [temples]);
-
-  const languageOptions = useMemo(() => {
-    const langs = temples.map((t) => t.language).filter(Boolean);
-    return [...new Set(langs)];
-  }, [temples]);
-
-  const godOptions = useMemo(() => {
-    const gods = temples.map((t) => t.god).filter(Boolean);
-    return [...new Set(gods)];
-  }, [temples]);
-
-  const godMasterOptions = useMemo(() => {
-    const masters = temples.map((t) => t.godMaster).filter(Boolean);
-    return [...new Set(masters)];
-  }, [temples]);
-
-  // Fetch temples with filters
-  const loadTemples = useCallback(() => {
-    dispatch(fetchTemples(selectedFilters));
-  }, [dispatch, selectedFilters]);
+  // --- Data Fetching ---
+  const loadTemples = (params = {}) => {
+    dispatch(fetchTemples(params))
+      .unwrap()
+      .catch((err) => {
+        toast.error(err?.message || "Failed to load temples.");
+      });
+  };
 
   useEffect(() => {
     loadTemples();
-  }, [loadTemples]);
+    if (godStatus === "idle") {
+      dispatch(fetchAllGods());
+    }
+  }, [dispatch, godStatus]);
+
+  // Filters the god dropdown based on the selected language.
+  const filteredGodsForDropdown = useMemo(() => {
+    if (!filters.language) {
+      return allGods; // If no language is selected, show all gods
+    }
+    return allGods.filter((god) => god.language === filters.language);
+  }, [filters.language, allGods]);
+
+  // --- Handlers ---
+  // When language changes, the god filter is reset.
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => {
+      const newFilters = { ...prev, [name]: value };
+      if (name === "language") {
+        newFilters.god = ""; // Reset god filter when language changes
+      }
+      return newFilters;
+    });
+  };
+
+  const handleSearch = () => {
+    const activeFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, v]) => v)
+    );
+    loadTemples(activeFilters);
+  };
+
+  const handleResetFilters = () => {
+    setFilters({ language: "", god: "" });
+    loadTemples();
+  };
 
   const confirmDelete = async () => {
     if (!templeToDelete) return;
@@ -60,32 +82,112 @@ export default function TempleListPage() {
     try {
       await dispatch(deleteTemple(templeToDelete._id)).unwrap();
       toast.success(`Temple "${templeToDelete.name}" deleted successfully.`);
-      setTempleToDelete(null);
+      loadTemples(filters);
     } catch (err) {
       toast.error(err?.message || "An error occurred while deleting.");
     } finally {
+      setTempleToDelete(null);
       setIsDeleting(false);
     }
   };
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setSelectedFilters((prev) => ({ ...prev, [name]: value }));
+  // --- Render helpers ---
+  const renderTableContent = () => {
+    if (status === "loading") {
+      return (
+        <tr>
+          <td colSpan="7" className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </td>
+        </tr>
+      );
+    }
+
+    if (status === "failed") {
+      return (
+        <tr>
+          <td colSpan="7" className="text-center py-5 text-danger">
+            <strong>Error:</strong> {error}
+          </td>
+        </tr>
+      );
+    }
+
+    if (temples.length === 0) {
+      return (
+        <tr>
+          <td colSpan="7" className="text-center py-5 text-muted">
+            No Temples Found
+          </td>
+        </tr>
+      );
+    }
+
+    return temples.map((temple) => (
+      <tr key={temple._id}>
+        <td>
+          <DynamicImage
+            // ✨ UPDATED: Using 'featureimage' for the temple image source
+            src={temple.featureimage || "/placeholder.jpg"}
+            alt={temple.name}
+            style={{
+              width: "60px",
+              height: "60px",
+              objectFit: "cover",
+              borderRadius: "8px",
+            }}
+          />
+        </td>
+        <td className="fw-bold">{temple.name}</td>
+        <td
+          style={{
+            maxWidth: "200px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={temple.address}
+        >
+          {temple.address}
+        </td>
+        <td>{temple.rating ? `⭐ ${temple.rating}` : "-"}</td>
+        <td>
+          {temple.openTime && temple.closeTime
+            ? `${temple.openTime} - ${temple.closeTime}`
+            : "-"}
+        </td>
+        <td>
+          <span
+            className={`badge fs-6 ${
+              temple.isFamous ? "text-bg-success" : "text-bg-secondary"
+            }`}
+          >
+            {temple.isFamous ? "Yes" : "No"}
+          </span>
+        </td>
+        <td className="text-center">
+          <button
+            className="btn btn-sm btn-outline-secondary me-2"
+            title="Edit"
+            onClick={() => navigate(`/temple/edit/${temple._id}`)}
+          >
+            <i className="fas fa-pencil-alt"></i>
+          </button>
+          <button
+            className="btn btn-sm btn-outline-danger"
+            title="Delete"
+            onClick={() => setTempleToDelete(temple)}
+          >
+            <i className="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    ));
   };
 
-  const handleSearch = () => {
-    loadTemples();
-  };
-
-  const handleResetFilters = () => {
-    setSelectedFilters({
-      name: "",
-      language: "",
-      god: "",
-      godMaster: "",
-    });
-  };
-
+  // --- UI ---
   return (
     <div className="card shadow-sm">
       {/* Header */}
@@ -96,8 +198,8 @@ export default function TempleListPage() {
           style={{ fontSize: "17px" }}
           onClick={() => navigate("/temple/new")}
         >
-          <span className="btn-label">
-            <em className="fas fa-plus"></em>
+          <span className="btn-label me-2">
+            <i className="fas fa-plus"></i>
           </span>
           Add New Temple
         </button>
@@ -106,69 +208,34 @@ export default function TempleListPage() {
       {/* Filter Section */}
       <div className="card-body border-bottom">
         <div className="row g-3">
-          {/* Name */}
-          <div className="col-md-3">
-            <select
-              className="form-control"
-              name="name"
-              value={selectedFilters.name}
-              onChange={handleFilterChange}
-            >
-              <option value="">All Names</option>
-              {nameOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Language */}
-          <div className="col-md-3">
+          <div className="col-md-6">
             <select
               className="form-control"
               name="language"
-              value={selectedFilters.language}
+              value={filters.language}
               onChange={handleFilterChange}
             >
               <option value="">All Languages</option>
-              {languageOptions.map((l) => (
-                <option key={l} value={l}>
-                  {l}
+              {staticLanguages.map((lang) => (
+                <option key={lang._id} value={lang._id}>
+                  {lang.language} ({lang.nativeName})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* God */}
-          <div className="col-md-3">
+          <div className="col-md-6">
             <select
               className="form-control"
               name="god"
-              value={selectedFilters.god}
+              value={filters.god}
               onChange={handleFilterChange}
+              disabled={godStatus !== "succeeded"} // Disable if gods are not loaded
             >
               <option value="">All Gods</option>
-              {godOptions.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* God Master */}
-          <div className="col-md-3">
-            <select
-              className="form-control"
-              name="godMaster"
-              value={selectedFilters.godMaster}
-              onChange={handleFilterChange}
-            >
-              <option value="">All God Masters</option>
-              {godMasterOptions.map((gm) => (
-                <option key={gm} value={gm}>
-                  {gm}
+              {filteredGodsForDropdown.map((g) => (
+                <option key={g._id} value={g._id}>
+                  {g.name}
                 </option>
               ))}
             </select>
@@ -177,10 +244,10 @@ export default function TempleListPage() {
 
         <div className="mt-3 d-flex gap-2">
           <button className="btn btn-primary" onClick={handleSearch}>
-            Search
+            <i className="fas fa-search me-2"></i>Search
           </button>
           <button className="btn btn-secondary" onClick={handleResetFilters}>
-            Reset
+            <i className="fas fa-undo me-2"></i>Reset
           </button>
         </div>
       </div>
@@ -200,95 +267,14 @@ export default function TempleListPage() {
                 <th className="text-center">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {status === "loading" && (
-                <tr>
-                  <td colSpan="7" className="text-center py-5">
-                    <div className="spinner-border"></div>
-                  </td>
-                </tr>
-              )}
-              {status === "failed" && (
-                <tr>
-                  <td colSpan="7" className="text-center py-5 text-danger">
-                    Error: {error}
-                  </td>
-                </tr>
-              )}
-              {status === "succeeded" && temples.length > 0
-                ? temples.map((temple) => (
-                    <tr key={temple._id}>
-                      <td>
-                        <DynamicImage
-                          src={temple.files || "/placeholder.jpg"}
-                          alt={temple.name}
-                          style={{
-                            width: "60px",
-                            height: "60px",
-                            objectFit: "cover",
-                            borderRadius: "8px",
-                          }}
-                        />
-                      </td>
-                      <td className="fw-bold">{temple.name}</td>
-                      <td
-                        style={{
-                          maxWidth: "200px",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {temple.address}
-                      </td>
-                      <td>{temple.rating ? `⭐ ${temple.rating}` : "-"}</td>
-                      <td>
-                        {temple.openTime && temple.closeTime
-                          ? `${temple.openTime} - ${temple.closeTime}`
-                          : "-"}
-                      </td>
-                      <td>
-                        <span
-                          className={`badge fs-6 ${
-                            temple.isFamous
-                              ? "text-bg-success"
-                              : "text-bg-secondary"
-                          }`}
-                        >
-                          {temple.isFamous ? "Yes" : "No"}
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        <button
-                          className="btn btn-sm btn-outline-secondary me-2"
-                          onClick={() => navigate(`/temple/edit/${temple._id}`)}
-                        >
-                          <i className="fas fa-pencil-alt"></i>
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => setTempleToDelete(temple)}
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                : status === "succeeded" && (
-                    <tr>
-                      <td colSpan="7" className="text-center py-5 text-muted">
-                        No Temples Found
-                      </td>
-                    </tr>
-                  )}
-            </tbody>
+            <tbody>{renderTableContent()}</tbody>
           </table>
         </div>
       </div>
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Modal */}
       <ConfirmationModal
-        show={templeToDelete !== null}
+        show={!!templeToDelete}
         onClose={() => setTempleToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"

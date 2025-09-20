@@ -3,20 +3,20 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
-import { fetchAartis, addAarti, updateAarti } from "../../store/aarti/index";
-import { fetchAllGods } from "../../store/god/index";
+import { fetchNews, addNews, updateNews } from "../../store/news/index";
+import { fetchAllGods } from "../../store/god/index"; // <-- Corrected
 import { staticLanguages } from "../../constants/languages";
 
-export default function AartiFormPage() {
+export default function NewsFormPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { list: aartis, status: aartisStatus } = useSelector(
-    (state) => state.aartis
+  const { list: newsList = [], status: newsStatus } = useSelector(
+    (state) => state.news || {}
   );
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
+  const { masterList: allMasters = [], masterStatus } = useSelector(
+    (state) => state.gods || {}
   );
 
   const [formData, setFormData] = useState({
@@ -24,44 +24,51 @@ export default function AartiFormPage() {
     sort: "",
     isActive: true,
     language: "",
-    god: "",
+    master: "",
     description: "",
   });
 
-  const [filteredGods, setFilteredGods] = useState([]);
+  const [filteredMasters, setFilteredMasters] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // Fetch data if idle
   useEffect(() => {
-    if (aartisStatus === "idle") dispatch(fetchAartis());
-    if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [aartisStatus, godStatus, dispatch]);
+    if (newsStatus === "idle") dispatch(fetchNews());
+    if (masterStatus === "idle") dispatch(fetchAllGods()); // <-- Corrected
+  }, [newsStatus, masterStatus, dispatch]);
 
+  // Populate form if editing
   useEffect(() => {
-    if (id && aartis.length > 0) {
-      const aarti = aartis.find((a) => a._id === id);
-      if (aarti) {
+    if (id && Array.isArray(newsList) && newsList.length > 0) {
+      const newsItem = newsList.find((n) => n._id === id);
+      if (newsItem) {
         setFormData({
-          name: aarti.name,
-          sort: aarti.sort,
-          isActive: aarti.isActive,
-          language: aarti.language,
-          god: aarti.god?._id || aarti.god,
-          description: aarti.description,
+          name: newsItem.name || "",
+          sort: newsItem.sort || "",
+          isActive: newsItem.isActive ?? true,
+          language: newsItem.language || "",
+          master: newsItem.master?._id || newsItem.master || "",
+          description: newsItem.description || "",
         });
       }
     }
-  }, [id, aartis]);
+  }, [id, newsList]);
 
+  // Filter masters by selected language
   useEffect(() => {
-    if (formData.language && allGods.length > 0) {
-      setFilteredGods(
-        allGods.filter((god) => god.language === formData.language)
+    if (
+      formData.language &&
+      Array.isArray(allMasters) &&
+      allMasters.length > 0
+    ) {
+      setFilteredMasters(
+        allMasters.filter((m) => m.language === formData.language)
       );
     } else {
-      setFilteredGods([]);
+      setFilteredMasters([]);
     }
-  }, [formData.language, allGods]);
+  }, [formData.language, allMasters]);
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -73,9 +80,9 @@ export default function AartiFormPage() {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = "Aarti name is required.";
+    if (!formData.name.trim()) newErrors.name = "News title is required.";
     if (!formData.language) newErrors.language = "Please select a language.";
-    if (!formData.god) newErrors.god = "Please select a God.";
+    if (!formData.master) newErrors.master = "Please select a Master.";
     if (!formData.description.trim())
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(formData.sort))
@@ -91,11 +98,11 @@ export default function AartiFormPage() {
     setIsSaving(true);
     try {
       if (id) {
-        await dispatch(updateAarti({ id, ...formData })).unwrap();
+        await dispatch(updateNews({ id, ...formData })).unwrap();
       } else {
-        await dispatch(addAarti(formData)).unwrap();
+        await dispatch(addNews(formData)).unwrap();
       }
-      navigate("/aarti");
+      navigate("/news");
     } catch (err) {
       console.error(err);
     } finally {
@@ -103,13 +110,11 @@ export default function AartiFormPage() {
     }
   };
 
-  const getSelectedOption = (list, id) => {
+  const getSelectedOption = (list = [], id) => {
+    if (!Array.isArray(list)) return null;
     const selected = list.find((item) => item._id === id);
     return selected
-      ? {
-          value: selected._id,
-          label: selected.name || selected.nativeName,
-        }
+      ? { value: selected._id, label: selected.name || selected.nativeName }
       : null;
   };
 
@@ -119,17 +124,16 @@ export default function AartiFormPage() {
         <div>
           <span
             style={{ cursor: "pointer", color: "#0d6efd" }}
-            onClick={() => navigate("/aarti")}
+            onClick={() => navigate("/news")}
           >
-            Aarti
-          </span>
-          {" / "}
-          <span>{id ? "Edit Aarti" : "New Aarti"}</span>
+            News
+          </span>{" "}
+          / <span>{id ? "Edit News" : "New News"}</span>
         </div>
         <button
           type="button"
           className="btn btn-outline-primary btn-sm"
-          onClick={() => navigate("/aarti")}
+          onClick={() => navigate("/news")}
         >
           <i className="fas fa-arrow-left me-2"></i> Back
         </button>
@@ -140,12 +144,11 @@ export default function AartiFormPage() {
           <div className="row">
             {/* Left Column */}
             <div className="col-md-6">
-              <h5 className="mb-3 text-primary">Aarti Details</h5>
+              <h5 className="mb-3 text-primary">News Details</h5>
 
-              {/* Name */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
-                  Aarti Name <span className="text-danger">*</span>
+                  News Title <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
@@ -153,14 +156,13 @@ export default function AartiFormPage() {
                   className={`form-control ${errors.name ? "is-invalid" : ""}`}
                   value={formData.name}
                   onChange={handleFormChange}
-                  placeholder="e.g., Jai Ganesha Deva"
+                  placeholder="Enter news title"
                 />
                 {errors.name && (
                   <div className="invalid-feedback">{errors.name}</div>
                 )}
               </div>
 
-              {/* Language */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   Language <span className="text-danger">*</span>
@@ -175,7 +177,7 @@ export default function AartiFormPage() {
                     setFormData((prev) => ({
                       ...prev,
                       language: option?.value || "",
-                      god: "",
+                      master: "",
                     }))
                   }
                   placeholder="Select Language..."
@@ -187,36 +189,36 @@ export default function AartiFormPage() {
                 )}
               </div>
 
-              {/* God */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
-                  God <span className="text-danger">*</span>
+                  Master <span className="text-danger">*</span>
                 </label>
                 <Select
-                  options={filteredGods.map((god) => ({
-                    value: god._id,
-                    label: god.name,
+                  options={filteredMasters.map((master) => ({
+                    value: master._id,
+                    label: master.name,
                   }))}
-                  value={getSelectedOption(filteredGods, formData.god)}
+                  value={getSelectedOption(filteredMasters, formData.master)}
                   onChange={(option) =>
                     setFormData((prev) => ({
                       ...prev,
-                      god: option?.value || "",
+                      master: option?.value || "",
                     }))
                   }
                   placeholder={
                     formData.language
-                      ? "Select God..."
+                      ? "Select Master..."
                       : "Select Language first..."
                   }
-                  isDisabled={!formData.language || filteredGods.length === 0}
+                  isDisabled={
+                    !formData.language || filteredMasters.length === 0
+                  }
                 />
-                {errors.god && (
-                  <div className="text-danger small mt-1">{errors.god}</div>
+                {errors.master && (
+                  <div className="text-danger small mt-1">{errors.master}</div>
                 )}
               </div>
 
-              {/* Sort */}
               <div className="mb-3">
                 <label className="form-label fw-bold">Sort Order *</label>
                 <input
@@ -231,7 +233,6 @@ export default function AartiFormPage() {
                 )}
               </div>
 
-              {/* Active */}
               <div className="form-check form-switch mb-3">
                 <input
                   type="checkbox"
@@ -246,7 +247,7 @@ export default function AartiFormPage() {
 
             {/* Right Column */}
             <div className="col-md-6">
-              <h5 className="mb-3 text-primary">Aarti Content</h5>
+              <h5 className="mb-3 text-primary">News Content</h5>
               <RichTextEditor
                 value={formData.description}
                 minHeight={350}
@@ -254,7 +255,7 @@ export default function AartiFormPage() {
                 onChange={(html) =>
                   setFormData((prev) => ({ ...prev, description: html }))
                 }
-                placeholder="Enter the full aarti text here..."
+                placeholder="Enter the full news content here..."
                 error={errors.description}
               />
               {errors.description && (
@@ -270,7 +271,7 @@ export default function AartiFormPage() {
             <button
               type="button"
               className="btn btn-outline-secondary"
-              onClick={() => navigate("/aarti")}
+              onClick={() => navigate("/news")}
               disabled={isSaving}
             >
               Cancel
@@ -285,7 +286,7 @@ export default function AartiFormPage() {
               ) : (
                 <i className="fas fa-save me-2"></i>
               )}
-              {id ? "Update Aarti" : "Create Aarti"}
+              {id ? "Update News" : "Create News"}
             </button>
           </div>
         </form>

@@ -1,29 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { toast } from "react-toastify";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
+import { toast } from "react-toastify";
 
 // --- Actions ---
-import {
-  fetchBhajans,
-  addBhajan,
-  updateBhajan,
-} from "../../store/bhajan/index";
+import { fetchStutis, addStuti, updateStuti } from "../../store/stuti/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
-export default function BhajanFormPage() {
+export default function StutiFormPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
 
   // --- Redux State ---
-  const { list: bhajans, status: bhajanStatus } = useSelector(
-    (state) => state.bhajans
+  const { list: stutis, status: stutiStatus } = useSelector(
+    (state) => state.stuti
   );
-  // ✨ CORRECTED: Simplified to only use the main God slice
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -38,7 +33,6 @@ export default function BhajanFormPage() {
     language: "",
   });
 
-  // ✨ CORRECTED: Simplified to only have one filtered list for Gods
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -47,32 +41,32 @@ export default function BhajanFormPage() {
 
   // Effect for fetching initial data
   useEffect(() => {
-    if (bhajanStatus === "idle") dispatch(fetchBhajans());
+    if (stutiStatus === "idle") dispatch(fetchStutis());
     if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [bhajanStatus, godStatus, dispatch]); // ✨ CORRECTED dependencies
+  }, [stutiStatus, godStatus, dispatch]);
 
   // Effect for populating form data when editing
   useEffect(() => {
-    if (id && bhajans.length > 0) {
-      const bhajan = bhajans.find((b) => b._id === id);
-      if (bhajan) {
+    if (id && stutis.length > 0) {
+      const stuti = stutis.find((s) => s._id === id);
+      if (stuti) {
         setFormData({
-          name: bhajan.name || "",
-          sort: bhajan.sort || 0,
-          isActive: bhajan.isActive,
-          god: bhajan.god?._id || bhajan.god,
-          description: bhajan.description || "",
-          language: bhajan.language,
+          name: stuti.name || "",
+          sort: stuti.sort || 0,
+          isActive: stuti.isActive,
+          god: stuti.god?._id || stuti.god,
+          description: stuti.description || "",
+          language: stuti.language,
         });
       }
     }
-  }, [id, bhajans]);
+  }, [id, stutis]);
 
-  // ✨ REVISED LOGIC: Filters only the God list based on selected language
+  // Effect to filter the God list based on selected language
   useEffect(() => {
-    if (formData.language && Array.isArray(allGods)) {
+    if (formData.language && allGods.length > 0) {
       const godsByLang = allGods.filter(
-        (god) => god.language === formData.language
+        (g) => g.language === formData.language
       );
       setFilteredGods(godsByLang);
     } else {
@@ -83,13 +77,12 @@ export default function BhajanFormPage() {
   // --- Validation ---
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = "Bhajan name is required.";
-    // ✨ CORRECTED: Removed validation for 'master'
+    if (!formData.name.trim()) newErrors.name = "Stuti name is required.";
     if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.language) newErrors.language = "Please select a language.";
     if (!formData.description.trim())
       newErrors.description = "Description / Content is required.";
-    if (formData.sort === "" || isNaN(Number(formData.sort)))
+    if (formData.sort === "" || isNaN(formData.sort))
       newErrors.sort = "Sort order must be a valid number.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -102,16 +95,16 @@ export default function BhajanFormPage() {
 
     setIsSaving(true);
     try {
-      const action = id
-        ? updateBhajan({ id, ...formData })
-        : addBhajan(formData);
+      const payload = { ...formData };
+      const action = id ? updateStuti({ id, ...payload }) : addStuti(payload);
+
       await dispatch(action).unwrap();
       toast.success(
-        id ? "Bhajan updated successfully!" : "Bhajan added successfully!"
+        id ? "Stuti updated successfully!" : "Stuti added successfully!"
       );
-      navigate("/bhajan");
+      navigate("/stuti");
     } catch (err) {
-      console.error("Failed to save bhajan:", err);
+      console.error("Failed to save stuti:", err);
       toast.error(err?.message || "An error occurred while saving.");
     } finally {
       setIsSaving(false);
@@ -127,6 +120,7 @@ export default function BhajanFormPage() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
+  // Helper function for react-select value
   const getSelectedOption = (list, id) => {
     if (!id || !list) return null;
     const selected = list.find((item) => item._id === id);
@@ -144,16 +138,16 @@ export default function BhajanFormPage() {
         <div>
           <span
             style={{ cursor: "pointer", color: "#0d6efd" }}
-            onClick={() => navigate("/bhajan")}
+            onClick={() => navigate("/stuti")}
           >
-            Bhajans
+            Stutis
           </span>{" "}
-          / <span>{id ? "Edit Bhajan" : "New Bhajan"}</span>
+          / <span>{id ? "Edit Stuti" : "New Stuti"}</span>
         </div>
         <button
           type="button"
           className="btn btn-outline-primary btn-sm"
-          onClick={() => navigate("/bhajan")}
+          onClick={() => navigate("/stuti")}
         >
           <i className="fas fa-arrow-left me-2"></i> Back
         </button>
@@ -165,10 +159,10 @@ export default function BhajanFormPage() {
             <div className="row">
               {/* Left Column */}
               <div className="col-md-6">
-                <h5 className="mb-4 text-primary">Bhajan Details</h5>
+                <h5 className="mb-4 text-primary">Stuti Details</h5>
                 <div className="mb-3">
                   <label className="form-label fw-bold">
-                    Bhajan Name <span className="text-danger">*</span>
+                    Stuti Name <span className="text-danger">*</span>
                   </label>
                   <input
                     type="text"
@@ -198,11 +192,10 @@ export default function BhajanFormPage() {
                       formData.language
                     )}
                     onChange={(option) =>
-                      // ✨ When language changes, reset god
                       setFormData((prev) => ({
                         ...prev,
                         language: option?.value || "",
-                        god: "",
+                        god: "", // Reset god selection when language changes
                       }))
                     }
                     placeholder="Select Language..."
@@ -236,7 +229,6 @@ export default function BhajanFormPage() {
                         : "Select Language first..."
                     }
                     isDisabled={!formData.language}
-                    isLoading={godStatus === "loading"}
                   />
                   {errors.god && (
                     <div className="text-danger small mt-1">{errors.god}</div>
@@ -302,7 +294,7 @@ export default function BhajanFormPage() {
               <button
                 type="button"
                 className="btn btn-outline-secondary"
-                onClick={() => navigate("/bhajan")}
+                onClick={() => navigate("/stuti")}
                 disabled={isSaving}
               >
                 Cancel
@@ -317,7 +309,7 @@ export default function BhajanFormPage() {
                 ) : (
                   <i className="fas fa-save me-2"></i>
                 )}
-                {id ? "Update Bhajan" : "Create Bhajan"}
+                {id ? "Update Stuti" : "Create Stuti"}
               </button>
             </div>
           </form>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { toast } from "react-toastify"; // --- ADDED ---
+import { toast } from "react-toastify";
 
 // Redux Actions for Ringtone
 import {
@@ -10,11 +10,11 @@ import {
   deleteRingtone,
 } from "../../store/ringtone/index";
 
-// Redux Actions for God Master List
-import { fetchGods } from "../../store/godmaster/index";
+// ✨ REMOVED: God Master import
+// ✨ ADDED: Import for the standard God list
+import { fetchAllGods } from "../../store/god/index";
 
-// Import the static languages array
-import { staticLanguages } from "../../constants/languages"; // Adjust path as needed
+import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 
 export default function RingtoneManagementPage() {
@@ -24,22 +24,26 @@ export default function RingtoneManagementPage() {
   const { list: ringtones, status, error } = useSelector(
     (state) => state.ringtones
   );
-  const { list: gods, status: godStatus } = useSelector((state) => state.gods);
+  // ✨ UPDATED: Pointing to the main 'God' slice to get the complete list for filtering
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
   // --- Component State ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingRingtone, setEditingRingtone] = useState(null);
   const [ringtoneToDelete, setRingtoneToDelete] = useState(null);
+  const [filteredGods, setFilteredGods] = useState([]);
 
   // --- Form State ---
   const initialFormState = {
     sort: "",
     isActive: true,
     isFree: true,
-    master: "",
+    god: "", // ✨ RENAMED: from 'master' to 'god'
     language: "",
-    description: "", // ADDED: Description field in state
+    description: "",
     file: null,
   };
   const [formData, setFormData] = useState(initialFormState);
@@ -47,8 +51,21 @@ export default function RingtoneManagementPage() {
   // Fetch initial data
   useEffect(() => {
     if (status === "idle") dispatch(fetchRingtones());
-    if (godStatus === "idle") dispatch(fetchGods());
+    // ✨ UPDATED: Fetch the standard god list
+    if (godStatus === "idle") dispatch(fetchAllGods());
   }, [status, godStatus, dispatch]);
+
+  // Effect to filter the god list based on the selected language
+  useEffect(() => {
+    if (formData.language && Array.isArray(allGods)) {
+      const godsByLang = allGods.filter(
+        (g) => g.language === formData.language
+      );
+      setFilteredGods(godsByLang);
+    } else {
+      setFilteredGods([]);
+    }
+  }, [formData.language, allGods]);
 
   const handleOpenModal = (ringtone = null) => {
     if (ringtone) {
@@ -57,9 +74,9 @@ export default function RingtoneManagementPage() {
         sort: ringtone.sort || 0,
         isActive: ringtone.isActive,
         isFree: ringtone.isFree,
-        master: ringtone.master?._id || ringtone.master || "",
-        language: ringtone.language?._id || ringtone.language || "",
-        description: ringtone.description || "", // ADDED: Populate description on edit
+        god: ringtone.god?._id || ringtone.god || "", // ✨ UPDATED: references 'god'
+        language: ringtone.language || "",
+        description: ringtone.description || "",
         file: null,
       });
     } else {
@@ -80,24 +97,28 @@ export default function RingtoneManagementPage() {
     setFormData(initialFormState);
   };
 
+  // REVISED: handleFormChange to reset 'god' when language changes
   const handleFormChange = (e) => {
     const { name, value, type, checked, files } = e.target;
+
     if (type === "file") {
       setFormData((prev) => ({ ...prev, [name]: files[0] }));
     } else {
+      const val = type === "checkbox" ? checked : value;
       setFormData((prev) => ({
         ...prev,
-        [name]: type === "checkbox" ? checked : value,
+        [name]: val,
+        // ✨ UPDATED: If language changes, reset the god selection
+        ...(name === "language" && { god: "" }),
       }));
     }
   };
 
-  // RingtoneManagementPage.jsx - CORRECTED
-
   const handleSaveRingtone = async (e) => {
     e.preventDefault();
-    if (!formData.master || !formData.language) {
-      toast.warn("Please select a God and a Language.");
+    // ✨ UPDATED: Validation now checks for 'god'
+    if (!formData.god || !formData.language) {
+      toast.warn("Please select a Language and a God.");
       return;
     }
     if (!editingRingtone && !formData.file) {
@@ -107,19 +128,13 @@ export default function RingtoneManagementPage() {
     setIsSaving(true);
     try {
       const dataToSubmit = new FormData();
-
-      // --- CORRECTED LOGIC ---
-      // This new loop correctly handles optional file uploads during updates.
+      // This loop now correctly handles the 'god' field instead of 'master'
       for (const key in formData) {
-        // If the key is 'file' and its value is falsy (null, undefined), skip it.
-        // This prevents sending an empty file field on update.
         if (key === "file" && !formData[key]) {
-          continue; // Go to the next item in the loop
+          continue;
         }
-        // Append all other fields.
         dataToSubmit.append(key, formData[key]);
       }
-      // --- END CORRECTION ---
 
       const isEditing = !!editingRingtone;
       const action = isEditing
@@ -136,7 +151,9 @@ export default function RingtoneManagementPage() {
       handleCloseModal();
     } catch (err) {
       console.error("Failed to save the ringtone:", err);
-      toast.error(err || "An error occurred while saving the ringtone.");
+      toast.error(
+        err?.message || "An error occurred while saving the ringtone."
+      );
     } finally {
       setIsSaving(false);
     }
@@ -147,15 +164,11 @@ export default function RingtoneManagementPage() {
     setIsSaving(true);
     try {
       await dispatch(deleteRingtone(ringtoneToDelete._id)).unwrap();
-
-      // --- CHANGED: Added success toast ---
       toast.success("Ringtone deleted successfully.");
-
       setRingtoneToDelete(null);
     } catch (err) {
       console.error("Failed to delete ringtone:", err);
-      // --- CHANGED: Replaced alert with toast.error ---
-      toast.error(err || "Failed to delete the ringtone.");
+      toast.error(err?.message || "Failed to delete the ringtone.");
     } finally {
       setIsSaving(false);
     }
@@ -338,31 +351,6 @@ export default function RingtoneManagementPage() {
                     <div className="row">
                       <div className="col-md-6 mb-3">
                         <label
-                          htmlFor="master"
-                          className="form-label fw-semibold"
-                        >
-                          God (Master)
-                        </label>
-                        <select
-                          id="master"
-                          name="master"
-                          className="form-select"
-                          value={formData.master}
-                          onChange={handleFormChange}
-                          required
-                        >
-                          <option value="" disabled>
-                            -- Select a God --
-                          </option>
-                          {gods.map((god) => (
-                            <option key={god._id} value={god._id}>
-                              {god.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label
                           htmlFor="language"
                           className="form-label fw-semibold"
                         >
@@ -377,11 +365,38 @@ export default function RingtoneManagementPage() {
                           required
                         >
                           <option value="" disabled>
-                            -- Select a God --
+                            -- Select a Language --
                           </option>
                           {staticLanguages.map((lang) => (
                             <option key={lang._id} value={lang._id}>
                               {lang.nativeName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* ✨ MODIFIED: God Select Dropdown */}
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="god" className="form-label fw-semibold">
+                          God
+                        </label>
+                        <select
+                          id="god"
+                          name="god"
+                          className="form-select"
+                          value={formData.god}
+                          onChange={handleFormChange}
+                          required
+                          disabled={!formData.language}
+                        >
+                          <option value="" disabled>
+                            {formData.language
+                              ? "-- Select a God --"
+                              : "-- Select Language First --"}
+                          </option>
+                          {filteredGods.map((god) => (
+                            <option key={god._id} value={god._id}>
+                              {god.name}
                             </option>
                           ))}
                         </select>
@@ -465,7 +480,7 @@ export default function RingtoneManagementPage() {
         </>
       )}
 
-      {/* --- Reusable Delete Confirmation Modal --- */}
+      {/* Reusable Delete Confirmation Modal */}
       <ConfirmationModal
         show={ringtoneToDelete !== null}
         onClose={() => setRingtoneToDelete(null)}
@@ -478,7 +493,7 @@ export default function RingtoneManagementPage() {
         <p className="fs-5 text-center">
           Are you sure you want to delete <br />
           <strong className="text-danger">
-            {ringtoneToDelete?.file?.split("/").pop() || "this ringtone"}
+            {ringtoneToDelete?.description || "this ringtone"}
           </strong>
           ?
         </p>

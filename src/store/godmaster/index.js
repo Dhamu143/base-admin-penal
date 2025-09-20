@@ -11,7 +11,7 @@ export const fetchGods = createAsyncThunk(
     try {
       const response = await httpService.get("/godmaster");
       // Assuming API returns: { success: true, data: { data: [...], pagination: {...} } }
-      return response.data.data;
+      return response.data; // return whole response.data
     } catch (err) {
       return rejectWithValue(err.message || "Could not fetch gods.");
     }
@@ -24,8 +24,7 @@ export const addGod = createAsyncThunk(
   async (godData, { rejectWithValue }) => {
     try {
       const response = await httpService.post("/godmaster/create", {}, godData);
-      // Return the newly created god object
-      return response.data.data;
+      return response.data.data; // return created god object
     } catch (err) {
       return rejectWithValue(err.message || "Could not add god.");
     }
@@ -38,8 +37,7 @@ export const updateGod = createAsyncThunk(
   async ({ id, ...data }, { rejectWithValue }) => {
     try {
       const response = await httpService.put(`/godmaster/${id}`, {}, data);
-      // Return updated god object
-      return response.data.data;
+      return response.data.data; // return updated god object
     } catch (err) {
       return rejectWithValue(err.message || "Could not update god.");
     }
@@ -80,8 +78,9 @@ const godsSlice = createSlice({
       })
       .addCase(fetchGods.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list = action.payload.data || []; // actual list
-        state.pagination = action.payload.pagination || {}; // pagination
+        // Correct mapping from API response
+        state.list = action.payload?.data?.data || [];
+        state.pagination = action.payload?.data?.pagination || {};
       })
       .addCase(fetchGods.rejected, (state, action) => {
         state.status = "failed";
@@ -90,7 +89,7 @@ const godsSlice = createSlice({
 
       // --- Add ---
       .addCase(addGod.fulfilled, (state, action) => {
-        state.list.push(action.payload); // add new god
+        state.list.push(action.payload);
       })
       .addCase(addGod.rejected, (state, action) => {
         state.error = action.payload || action.error.message;
@@ -102,7 +101,6 @@ const godsSlice = createSlice({
           (god) => god._id === action.payload._id
         );
         if (index !== -1) {
-          // Merge updated fields so existing data is not lost
           state.list[index] = { ...state.list[index], ...action.payload };
         }
       })

@@ -12,7 +12,7 @@ import {
   addTemple,
   updateTemple,
 } from "../../store/temple/index";
-import { fetchGods } from "../../store/god/index";
+import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
 export default function TempleFormPage() {
@@ -21,8 +21,12 @@ export default function TempleFormPage() {
   const { id } = useParams();
 
   // --- Redux State ---
-  const { list: temples, status } = useSelector((state) => state.temple);
-  const { list: gods } = useSelector((state) => state.God);
+  const { list: temples, status: templeStatus } = useSelector(
+    (state) => state.temple
+  );
+  const { masterList: gods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
   // --- Component State ---
   const [formData, setFormData] = useState({
@@ -38,14 +42,25 @@ export default function TempleFormPage() {
     rating: 0,
     location: { type: "Point", coordinates: [0, 0] },
   });
+
+  // ✨ NEW: State to hold the list of gods filtered by language
+  const [filteredGods, setFilteredGods] = useState([]);
+
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- Effects ---
+  // Effect for fetching initial data
   useEffect(() => {
-    if (status === "idle") dispatch(fetchTemples());
-    dispatch(fetchGods());
+    if (godStatus === "idle") {
+      dispatch(fetchAllGods());
+    }
+    if (id && templeStatus === "idle") {
+      dispatch(fetchTemples());
+    }
+  }, [godStatus, templeStatus, dispatch, id]);
 
+  // Effect for populating the form when editing
+  useEffect(() => {
     if (id && temples.length > 0) {
       const temple = temples.find((t) => t._id === id);
       if (temple) {
@@ -64,7 +79,17 @@ export default function TempleFormPage() {
         });
       }
     }
-  }, [id, temples, dispatch, status]);
+  }, [id, temples]);
+
+  // ✨ NEW: Effect to filter the God list based on the selected language
+  useEffect(() => {
+    if (formData.language && gods.length > 0) {
+      const godsByLang = gods.filter((g) => g.language === formData.language);
+      setFilteredGods(godsByLang);
+    } else {
+      setFilteredGods([]);
+    }
+  }, [formData.language, gods]);
 
   // --- Validation ---
   const validateForm = () => {
@@ -122,6 +147,18 @@ export default function TempleFormPage() {
     }
   };
 
+  // ✨ NEW: Helper function for react-select value
+  const getSelectedOption = (list, id) => {
+    if (!id || !list) return null;
+    const selected = list.find((item) => item._id === id);
+    return selected
+      ? {
+          value: selected._id,
+          label: selected.name || selected.nativeName,
+        }
+      : null;
+  };
+
   return (
     <div className="content-wrapper p-4">
       <div className="mb-4 d-flex align-items-center justify-content-between">
@@ -165,25 +202,8 @@ export default function TempleFormPage() {
                   <div className="invalid-feedback">{errors.name}</div>
                 )}
               </div>
-              <div className="col-md-4 mb-3">
-                <label className="form-label fw-bold">
-                  Main God <span className="text-danger">*</span>
-                </label>
-                <Select
-                  options={gods.map((g) => ({ value: g._id, label: g.name }))}
-                  value={
-                    gods
-                      .filter((g) => g._id === formData.god)
-                      .map((g) => ({ value: g._id, label: g.name }))[0] || null
-                  }
-                  onChange={(opt) =>
-                    setFormData((p) => ({ ...p, god: opt.value }))
-                  }
-                />
-                {errors.god && (
-                  <div className="text-danger small mt-1">{errors.god}</div>
-                )}
-              </div>
+
+              {/* ✨ MODIFIED: Language Select - Placed before God */}
               <div className="col-md-4 mb-3">
                 <label className="form-label fw-bold">
                   Language <span className="text-danger">*</span>
@@ -191,16 +211,15 @@ export default function TempleFormPage() {
                 <Select
                   options={staticLanguages.map((l) => ({
                     value: l._id,
-                    label: l.nativeName,
+                    label: `${l.nativeName} (${l.language})`,
                   }))}
-                  value={
-                    staticLanguages
-                      .filter((l) => l._id === formData.language)
-                      .map((l) => ({ value: l._id, label: l.nativeName }))[0] ||
-                    null
-                  }
-                  onChange={(opt) =>
-                    setFormData((p) => ({ ...p, language: opt.value }))
+                  value={getSelectedOption(staticLanguages, formData.language)}
+                  onChange={(option) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      language: option?.value || "",
+                      god: "", // Reset god selection
+                    }))
                   }
                 />
                 {errors.language && (
@@ -209,11 +228,39 @@ export default function TempleFormPage() {
                   </div>
                 )}
               </div>
+
+              {/* ✨ MODIFIED: God Select - Now filtered by language */}
+              <div className="col-md-4 mb-3">
+                <label className="form-label fw-bold">
+                  Main God <span className="text-danger">*</span>
+                </label>
+                <Select
+                  options={filteredGods.map((g) => ({
+                    value: g._id,
+                    label: g.name,
+                  }))}
+                  value={getSelectedOption(filteredGods, formData.god)}
+                  onChange={(option) =>
+                    setFormData((p) => ({ ...p, god: option?.value || "" }))
+                  }
+                  placeholder={
+                    formData.language
+                      ? "Select God..."
+                      : "Select Language first..."
+                  }
+                  isDisabled={!formData.language}
+                  isLoading={godStatus === "loading"}
+                />
+                {errors.god && (
+                  <div className="text-danger small mt-1">{errors.god}</div>
+                )}
+              </div>
             </div>
             <hr className="my-4" />
 
+            {/* --- Other form sections... --- */}
+
             <div className="mb-3">
-              {/* Upload Input */}
               <label className="form-label fw-bold">Featured Image</label>
               <input
                 type="file"
@@ -226,34 +273,26 @@ export default function TempleFormPage() {
                 Upload JPG, PNG, or GIF (max 5MB)
               </small>
 
-              {/* Image Preview */}
               {formData.files && (
                 <div
-                  className="position-relative d-inline-block w-100"
-                  style={{ maxWidth: "300px" }}
+                  className="position-relative d-inline-block"
+                  style={{ maxWidth: "200px" }}
                 >
                   <img
                     src={formData.files}
                     alt="Preview"
                     className="img-fluid rounded shadow-sm"
-                    style={{
-                      maxHeight: "160px",
-                      objectFit: "cover",
-                      width: "180px",
-                    }}
                   />
-                  {/* X Button */}
                   <button
                     type="button"
                     onClick={() =>
-                      setFormData((prev) => ({ ...prev, featureimage: "" }))
+                      setFormData((prev) => ({ ...prev, files: "" }))
                     }
-                    className="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 p-0 "
+                    className="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 p-0"
                     style={{
                       width: "24px",
                       height: "24px",
                       borderRadius: "50%",
-                      left: "150px",
                     }}
                     disabled={isSaving}
                   >
@@ -262,6 +301,7 @@ export default function TempleFormPage() {
                 </div>
               )}
             </div>
+
             <div className="mb-3">
               <label className="form-label fw-bold">Description</label>
               <RichTextEditor
@@ -271,6 +311,7 @@ export default function TempleFormPage() {
                 }
               />
             </div>
+
             <div className="mb-3">
               <label className="form-label fw-bold">Address</label>
               <RichTextEditor
@@ -280,9 +321,9 @@ export default function TempleFormPage() {
                 }
               />
             </div>
+
             <hr className="my-4" />
 
-            {/* --- Section 3: Details & Timings --- */}
             <h5 className="mb-4 text-primary">Details & Timings</h5>
             <div className="row">
               <div className="col-md-3 mb-3">
@@ -335,9 +376,9 @@ export default function TempleFormPage() {
                 </div>
               </div>
             </div>
+
             <hr className="my-4" />
 
-            {/* --- Section 4: Geolocation --- */}
             <h5 className="mb-4 text-primary">Geolocation</h5>
             <div className="row">
               <div className="col-md-6 mb-3">
@@ -398,11 +439,10 @@ export default function TempleFormPage() {
               </div>
             </div>
 
-            {/* --- Form Actions --- */}
             <div className="d-flex justify-content-end gap-2 mt-4">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-2"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/temple")}
                 disabled={isSaving}
               >
@@ -418,7 +458,6 @@ export default function TempleFormPage() {
                 ) : (
                   <i className="fas fa-save me-2"></i>
                 )}
-                {"  "}
                 {id ? "Update Temple" : "Create Temple"}
               </button>
             </div>

@@ -1,48 +1,68 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom"; // MODIFICATION: For navigation
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import Select from "react-select";
 
 // --- Redux Actions & Components ---
 import { fetchQuizzes, deleteQuiz } from "../../store/quiz";
-import { fetchGods } from "../../store/godmaster";
-import { fetchGods as fetchgods } from "../../store/god";
+import { fetchAllGods } from "../../store/god"; // Use the correct action for the full god list
+import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 
-// MODIFICATION: Renamed component for clarity
 export default function QuizListPage() {
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // MODIFICATION: Initialize navigate hook
+  const navigate = useNavigate();
 
+  // --- Redux State ---
   const { list: quizzes, status, error } = useSelector(
     (state) => state.quizzes
   );
-  const { list: godMasterList } = useSelector((state) => state.gods);
-  const { list: GodList } = useSelector((state) => state.God);
+  // ✨ CORRECTED: Fetching the full list of gods for displaying names
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
+  // --- Component State ---
   const [isDeleting, setIsDeleting] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState(null);
+  // ✨ NEW: State for the language filter
+  const [selectedLanguage, setSelectedLanguage] = useState(null);
 
   useEffect(() => {
     // Fetch initial data if not already present
     if (status === "idle") {
       dispatch(fetchQuizzes());
     }
-    if (godMasterList.length === 0) dispatch(fetchGods());
-    if (GodList.length === 0) dispatch(fetchgods());
-  }, [dispatch, status, godMasterList.length, GodList.length]);
+    // ✨ CORRECTED: Fetch the full god list if needed
+    if (godStatus === "idle") {
+      dispatch(fetchAllGods());
+    }
+  }, [dispatch, status, godStatus]);
 
-  const getNameById = (id, list) =>
-    list.find((item) => item._id === id)?.name || "N/A";
-  const getMasterNameById = (id) => getNameById(id, godMasterList);
-  const getGodNameById = (id) => getNameById(id, GodList);
+  // --- Data Transformation & Filtering ---
+
+  // Helper function to create a lookup map for faster name retrieval
+  const createNameMap = (list) =>
+    new Map(list.map((item) => [item._id, item.name || item.nativeName]));
+
+  const godNameMap = useMemo(() => createNameMap(allGods), [allGods]);
+  const languageNameMap = useMemo(() => createNameMap(staticLanguages), []);
+
+  // ✨ NEW: Filter quizzes based on the selected language
+  const filteredQuizzes = useMemo(() => {
+    if (!selectedLanguage) {
+      return quizzes; // Return all quizzes if no filter is applied
+    }
+    return quizzes.filter((quiz) => quiz.language === selectedLanguage.value);
+  }, [selectedLanguage, quizzes]);
 
   const confirmDelete = async () => {
     if (!quizToDelete) return;
     setIsDeleting(true);
     try {
       await dispatch(deleteQuiz(quizToDelete._id)).unwrap();
-      toast.success(`Quiz "${quizToDelete.question}" was deleted.`);
+      toast.success(`Quiz question was deleted.`);
       setQuizToDelete(null);
     } catch (err) {
       toast.error(err?.message || "Failed to delete the quiz.");
@@ -50,6 +70,14 @@ export default function QuizListPage() {
       setIsDeleting(false);
     }
   };
+
+  const languageOptions = [
+    { value: "", label: "All Languages" },
+    ...staticLanguages.map((lang) => ({
+      value: lang._id,
+      label: lang.nativeName,
+    })),
+  ];
 
   return (
     <div className="card shadow-sm">
@@ -61,20 +89,48 @@ export default function QuizListPage() {
           style={{ fontSize: "17px" }}
           onClick={() => navigate("/quizzes/new")}
         >
-          <span className="btn-label">
-            <em className="fas fa-plus"></em>
+          <span className="btn-label me-2">
+            <i className="fas fa-plus"></i>
           </span>
           Add New Quiz
         </button>
       </div>
+
+      {/* --- Filter Section --- */}
+      <div className="card-body border-bottom">
+        <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
+          <div style={{ minWidth: "300px" }}>
+            <label className="form-label fw-bold small mb-1">
+              Filter by Language
+            </label>
+            <Select
+              placeholder="Select Language..."
+              options={languageOptions}
+              value={selectedLanguage}
+              onChange={setSelectedLanguage}
+              isClearable={true}
+              classNamePrefix="react-select"
+            />
+          </div>
+          <div className="mt-md-auto">
+            <button
+              className="btn btn-outline-secondary w-100"
+              onClick={() => setSelectedLanguage(null)}
+            >
+              <i className="fas fa-undo me-2"></i>Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle">
-            <thead>
+            <thead className="table-light">
               <tr>
                 <th>Question</th>
                 <th>Correct Answer</th>
-                <th>Master</th>
+                <th>Language</th>
                 <th>God</th>
                 <th>Status</th>
                 <th className="text-center">Actions</th>
@@ -96,7 +152,7 @@ export default function QuizListPage() {
                 </tr>
               )}
               {status === "succeeded" &&
-                quizzes.map((quiz) => (
+                filteredQuizzes.map((quiz) => (
                   <tr key={quiz._id}>
                     <td
                       className="fw-bold"
@@ -106,12 +162,15 @@ export default function QuizListPage() {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                       }}
+                      title={quiz.question}
                     >
                       {quiz.question}
                     </td>
                     <td>{quiz.correctanswer}</td>
-                    <td>{getMasterNameById(quiz.master)}</td>
-                    <td>{getGodNameById(quiz.god)}</td>
+                    {/* ✨ ADDED Language Column */}
+                    <td>{languageNameMap.get(quiz.language) || "N/A"}</td>
+                    {/* ✨ CORRECTED God Column */}
+                    <td>{godNameMap.get(quiz.god) || "N/A"}</td>
                     <td>
                       <span
                         className={`badge fs-6 ${
@@ -124,16 +183,17 @@ export default function QuizListPage() {
                       </span>
                     </td>
                     <td className="text-center">
-                      {/* MODIFICATION: Edit button navigates to the form page with the ID */}
                       <button
-                        className="btn btn-sm btn-outline-secondary me-2 mr-2"
+                        className="btn btn-sm btn-outline-secondary me-2"
                         onClick={() => navigate(`/quizzes/edit/${quiz._id}`)}
+                        title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
                       </button>
                       <button
                         className="btn btn-sm btn-outline-danger"
                         onClick={() => setQuizToDelete(quiz)}
+                        title="Delete"
                       >
                         <i className="fas fa-trash"></i>
                       </button>
@@ -155,7 +215,9 @@ export default function QuizListPage() {
       >
         <p className="fs-5 text-center">
           Are you sure you want to delete this quiz? <br />
-          <strong className="text-danger">{quizToDelete?.question}</strong>
+          <strong className="text-danger" style={{ wordBreak: "break-word" }}>
+            {quizToDelete?.question}
+          </strong>
         </p>
       </ConfirmationModal>
     </div>

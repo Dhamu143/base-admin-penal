@@ -1,70 +1,73 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import CustomPagination from "../../common/Pagination";
 
 // Redux Actions for God
 import {
-  fetchGods as fetchGodList, // Renamed to avoid conflict
+  fetchGods as fetchPaginatedGods,
   addGod,
   updateGod,
   deleteGod,
 } from "../../store/god/index";
-import { fetchGods } from "../../store/godmaster/index";
 
-// Import the reusable static languages array
-import { staticLanguages } from "../../constants/languages";
+// Action for the 'Master God' dropdown
+import { fetchGods as fetchMasterGods } from "../../store/godmaster/index";
 
-// Services and Components for image handling
-import { uploadImage } from "../../services/uploadService";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
+import AsyncSelect from "react-select/async";
 
 export default function GodManagementPage() {
   const dispatch = useDispatch();
 
-  // CHANGED: Selector now points to 'state.god'
-  // The slice name is 'god', so the state key in the root reducer is 'god'.
-  const { list: gods, status, error } = useSelector((state) => state.God);
+  // Main paginated list
+  const {
+    list: gods,
+    status: paginatedStatus,
+    error,
+    currentPage,
+    totalPages,
+    totalItems,
+  } = useSelector((state) => state.God);
 
-  const { list: Gods, status: godStatus } = useSelector((state) => state.gods);
+  // Master God list for dropdown
+  const { list: masterGods, status: masterStatus } = useSelector(
+    (state) => state.gods
+  );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingGod, setEditingGod] = useState(null);
   const [godToDelete, setGodToDelete] = useState(null);
 
+  const itemsPerPage = 10;
+
   const initialFormState = {
     name: "",
     description: "",
-    featureimage: "",
     sort: "",
-    language: "",
     master: "",
-    active: "", // 👈 added
   };
 
   const [formData, setFormData] = useState(initialFormState);
+
+  // Fetch paginated gods and master god list
   useEffect(() => {
-    // Fetch the list only if it hasn't been fetched yet
-    if (status === "idle") {
-      dispatch(fetchGodList());
+    if (paginatedStatus === "idle") {
+      dispatch(fetchPaginatedGods({ page: 1, limit: itemsPerPage }));
     }
-    if (godStatus === "idle") {
-      dispatch(fetchGods());
+    if (masterStatus === "idle") {
+      dispatch(fetchMasterGods());
     }
-  }, [status, dispatch]);
+  }, [paginatedStatus, masterStatus, dispatch]);
 
-  // Helper functions to get names from IDs for the table display
-  const getLanguageNameById = (langId) => {
-    const language = staticLanguages.find((lang) => lang._id === langId);
-    return language ? language.nativeName : "N/A";
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber !== currentPage) {
+      dispatch(fetchPaginatedGods({ page: pageNumber, limit: itemsPerPage }));
+    }
   };
 
-  const getGodNameById = (godId) => {
-    if (!godId) return "None";
-    const masterGod = gods.find((g) => g._id === godId);
-    return masterGod ? masterGod.name : "N/A";
-  };
-
+  // Modal handlers
   const handleOpenModal = (god = null) => {
     if (god) {
       setEditingGod(god);
@@ -72,9 +75,7 @@ export default function GodManagementPage() {
         id: god._id,
         name: god.name,
         description: god.description,
-        featureimage: god.featureimage || "",
         sort: god.sort,
-        language: god.language || "",
         master: god.master?._id || "",
       });
     } else {
@@ -90,74 +91,61 @@ export default function GodManagementPage() {
     setFormData(initialFormState);
   };
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleImageChange = (data) => {
-    setFormData((prev) => ({ ...prev, featureimage: data?.url || "" }));
-  };
-
   const handleSaveGod = async (e) => {
     e.preventDefault();
     setIsSaving(true);
     try {
       let finalFormData = { ...formData };
-
-      // If the image is a local blob, upload it first
-      if (finalFormData.featureimage?.startsWith("blob:")) {
-        const response = await fetch(finalFormData.featureimage);
-        const blob = await response.blob();
-        const fileToUpload = new File([blob], "upload.jpg", {
-          type: blob.type,
-        });
-        const permanentImageUrl = await uploadImage(fileToUpload);
-        finalFormData.featureimage = permanentImageUrl;
-      }
-
-      // Ensure 'master' is null if the string is empty
-      if (!finalFormData.master) {
-        finalFormData.master = null;
-      }
+      if (!finalFormData.master) finalFormData.master = null;
 
       const action = editingGod
         ? updateGod({ id: editingGod._id, ...finalFormData })
         : addGod(finalFormData);
 
-      await dispatch(action).unwrap(); // .unwrap() will throw an error on rejection
-
-      // 👇 ADD THIS LINE to refetch the list with populated data
-      dispatch(fetchGodList());
-
+      await dispatch(action).unwrap();
+      dispatch(fetchPaginatedGods({ page: currentPage, limit: itemsPerPage }));
       handleCloseModal();
     } catch (err) {
       console.error("Failed to save the god:", err);
-      alert(err || "An error occurred while saving.");
+      alert(err.message || "An error occurred while saving.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteClick = (god) => {
-    setGodToDelete(god);
-  };
+  const handleDeleteClick = (god) => setGodToDelete(god);
 
   const confirmDelete = async () => {
     if (!godToDelete) return;
     setIsSaving(true);
     try {
       await dispatch(deleteGod(godToDelete._id)).unwrap();
-      setGodToDelete(null); // This closes the confirmation modal
+
+      let pageToFetch = currentPage;
+      if (gods.length === 1 && currentPage > 1) pageToFetch = currentPage - 1;
+
+      dispatch(fetchPaginatedGods({ page: pageToFetch, limit: itemsPerPage }));
+      setGodToDelete(null);
     } catch (err) {
       console.error("Failed to delete the god:", err);
-      alert(err || "An error occurred while deleting.");
+      alert(err.message || "An error occurred while deleting.");
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Async loader for react-select
+  const loadMasterOptions = (inputValue) => {
+    return new Promise((resolve) => {
+      const filtered = masterGods
+        .filter(
+          (g) =>
+            g.name.toLowerCase().includes(inputValue.toLowerCase()) &&
+            g._id !== editingGod?._id
+        )
+        .map((g) => ({ label: g.name, value: g._id }));
+      resolve(filtered);
+    });
   };
 
   return (
@@ -185,34 +173,33 @@ export default function GodManagementPage() {
                 <tr>
                   <th style={{ width: "10%" }}>Image</th>
                   <th>Name</th>
-                  <th>Language</th>
                   <th>Master</th>
                   <th>Sort Order</th>
                   <th className="text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {status === "loading" && (
+                {paginatedStatus === "loading" && (
                   <tr>
-                    <td colSpan="6" className="text-center py-5">
+                    <td colSpan="5" className="text-center py-5">
                       <div className="spinner-border text-primary"></div>
                     </td>
                   </tr>
                 )}
-                {status === "failed" && (
+                {paginatedStatus === "failed" && (
                   <tr>
-                    <td colSpan="6" className="text-center py-5 text-danger">
-                      <em className="fas fa-exclamation-triangle me-2"></em>{" "}
+                    <td colSpan="5" className="text-center py-5 text-danger">
+                      <em className="fas fa-exclamation-triangle me-2"></em>
                       Error: {error}
                     </td>
                   </tr>
                 )}
-                {status === "succeeded" &&
+                {paginatedStatus === "succeeded" &&
                   gods.map((god) => (
                     <tr key={god._id}>
                       <td>
                         <DynamicImage
-                          src={god.master.featureimage}
+                          src={god.featureimage || god.master?.featureimage}
                           alt={god.name}
                           style={{
                             width: "60px",
@@ -223,12 +210,11 @@ export default function GodManagementPage() {
                         />
                       </td>
                       <td className="fw-bold">{god.name}</td>
-                      <td>{getLanguageNameById(god.language)}</td>
                       <td>{god.master ? god.master.name : "None"}</td>
                       <td>{god.sort}</td>
                       <td className="text-center">
                         <button
-                          className="btn btn-sm btn-outline-secondary me-2 mr-2"
+                          className="btn btn-sm btn-outline-secondary me-2"
                           onClick={() => handleOpenModal(god)}
                           title="Edit"
                         >
@@ -247,10 +233,22 @@ export default function GodManagementPage() {
               </tbody>
             </table>
           </div>
+
+          {totalItems > itemsPerPage && (
+            <div className="mt-3">
+              <CustomPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* --- Add/Edit Modal --- */}
+      {/* Add/Edit Modal */}
       {isModalOpen && (
         <>
           <div className="modal-backdrop fade show"></div>
@@ -274,65 +272,42 @@ export default function GodManagementPage() {
                     ></button>
                   </div>
                   <div className="modal-body">
-                    {/* <div className="mb-3">
-                      <ImageUpload
-                        label="God Image"
-                        value={{ url: formData.featureimage, type: "image" }}
-                        onChange={handleImageChange}
+                    <div className="mb-3">
+                      <label
+                        htmlFor="master"
+                        className="form-label fw-semibold"
+                      >
+                        Master God (Optional)
+                      </label>
+                      <AsyncSelect
+                        cacheOptions
+                        defaultOptions={masterGods.map((god) => ({
+                          label: god.name,
+                          value: god._id,
+                        }))}
+                        loadOptions={loadMasterOptions}
+                        value={
+                          formData.master
+                            ? {
+                                label:
+                                  masterGods.find(
+                                    (g) => g._id === formData.master
+                                  )?.name || "None",
+                                value: formData.master,
+                              }
+                            : null
+                        }
+                        onChange={(selectedOption) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            master: selectedOption ? selectedOption.value : "",
+                          }))
+                        }
+                        isClearable
+                        placeholder="-- Select Master God --"
                       />
-                    </div> */}
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label
-                          htmlFor="language"
-                          className="form-label fw-semibold"
-                        >
-                          Language
-                        </label>
-                        <select
-                          id="language"
-                          name="language"
-                          className="form-select"
-                          value={formData.language}
-                          onChange={handleFormChange}
-                          required
-                        >
-                          {/* Extra option */}
-                          <option value="">-- Select Language --</option>
-
-                          {staticLanguages.map((lang) => (
-                            <option key={lang._id} value={lang._id}>
-                              {`${lang.nativeName} (${lang.language})`}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="col-md-6 mb-3">
-                        <label
-                          htmlFor="master"
-                          className="form-label fw-semibold"
-                        >
-                          Master God (Optional)
-                        </label>
-                        <select
-                          id="master"
-                          name="master"
-                          className="form-select"
-                          value={formData.master}
-                          onChange={handleFormChange}
-                        >
-                          <option value="">-- None --</option>
-                          {Gods.filter((g) => g._id !== editingGod?._id).map(
-                            (masterGod) => (
-                              <option key={masterGod._id} value={masterGod._id}>
-                                {masterGod.name}
-                              </option>
-                            )
-                          )}
-                        </select>
-                      </div>
                     </div>
+
                     <div className="mb-3">
                       <label htmlFor="name" className="form-label fw-semibold">
                         Name
@@ -343,9 +318,16 @@ export default function GodManagementPage() {
                         id="name"
                         name="name"
                         value={formData.name}
-                        onChange={handleFormChange}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                        required
                       />
                     </div>
+
                     <div className="mb-3">
                       <label
                         htmlFor="description"
@@ -359,9 +341,15 @@ export default function GodManagementPage() {
                         name="description"
                         rows="3"
                         value={formData.description}
-                        onChange={handleFormChange}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
                       ></textarea>
                     </div>
+
                     <div className="mb-3">
                       <label htmlFor="sort" className="form-label fw-semibold">
                         Sort Order
@@ -372,11 +360,17 @@ export default function GodManagementPage() {
                         id="sort"
                         name="sort"
                         value={formData.sort}
-                        onChange={handleFormChange}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            sort: e.target.value,
+                          }))
+                        }
                         required
                       />
                     </div>
                   </div>
+
                   <div className="modal-footer">
                     <button
                       type="button"
@@ -401,8 +395,7 @@ export default function GodManagementPage() {
         </>
       )}
 
-      {/* --- Delete Confirmation Modal --- */}
-      {/* --- Reusable Delete Confirmation Modal --- */}
+      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         show={godToDelete !== null}
         onClose={() => setGodToDelete(null)}
@@ -412,63 +405,12 @@ export default function GodManagementPage() {
         isLoading={isSaving}
         confirmButtonVariant="danger"
       >
-        {/* This content is passed as 'children' to the modal */}
         <p className="fs-5 text-center">
           Are you sure you want to delete <br />
-          <strong className="text-danger">
-            {/* Use optional chaining `?.` for safety as the object might be null during fade-out */}
-            {godToDelete?.name}
-          </strong>
-          ?
+          <strong className="text-danger">{godToDelete?.name}</strong>?
         </p>
         <p className="text-muted text-center">This action cannot be undone.</p>
       </ConfirmationModal>
-      {/* {godToDelete && (
-        <div
-          className="modal"
-          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header bg-danger text-white">
-                <h5 className="modal-title">
-                  <em className="fas fa-exclamation-triangle me-2"></em> Confirm
-                  Deletion
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  onClick={() => setGodToDelete(null)}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <p className="fs-5 text-center">
-                  Are you sure you want to delete <br />
-                  <strong className="text-danger">{godToDelete.name}</strong>?
-                </p>
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setGodToDelete(null)}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={confirmDelete}
-                  disabled={isSaving}
-                >
-                  {isSaving ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )} */}
     </>
   );
 }

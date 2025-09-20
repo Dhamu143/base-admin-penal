@@ -3,13 +3,23 @@ import httpService from "../../common/http.service";
 
 // --- ASYNC THUNKS FOR THE /aarti ENDPOINT ---
 
-// Fetch all aartis
+// Fetch all aartis with optional filter parameters
+// Fetch all aartis with optional filter parameters
 export const fetchAartis = createAsyncThunk(
   "aarti/fetchAll",
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const response = await httpService.get("/aarti");
-      return response.data?.data?.data;
+      const queryString = new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+      ).toString();
+
+      const url = queryString ? `/aarti?${queryString}` : "/aarti";
+      const response = await httpService.get(url);
+
+      return {
+        data: response.data?.data?.data || [],
+        pagination: response.data?.data?.pagination || null,
+      };
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Could not fetch aartis."
@@ -68,6 +78,7 @@ const aartiSlice = createSlice({
   name: "aarti",
   initialState: {
     list: [],
+    pagination: null, // <--- ADD THIS
     status: "idle",
     error: null,
   },
@@ -81,7 +92,13 @@ const aartiSlice = createSlice({
       })
       .addCase(fetchAartis.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list = Array.isArray(action.payload) ? action.payload : [];
+
+        // API response structure: { data: [...], pagination: {...} }
+        state.list = Array.isArray(action.payload?.data)
+          ? action.payload.data
+          : [];
+
+        state.pagination = action.payload?.pagination || null; // <--- SAVE PAGINATION
       })
       .addCase(fetchAartis.rejected, (state, action) => {
         state.status = "failed";
@@ -91,10 +108,8 @@ const aartiSlice = createSlice({
       // Add
       .addCase(addAarti.fulfilled, (state, action) => {
         state.list.push(action.payload);
-        state.status = "succeeded";
       })
       .addCase(addAarti.rejected, (state, action) => {
-        state.status = "failed";
         state.error = action.payload;
       })
 
@@ -106,20 +121,16 @@ const aartiSlice = createSlice({
         if (index !== -1) {
           state.list[index] = action.payload;
         }
-        state.status = "succeeded";
       })
       .addCase(updateAarti.rejected, (state, action) => {
-        state.status = "failed";
         state.error = action.payload;
       })
 
       // Delete
       .addCase(deleteAarti.fulfilled, (state, action) => {
         state.list = state.list.filter((aarti) => aarti._id !== action.payload);
-        state.status = "succeeded";
       })
       .addCase(deleteAarti.rejected, (state, action) => {
-        state.status = "failed";
         state.error = action.payload;
       });
   },

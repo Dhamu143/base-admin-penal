@@ -121,6 +121,27 @@ const Menu = [
     permissions: ["admin", "users"],
   },
   {
+    name: "Stuti",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/stuti",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Story",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/story",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "News",
+    translate: "sidebar.nav.SUBMENU",
+    path: "/news",
+    icon: "icon-people",
+    permissions: ["admin", "users"],
+  },
+  {
     name: "Users",
     translate: "sidebar.nav.SUBMENU",
     path: "/users",

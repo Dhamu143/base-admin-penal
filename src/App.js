@@ -65,6 +65,12 @@ import SlokFormPage from "./pages/SlokManagementPage/SlokFormPage.js";
 import ArticleFormPage from "./pages/ArticleManagementPage/ArticleFormPage.js";
 import TempleFormPage from "./pages/TempleManagementPage/TempleFormPage.js";
 import QuizFormPage from "./pages/QuizManagement/QuizFormPage.js";
+import NewsFormPage from "./pages/NewsFormPage/NewsManagementPage";
+import NewsManagementPage from "./pages/NewsFormPage/index.js";
+import StoryManagementPage from "./pages/StoryManagementPage/index.js";
+import StoryFormPage from "./pages/StoryManagementPage/StoryFormPage.js";
+import StutiManagementPage from "./pages/StutiManagementPage/index.js";
+import StutiFormPage from "./pages/StutiManagementPage/StutiFormPage.js";
 
 function App() {
   const navigate = useNavigate();
@@ -127,7 +133,19 @@ function App() {
           <Route path="/temple" element={<TempleManagementPage />} />
           <Route path="/temple/new" element={<TempleFormPage />} />
           <Route path="/temple/edit/:id" element={<TempleFormPage />} />
-          \
+
+          <Route path="/news" element={<NewsManagementPage />} />
+          <Route path="/news/new" element={<NewsFormPage />} />
+          <Route path="/news/:id/edit" element={<NewsFormPage />} />
+
+          <Route path="/story" element={<StoryManagementPage />} />
+          <Route path="/story/new" element={<StoryFormPage />} />
+          <Route path="/story/:id/edit" element={<StoryFormPage />} />
+
+          <Route path="/stuti" element={<StutiManagementPage />} />
+          <Route path="/stuti/new" element={<StutiFormPage />} />
+          <Route path="/stuti/:id/edit" element={<StutiFormPage />} />
+
           <Route path="/quiz" element={<QuizManagement />} />
           <Route path="/quizzes/new" element={<QuizFormPage />} />
           <Route path="/quizzes/edit/:id" element={<QuizFormPage />} />

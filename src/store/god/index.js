@@ -1,123 +1,159 @@
-// src/store/godmaster/godSlice.js
-
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
-// --- ASYNC THUNKS ---
-
-/**
- * Fetch all Gods
- * GET /god
- */
+// --- THUNKS (Unchanged) ---
 export const fetchGods = createAsyncThunk(
-  "god/fetchAll",
-  async (_, { rejectWithValue }) => {
+  "god/fetchPaginated",
+  async ({ page = 1, limit = 10 }, { rejectWithValue }) => {
     try {
-      const response = await httpService.get("/god");
-      // API response: { success: true, data: { data: [...] } }
-      return response.data.data.data;
+      const response = await httpService.get(
+        `/god?page=${page}&limit=${limit}`
+      );
+      return response.data.data;
     } catch (err) {
-      return rejectWithValue(err.message || "Could not fetch gods.");
+      return rejectWithValue(err.message || "Could not fetch paginated gods.");
     }
   }
 );
 
-/**
- * Add a new God
- * POST /god/create
- */
+export const fetchAllGods = createAsyncThunk(
+  "god/fetchAll",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await httpService.get(`/god?limit=1000 `);
+      return response.data.data.data;
+    } catch (err) {
+      return rejectWithValue(err.message || "Could not fetch all gods.");
+    }
+  }
+);
+
 export const addGod = createAsyncThunk(
   "god/add",
   async (godData, { rejectWithValue }) => {
     try {
       const response = await httpService.post("/god/create", {}, godData);
-      return response.data.data; // new god object
+      return response.data.data;
     } catch (err) {
       return rejectWithValue(err.message || "Could not add god.");
     }
   }
 );
 
-/**
- * Update an existing God
- * PUT /god/:id
- */
 export const updateGod = createAsyncThunk(
   "god/update",
   async ({ id, ...godData }, { rejectWithValue }) => {
     try {
       const response = await httpService.put(`/god/${id}`, {}, godData);
-      return response.data.data; // updated god object
+      return response.data.data;
     } catch (err) {
       return rejectWithValue(err.message || "Could not update god.");
     }
   }
 );
 
-/**
- * Delete a God
- * DELETE /god/:id
- */
 export const deleteGod = createAsyncThunk(
   "god/delete",
   async (id, { rejectWithValue }) => {
     try {
       await httpService.delete(`/god/${id}`);
-      return id; // return id to remove from state
+      return id;
     } catch (err) {
       return rejectWithValue(err.message || "Could not delete god.");
     }
   }
 );
 
-// --- SLICE ---
+// --- SLICE DEFINITION ---
 const godSlice = createSlice({
   name: "god",
   initialState: {
     list: [],
-    status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+    pagination: null,
+    status: "idle", // General status for read operations
+    masterList: [],
+    masterStatus: "idle",
     error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
+    // Helper function to handle pending/rejected for multiple actions
+    const addCrudCases = (thunk) => {
+      builder
+        .addCase(thunk.pending, (state) => {
+          state.status = "loading"; // Use general status for saving/deleting
+        })
+        .addCase(thunk.rejected, (state, action) => {
+          state.status = "failed";
+          state.error = action.payload;
+        });
+    };
+
     builder
-      // --- Fetch ---
+      // --- Cases for PAGINATED list ---
       .addCase(fetchGods.pending, (state) => {
         state.status = "loading";
-        state.error = null;
       })
       .addCase(fetchGods.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list = Array.isArray(action.payload) ? action.payload : [];
+        state.list = action.payload.data;
+        state.pagination = action.payload.pagination;
       })
       .addCase(fetchGods.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
       })
 
-      // --- Add ---
-      .addCase(addGod.fulfilled, (state, action) => {
-        state.status = "succeeded";
-        state.list.push(action.payload);
+      // --- Cases for COMPLETE list ---
+      .addCase(fetchAllGods.pending, (state) => {
+        state.masterStatus = "loading";
+      })
+      .addCase(fetchAllGods.fulfilled, (state, action) => {
+        state.masterStatus = "succeeded";
+        state.masterList = action.payload;
+      })
+      .addCase(fetchAllGods.rejected, (state, action) => {
+        state.masterStatus = "failed";
+        state.error = action.payload;
       })
 
-      // --- Update ---
+      // --- Cases for ADD ---
+      .addCase(addGod.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        // Add to both lists for immediate UI feedback
+        state.list.unshift(action.payload); // Add to start of current page
+        state.masterList.push(action.payload);
+      })
+
+      // --- Cases for UPDATE ---
       .addCase(updateGod.fulfilled, (state, action) => {
         state.status = "succeeded";
-        const index = state.list.findIndex(
-          (god) => god._id === action.payload._id
+        const updatedGod = action.payload;
+        // Update in paginated list
+        const listIndex = state.list.findIndex((g) => g._id === updatedGod._id);
+        if (listIndex !== -1) {
+          state.list[listIndex] = updatedGod;
+        }
+        // Update in master list
+        const masterListIndex = state.masterList.findIndex(
+          (g) => g._id === updatedGod._id
         );
-        if (index !== -1) {
-          // Merge old object with updated fields
-          state.list[index] = { ...state.list[index], ...action.payload };
+        if (masterListIndex !== -1) {
+          state.masterList[masterListIndex] = updatedGod;
         }
       })
 
-      // --- Delete ---
+      // --- Cases for DELETE ---
       .addCase(deleteGod.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list = state.list.filter((god) => god._id !== action.payload);
+        const deletedId = action.payload;
+        // Remove from both lists
+        state.list = state.list.filter((g) => g._id !== deletedId);
+        state.masterList = state.masterList.filter((g) => g._id !== deletedId);
       });
+
+    // Add pending/rejected cases for all CRUD actions
+    [addGod, updateGod, deleteGod].forEach(addCrudCases);
   },
 });
 
