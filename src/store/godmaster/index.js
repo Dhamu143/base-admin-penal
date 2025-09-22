@@ -4,13 +4,14 @@ import httpService from "../../common/http.service";
 
 // --- Async Thunks ---
 
-// Fetch all gods
+// 🔄 MODIFIED: Thunk now accepts parameters for pagination
 export const fetchGods = createAsyncThunk(
   "gods/fetchGods",
-  async (_, { rejectWithValue }) => {
+  async (params = { page: 1, limit: 10 }, { rejectWithValue }) => {
     try {
-      const response = await httpService.get("/godmaster");
-      // Assuming API returns: { success: true, data: { data: [...], pagination: {...} } }
+      // Use URLSearchParams to build the query string (e.g., /godmaster?page=1&limit=10)
+      const queryParams = new URLSearchParams(params).toString();
+      const response = await httpService.get(`/godmaster?${queryParams}`);
       return response.data; // return whole response.data
     } catch (err) {
       return rejectWithValue(err.message || "Could not fetch gods.");
@@ -23,8 +24,8 @@ export const addGod = createAsyncThunk(
   "gods/addGod",
   async (godData, { rejectWithValue }) => {
     try {
-      const response = await httpService.post("/godmaster/create", {}, godData);
-      return response.data.data; // return created god object
+      const response = await httpService.post("/godmaster/create", godData);
+      return response.data.data;
     } catch (err) {
       return rejectWithValue(err.message || "Could not add god.");
     }
@@ -36,8 +37,8 @@ export const updateGod = createAsyncThunk(
   "gods/updateGod",
   async ({ id, ...data }, { rejectWithValue }) => {
     try {
-      const response = await httpService.put(`/godmaster/${id}`, {}, data);
-      return response.data.data; // return updated god object
+      const response = await httpService.put(`/godmaster/${id}`, data);
+      return response.data.data;
     } catch (err) {
       return rejectWithValue(err.message || "Could not update god.");
     }
@@ -60,8 +61,12 @@ export const deleteGod = createAsyncThunk(
 // --- Slice ---
 const initialState = {
   list: [],
-  pagination: {},
-  status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+  pagination: {
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+  },
+  status: "idle",
   error: null,
 };
 
@@ -76,26 +81,24 @@ const godsSlice = createSlice({
         state.status = "loading";
         state.error = null;
       })
+      // This reducer was already correctly set up to handle a paginated response!
       .addCase(fetchGods.fulfilled, (state, action) => {
         state.status = "succeeded";
-        // Correct mapping from API response
         state.list = action.payload?.data?.data || [];
-        state.pagination = action.payload?.data?.pagination || {};
+        state.pagination = action.payload?.data?.pagination || {
+          totalPages: 1,
+        };
       })
       .addCase(fetchGods.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || action.error.message;
       })
-
-      // --- Add ---
+      // Other cases remain the same...
       .addCase(addGod.fulfilled, (state, action) => {
-        state.list.push(action.payload);
+        // To keep pagination correct, we don't manually add to the list.
+        // We'll trigger a refetch in the component instead.
+        state.status = "idle";
       })
-      .addCase(addGod.rejected, (state, action) => {
-        state.error = action.payload || action.error.message;
-      })
-
-      // --- Update ---
       .addCase(updateGod.fulfilled, (state, action) => {
         const index = state.list.findIndex(
           (god) => god._id === action.payload._id
@@ -104,16 +107,8 @@ const godsSlice = createSlice({
           state.list[index] = { ...state.list[index], ...action.payload };
         }
       })
-      .addCase(updateGod.rejected, (state, action) => {
-        state.error = action.payload || action.error.message;
-      })
-
-      // --- Delete ---
       .addCase(deleteGod.fulfilled, (state, action) => {
         state.list = state.list.filter((god) => god._id !== action.payload);
-      })
-      .addCase(deleteGod.rejected, (state, action) => {
-        state.error = action.payload || action.error.message;
       });
   },
 });

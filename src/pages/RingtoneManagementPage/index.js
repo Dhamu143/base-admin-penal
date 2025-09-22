@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import Select from "react-select"; // ✨ NEW: Import react-select for the filter dropdown
 
 // Redux Actions for Ringtone
 import {
@@ -10,12 +11,21 @@ import {
   deleteRingtone,
 } from "../../store/ringtone/index";
 
-// ✨ REMOVED: God Master import
-// ✨ ADDED: Import for the standard God list
+// Redux Actions for God
 import { fetchAllGods } from "../../store/god/index";
 
+// Constants and Common Components
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
+
+// ✨ NEW: Options for the language filter dropdown
+const languageOptions = [
+  { value: "", label: "All Languages" },
+  ...staticLanguages.map((lang) => ({
+    value: lang._id,
+    label: `${lang.language} (${lang.nativeName})`,
+  })),
+];
 
 export default function RingtoneManagementPage() {
   const dispatch = useDispatch();
@@ -24,7 +34,6 @@ export default function RingtoneManagementPage() {
   const { list: ringtones, status, error } = useSelector(
     (state) => state.ringtones
   );
-  // ✨ UPDATED: Pointing to the main 'God' slice to get the complete list for filtering
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -35,27 +44,34 @@ export default function RingtoneManagementPage() {
   const [editingRingtone, setEditingRingtone] = useState(null);
   const [ringtoneToDelete, setRingtoneToDelete] = useState(null);
   const [filteredGods, setFilteredGods] = useState([]);
+  const [filters, setFilters] = useState({ language: "" }); // ✨ NEW: State for list filters
 
   // --- Form State ---
   const initialFormState = {
     sort: "",
     isActive: true,
     isFree: true,
-    god: "", // ✨ RENAMED: from 'master' to 'god'
+    god: "",
     language: "",
     description: "",
     file: null,
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  // Fetch initial data
-  useEffect(() => {
-    if (status === "idle") dispatch(fetchRingtones());
-    // ✨ UPDATED: Fetch the standard god list
-    if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [status, godStatus, dispatch]);
+  // ✨ NEW: Reusable function to fetch ringtones with filter/pagination params
+  const loadRingtones = (params = {}) => {
+    dispatch(fetchRingtones(params))
+      .unwrap()
+      .catch((err) => toast.error(err?.message || "Failed to load ringtones."));
+  };
 
-  // Effect to filter the god list based on the selected language
+  // 🔄 MODIFIED: Fetch initial data using the new loadRingtones function
+  useEffect(() => {
+    loadRingtones(); // Load all ringtones initially
+    if (godStatus === "idle") dispatch(fetchAllGods());
+  }, [godStatus, dispatch]);
+
+  // Effect to filter the god list for the modal
   useEffect(() => {
     if (formData.language && Array.isArray(allGods)) {
       const godsByLang = allGods.filter(
@@ -67,6 +83,19 @@ export default function RingtoneManagementPage() {
     }
   }, [formData.language, allGods]);
 
+  // ✨ NEW: Handler for changing the main language filter
+  const handleLanguageChange = (selectedOption) => {
+    const value = selectedOption ? selectedOption.value : "";
+    setFilters((prev) => ({ ...prev, language: value }));
+    loadRingtones({ language: value });
+  };
+
+  // ✨ NEW: Handler for resetting the filter
+  const handleResetFilters = () => {
+    setFilters({ language: "" });
+    loadRingtones({ language: "" });
+  };
+
   const handleOpenModal = (ringtone = null) => {
     if (ringtone) {
       setEditingRingtone(ringtone);
@@ -74,7 +103,7 @@ export default function RingtoneManagementPage() {
         sort: ringtone.sort || 0,
         isActive: ringtone.isActive,
         isFree: ringtone.isFree,
-        god: ringtone.god?._id || ringtone.god || "", // ✨ UPDATED: references 'god'
+        god: ringtone.god?._id || ringtone.god || "",
         language: ringtone.language || "",
         description: ringtone.description || "",
         file: null,
@@ -97,10 +126,8 @@ export default function RingtoneManagementPage() {
     setFormData(initialFormState);
   };
 
-  // REVISED: handleFormChange to reset 'god' when language changes
   const handleFormChange = (e) => {
     const { name, value, type, checked, files } = e.target;
-
     if (type === "file") {
       setFormData((prev) => ({ ...prev, [name]: files[0] }));
     } else {
@@ -108,7 +135,6 @@ export default function RingtoneManagementPage() {
       setFormData((prev) => ({
         ...prev,
         [name]: val,
-        // ✨ UPDATED: If language changes, reset the god selection
         ...(name === "language" && { god: "" }),
       }));
     }
@@ -116,7 +142,6 @@ export default function RingtoneManagementPage() {
 
   const handleSaveRingtone = async (e) => {
     e.preventDefault();
-    // ✨ UPDATED: Validation now checks for 'god'
     if (!formData.god || !formData.language) {
       toast.warn("Please select a Language and a God.");
       return;
@@ -128,11 +153,8 @@ export default function RingtoneManagementPage() {
     setIsSaving(true);
     try {
       const dataToSubmit = new FormData();
-      // This loop now correctly handles the 'god' field instead of 'master'
       for (const key in formData) {
-        if (key === "file" && !formData[key]) {
-          continue;
-        }
+        if (key === "file" && !formData[key]) continue;
         dataToSubmit.append(key, formData[key]);
       }
 
@@ -143,17 +165,16 @@ export default function RingtoneManagementPage() {
 
       await dispatch(action).unwrap();
 
-      const successMessage = isEditing
-        ? "Ringtone updated successfully! 🎵"
-        : "Ringtone added successfully! 🎶";
-      toast.success(successMessage);
+      loadRingtones(filters); // Refresh the list with current filters
 
+      toast.success(
+        isEditing
+          ? "Ringtone updated successfully! 🎵"
+          : "Ringtone added successfully! 🎶"
+      );
       handleCloseModal();
     } catch (err) {
-      console.error("Failed to save the ringtone:", err);
-      toast.error(
-        err?.message || "An error occurred while saving the ringtone."
-      );
+      toast.error(err?.message || "Failed to save the ringtone.");
     } finally {
       setIsSaving(false);
     }
@@ -166,13 +187,17 @@ export default function RingtoneManagementPage() {
       await dispatch(deleteRingtone(ringtoneToDelete._id)).unwrap();
       toast.success("Ringtone deleted successfully.");
       setRingtoneToDelete(null);
+      loadRingtones(filters); // Refresh the list with current filters
     } catch (err) {
-      console.error("Failed to delete ringtone:", err);
       toast.error(err?.message || "Failed to delete the ringtone.");
     } finally {
       setIsSaving(false);
     }
   };
+
+  const selectedLanguage = languageOptions.find(
+    (opt) => opt.value === filters.language
+  );
 
   return (
     <>
@@ -183,6 +208,35 @@ export default function RingtoneManagementPage() {
             <em className="fas fa-plus me-2"></em> Add New Ringtone
           </button>
         </div>
+
+        {/* ✨ --- NEW FILTERS SECTION --- ✨ */}
+        <div className="card-body border-bottom">
+          <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
+            <div style={{ minWidth: "300px" }}>
+              <label className="form-label fw-bold small mb-1">
+                Filter by Language
+              </label>
+              <Select
+                placeholder="Select..."
+                options={languageOptions}
+                value={selectedLanguage}
+                onChange={handleLanguageChange}
+                isClearable={true}
+                classNamePrefix="react-select"
+              />
+            </div>
+            <div className="mt-md-auto">
+              <button
+                className="btn btn-outline-secondary w-100"
+                onClick={handleResetFilters}
+              >
+                <i className="fas fa-undo me-2"></i>
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="card-body">
           <div className="table-responsive">
             <table className="table table-hover align-middle">
@@ -212,67 +266,65 @@ export default function RingtoneManagementPage() {
                     </td>
                   </tr>
                 )}
-                {status === "succeeded" && ringtones.length > 0
-                  ? ringtones.map((ringtone) => (
-                      <tr key={ringtone._id}>
-                        <td>
-                          <audio
-                            controls
-                            src={ringtone.file}
-                            style={{ height: "40px", width: "250px" }}
-                          >
-                            Your browser does not support the audio element.
-                          </audio>
-                        </td>
-                        <td>{ringtone.description || "-"}</td>
-                        <td>{getLanguageNameById(ringtone.language)}</td>
-                        <td>
-                          <span
-                            className={`badge fs-6 ${
-                              ringtone.isFree
-                                ? "text-bg-info"
-                                : "text-bg-warning"
-                            }`}
-                          >
-                            {ringtone.isFree ? "Free" : "Premium"}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`badge fs-6 ${
-                              ringtone.isActive
-                                ? "text-bg-success"
-                                : "text-bg-secondary"
-                            }`}
-                          >
-                            {ringtone.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="text-center">
-                          <button
-                            className="btn btn-sm btn-outline-secondary me-2"
-                            onClick={() => handleOpenModal(ringtone)}
-                            title="Edit"
-                          >
-                            <em className="fas fa-pencil-alt"></em>
-                          </button>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => setRingtoneToDelete(ringtone)}
-                            title="Delete"
-                          >
-                            <em className="fas fa-trash"></em>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  : status === "succeeded" && (
-                      <tr>
-                        <td colSpan="6" className="text-center py-5 text-muted">
-                          No Ringtones Found.
-                        </td>
-                      </tr>
-                    )}
+                {status === "succeeded" && ringtones.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="text-center py-5 text-muted">
+                      No Ringtones Found.
+                    </td>
+                  </tr>
+                )}
+                {status === "succeeded" &&
+                  ringtones.map((ringtone) => (
+                    <tr key={ringtone._id}>
+                      <td>
+                        <audio
+                          controls
+                          src={ringtone.file}
+                          style={{ height: "40px", width: "250px" }}
+                        >
+                          Your browser does not support the audio element.
+                        </audio>
+                      </td>
+                      <td>{ringtone.description || "-"}</td>
+                      <td>{getLanguageNameById(ringtone.language)}</td>
+                      <td>
+                        <span
+                          className={`badge fs-6 ${
+                            ringtone.isFree ? "text-bg-info" : "text-bg-warning"
+                          }`}
+                        >
+                          {ringtone.isFree ? "Free" : "Premium"}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge fs-6 ${
+                            ringtone.isActive
+                              ? "text-bg-success"
+                              : "text-bg-secondary"
+                          }`}
+                        >
+                          {ringtone.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        <button
+                          className="btn btn-sm btn-outline-secondary me-2"
+                          onClick={() => handleOpenModal(ringtone)}
+                          title="Edit"
+                        >
+                          <em className="fas fa-pencil-alt"></em>
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => setRingtoneToDelete(ringtone)}
+                          title="Delete"
+                        >
+                          <em className="fas fa-trash"></em>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -375,7 +427,6 @@ export default function RingtoneManagementPage() {
                         </select>
                       </div>
 
-                      {/* ✨ MODIFIED: God Select Dropdown */}
                       <div className="col-md-6 mb-3">
                         <label htmlFor="god" className="form-label fw-semibold">
                           God
@@ -480,7 +531,7 @@ export default function RingtoneManagementPage() {
         </>
       )}
 
-      {/* Reusable Delete Confirmation Modal */}
+      {/* --- Delete Confirmation Modal --- */}
       <ConfirmationModal
         show={ringtoneToDelete !== null}
         onClose={() => setRingtoneToDelete(null)}

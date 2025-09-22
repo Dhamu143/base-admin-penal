@@ -11,7 +11,7 @@ import {
   addFestival,
   updateFestival,
 } from "../../store/festival/index";
-import { fetchAllGods } from "../../store/god/index"; // Only fetching Gods now
+import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
 export default function FestivalFormPage() {
@@ -36,17 +36,17 @@ export default function FestivalFormPage() {
     description: "",
     language: "",
   });
-
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- Effects ---
+  // --- Fetch Data ---
   useEffect(() => {
     if (festivalStatus === "idle") dispatch(fetchFestivals());
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [festivalStatus, godStatus, dispatch]);
 
+  // --- Initialize Form for Edit ---
   useEffect(() => {
     if (id && festivals.length > 0) {
       const festival = festivals.find((f) => f._id === id);
@@ -55,14 +55,15 @@ export default function FestivalFormPage() {
           name: festival.name || "",
           sort: festival.sort || 0,
           isActive: festival.isActive,
-          god: festival.god?._id || festival.god,
+          god: festival.god?._id || festival.god || "",
           description: festival.description || "",
-          language: festival.language,
+          language: festival.language?._id || festival.language || "",
         });
       }
     }
   }, [id, festivals]);
 
+  // --- Filter Gods by Language ---
   useEffect(() => {
     if (formData.language && allGods.length > 0) {
       const godsByLang = allGods.filter(
@@ -74,7 +75,7 @@ export default function FestivalFormPage() {
     }
   }, [formData.language, allGods]);
 
-  // --- Event Handlers ---
+  // --- Handlers ---
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -83,10 +84,14 @@ export default function FestivalFormPage() {
     }));
   };
 
-  const getSelectedOption = (list, id) => {
-    if (!id || !list) return null;
-    const selected = list.find((item) => item._id === id);
-    return selected ? { value: selected._id, label: selected.name } : null;
+  const getSelectedOption = (list, value) => {
+    if (!value || !list) return null;
+    const selected = list.find(
+      (item) => item._id === value || item.language === value
+    );
+    return selected
+      ? { value: selected._id, label: selected.name || selected.nativeName }
+      : null;
   };
 
   const validateForm = () => {
@@ -190,7 +195,7 @@ export default function FestivalFormPage() {
                       setFormData((prev) => ({
                         ...prev,
                         language: option?.value || "",
-                        god: "", // Reset God on language change
+                        god: "", // reset God on language change
                       }))
                     }
                     placeholder="Select Language..."
@@ -202,7 +207,7 @@ export default function FestivalFormPage() {
                   )}
                 </div>
 
-                {/* God Select */}
+                {/* God */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     God <span className="text-danger">*</span>
@@ -224,7 +229,7 @@ export default function FestivalFormPage() {
                         ? "Select God..."
                         : "Select Language first..."
                     }
-                    isDisabled={!formData.language}
+                    isDisabled={!formData.language || filteredGods.length === 0}
                   />
                   {errors.god && (
                     <div className="text-danger small mt-1">{errors.god}</div>

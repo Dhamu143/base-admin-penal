@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { toast } from "react-toastify"; // Using toast for notifications
+import { toast } from "react-toastify";
 
 // Redux Actions
 import {
@@ -17,11 +17,14 @@ import { uploadImage } from "../../services/uploadService";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 import ImageUpload from "../../components/ImageUpload";
 import ConfirmationModal from "../../common/ConfirmationModal";
+import CustomPagination from "../../common/Pagination"; // Import pagination
 
 export default function FeatureManagementPage() {
   const dispatch = useDispatch();
 
-  const { list: gods, status, error } = useSelector((state) => state.gods);
+  const { list: gods, pagination, status, error } = useSelector(
+    (state) => state.gods
+  );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -30,21 +33,34 @@ export default function FeatureManagementPage() {
   const [errors, setErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
 
-  // MODIFICATION: Added 'percentage' to the initial form state
+  // 🔄 MODIFIED: Page size is now 4
+  const itemsPerPage = 2;
+
   const initialFormState = {
     name: "",
     featureimage: "",
     sort: "",
-    percentage: "", // New field
+    percentage: "",
     isActive: true,
   };
   const [formData, setFormData] = useState(initialFormState);
 
+  // Centralized function to load data with pagination
+  const loadGods = (page = 1) => {
+    dispatch(fetchGods({ page, limit: itemsPerPage }));
+  };
+
+  // Correctly fetches data on every page visit
   useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchGods());
+    loadGods(1); // Load the first page on component mount
+  }, [dispatch]);
+
+  // Handler for page changes
+  const handlePageChange = (newPage) => {
+    if (newPage !== pagination?.currentPage) {
+      loadGods(newPage);
     }
-  }, [status, dispatch]);
+  };
 
   const handleOpenModal = (god = null) => {
     if (god) {
@@ -54,8 +70,7 @@ export default function FeatureManagementPage() {
         name: god.name || "",
         featureimage: god.featureimage || "",
         sort: god.sort || 0,
-        // MODIFICATION: Populate percentage field for editing
-        percentage: god.percentage || 0, // New field
+        percentage: god.percentage || 0,
         isActive: god.isActive,
       });
     } else {
@@ -114,7 +129,6 @@ export default function FeatureManagementPage() {
     if (formData.sort === "" || isNaN(formData.sort)) {
       newErrors.sort = "Sort order must be a valid number.";
     }
-    // MODIFICATION: Add validation for the percentage field
     if (formData.percentage === "" || isNaN(formData.percentage)) {
       newErrors.percentage = "Percentage must be a valid number.";
     } else if (formData.percentage < 0 || formData.percentage > 100) {
@@ -143,6 +157,7 @@ export default function FeatureManagementPage() {
       toast.success(
         editingGod ? "God updated successfully!" : "God added successfully!"
       );
+      loadGods(pagination?.currentPage || 1); // Refresh the current page
       handleCloseModal();
     } catch (err) {
       console.error("Failed to save the feature:", err);
@@ -158,6 +173,13 @@ export default function FeatureManagementPage() {
     try {
       await dispatch(deleteGod(godToDelete._id)).unwrap();
       toast.success(`"${godToDelete.name}" was deleted successfully.`);
+
+      const pageToFetch =
+        gods.length === 1 && pagination?.currentPage > 1
+          ? pagination.currentPage - 1
+          : pagination?.currentPage || 1;
+
+      loadGods(pageToFetch);
       setGodToDelete(null);
     } catch (err) {
       console.error("Failed to delete the feature:", err);
@@ -185,7 +207,6 @@ export default function FeatureManagementPage() {
                 <tr>
                   <th style={{ width: "10%" }}>Image</th>
                   <th>Name</th>
-                  {/* MODIFICATION: Added Percentage column */}
                   <th>Percentage</th>
                   <th>Sort Order</th>
                   <th>Status</th>
@@ -208,69 +229,79 @@ export default function FeatureManagementPage() {
                     </td>
                   </tr>
                 )}
-                {status === "succeeded" && gods.length > 0
-                  ? gods.map((god) => (
-                      <tr key={god._id}>
-                        <td>
-                          <DynamicImage
-                            src={god.featureimage || "/img/user.jpg"}
-                            alt={god.name || "User"}
-                            style={{
-                              width: "60px",
-                              height: "60px",
-                              objectFit: "cover",
-                              borderRadius: "50%",
-                              border: "2px solid #dee2e6",
-                            }}
-                          />
-                        </td>
-                        <td className="fw-bold">{god.name}</td>
-                        {/* MODIFICATION: Display percentage data */}
-                        <td>{god.percentage ?? 0}%</td>
-                        <td>{god.sort}</td>
-                        <td>
-                          <span
-                            className={`badge fs-6 ${
-                              god.isActive
-                                ? "text-bg-success"
-                                : "text-bg-secondary"
-                            }`}
-                          >
-                            {god.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="text-center">
-                          <button
-                            className="btn btn-sm btn-outline-secondary me-2"
-                            onClick={() => handleOpenModal(god)}
-                            title="Edit"
-                          >
-                            <i className="fas fa-pencil-alt"></i>
-                          </button>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => setGodToDelete(god)}
-                            title="Delete"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  : status === "succeeded" && (
-                      <tr>
-                        <td colSpan="6" className="text-center py-5 text-muted">
-                          No Gods Found.
-                        </td>
-                      </tr>
-                    )}
+                {status === "succeeded" && gods.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="text-center py-5 text-muted">
+                      No Gods Found.
+                    </td>
+                  </tr>
+                )}
+                {status === "succeeded" &&
+                  gods.map((god) => (
+                    <tr key={god._id}>
+                      <td>
+                        <DynamicImage
+                          src={god.featureimage || "/img/user.jpg"}
+                          alt={god.name || "User"}
+                          style={{
+                            width: "60px",
+                            height: "60px",
+                            objectFit: "cover",
+                            borderRadius: "50%",
+                            border: "2px solid #dee2e6",
+                          }}
+                        />
+                      </td>
+                      <td className="fw-bold">{god.name}</td>
+                      <td>{god.percentage ?? 0}%</td>
+                      <td>{god.sort}</td>
+                      <td>
+                        <span
+                          className={`badge fs-6 ${
+                            god.isActive
+                              ? "text-bg-success"
+                              : "text-bg-secondary"
+                          }`}
+                        >
+                          {god.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        <button
+                          className="btn btn-sm btn-outline-secondary me-2"
+                          onClick={() => handleOpenModal(god)}
+                          title="Edit"
+                        >
+                          <i className="fas fa-pencil-alt"></i>
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => setGodToDelete(god)}
+                          title="Delete"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
         </div>
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="card-footer">
+            <CustomPagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalRecords}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+            />
+          </div>
+        )}
       </div>
 
-      {/* --- Add/Edit Modal --- */}
       {isModalOpen && (
         <>
           <div className="modal-backdrop fade show"></div>
@@ -313,9 +344,7 @@ export default function FeatureManagementPage() {
                         <div className="invalid-feedback">{errors.name}</div>
                       )}
                     </div>
-
                     <div className="row">
-                      {/* MODIFICATION: Placed Sort and Percentage side-by-side */}
                       <div className="col-md-6 mb-3">
                         <label htmlFor="sort" className="form-label fw-bold">
                           Sort Order <span className="text-danger">*</span>
@@ -360,7 +389,6 @@ export default function FeatureManagementPage() {
                         )}
                       </div>
                     </div>
-
                     <div className="mb-3">
                       <ImageUpload
                         label="Feature Image"
@@ -374,7 +402,6 @@ export default function FeatureManagementPage() {
                         </div>
                       )}
                     </div>
-
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -390,7 +417,6 @@ export default function FeatureManagementPage() {
                       </label>
                     </div>
                   </div>
-
                   <div className="modal-footer bg-light">
                     <button
                       type="button"

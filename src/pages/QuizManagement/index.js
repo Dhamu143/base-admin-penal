@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -6,56 +6,74 @@ import Select from "react-select";
 
 // --- Redux Actions & Components ---
 import { fetchQuizzes, deleteQuiz } from "../../store/quiz";
-import { fetchAllGods } from "../../store/god"; // Use the correct action for the full god list
+import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
+import CustomPagination from "../../common/Pagination"; // ✨ NEW: Import pagination
 
 export default function QuizListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // --- Redux State ---
-  const { list: quizzes, status, error } = useSelector(
+  // 🔄 MODIFIED: Get pagination data from the store
+  const { list: quizzes, pagination, status, error } = useSelector(
     (state) => state.quizzes
   );
-  // ✨ CORRECTED: Fetching the full list of gods for displaying names
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
-  // --- Component State ---
   const [isDeleting, setIsDeleting] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState(null);
-  // ✨ NEW: State for the language filter
-  const [selectedLanguage, setSelectedLanguage] = useState(null);
+  const [filters, setFilters] = useState({ language: "" }); // 🔄 MODIFIED: Using a filter object
+
+  const itemsPerPage = 1;
+
+  // ✨ NEW: Centralized function to load data from the server
+  const loadQuizzes = useCallback(
+    (params = {}) => {
+      dispatch(fetchQuizzes({ ...params, limit: itemsPerPage }))
+        .unwrap()
+        .catch((err) => toast.error(err?.message || "Failed to load quizzes."));
+    },
+    [dispatch]
+  );
 
   useEffect(() => {
-    // Fetch initial data if not already present
-    if (status === "idle") {
-      dispatch(fetchQuizzes());
-    }
-    // ✨ CORRECTED: Fetch the full god list if needed
+    loadQuizzes({ page: 1 }); // Load page 1 on initial mount
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
     }
-  }, [dispatch, status, godStatus]);
+  }, [dispatch, godStatus, loadQuizzes]);
 
-  // --- Data Transformation & Filtering ---
+  // --- Data Transformation ---
+  const godNameMap = useMemo(
+    () => new Map(allGods.map((item) => [item._id, item.name])),
+    [allGods]
+  );
+  const languageNameMap = useMemo(
+    () => new Map(staticLanguages.map((item) => [item._id, item.nativeName])),
+    []
+  );
 
-  // Helper function to create a lookup map for faster name retrieval
-  const createNameMap = (list) =>
-    new Map(list.map((item) => [item._id, item.name || item.nativeName]));
+  // 🗑️ REMOVED: Client-side filtering with useMemo is no longer needed.
 
-  const godNameMap = useMemo(() => createNameMap(allGods), [allGods]);
-  const languageNameMap = useMemo(() => createNameMap(staticLanguages), []);
+  // 🔄 MODIFIED: Filter handlers now trigger a server refetch
+  const handleLanguageChange = (selectedOption) => {
+    const value = selectedOption ? selectedOption.value : "";
+    setFilters({ language: value });
+    loadQuizzes({ language: value, page: 1 }); // Reset to page 1
+  };
 
-  // ✨ NEW: Filter quizzes based on the selected language
-  const filteredQuizzes = useMemo(() => {
-    if (!selectedLanguage) {
-      return quizzes; // Return all quizzes if no filter is applied
-    }
-    return quizzes.filter((quiz) => quiz.language === selectedLanguage.value);
-  }, [selectedLanguage, quizzes]);
+  const handleResetFilters = () => {
+    setFilters({ language: "" });
+    loadQuizzes({ language: "", page: 1 });
+  };
+
+  // ✨ NEW: Handler for changing pages
+  const handlePageChange = (newPage) => {
+    loadQuizzes({ ...filters, page: newPage });
+  };
 
   const confirmDelete = async () => {
     if (!quizToDelete) return;
@@ -63,6 +81,14 @@ export default function QuizListPage() {
     try {
       await dispatch(deleteQuiz(quizToDelete._id)).unwrap();
       toast.success(`Quiz question was deleted.`);
+
+      // 🔄 MODIFIED: Smarter reload logic after delete
+      const currentPage = pagination?.currentPage || 1;
+      if (quizzes.length === 1 && currentPage > 1) {
+        loadQuizzes({ ...filters, page: currentPage - 1 });
+      } else {
+        loadQuizzes({ ...filters, page: currentPage });
+      }
       setQuizToDelete(null);
     } catch (err) {
       toast.error(err?.message || "Failed to delete the quiz.");
@@ -79,6 +105,10 @@ export default function QuizListPage() {
     })),
   ];
 
+  const selectedLanguage = languageOptions.find(
+    (opt) => opt.value === filters.language
+  );
+
   return (
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
@@ -86,7 +116,6 @@ export default function QuizListPage() {
         <button
           className="btn btn-labeled btn-success"
           type="button"
-          style={{ fontSize: "17px" }}
           onClick={() => navigate("/quizzes/new")}
         >
           <span className="btn-label me-2">
@@ -96,7 +125,6 @@ export default function QuizListPage() {
         </button>
       </div>
 
-      {/* --- Filter Section --- */}
       <div className="card-body border-bottom">
         <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
           <div style={{ minWidth: "300px" }}>
@@ -107,7 +135,7 @@ export default function QuizListPage() {
               placeholder="Select Language..."
               options={languageOptions}
               value={selectedLanguage}
-              onChange={setSelectedLanguage}
+              onChange={handleLanguageChange}
               isClearable={true}
               classNamePrefix="react-select"
             />
@@ -115,7 +143,7 @@ export default function QuizListPage() {
           <div className="mt-md-auto">
             <button
               className="btn btn-outline-secondary w-100"
-              onClick={() => setSelectedLanguage(null)}
+              onClick={handleResetFilters}
             >
               <i className="fas fa-undo me-2"></i>Reset
             </button>
@@ -151,8 +179,10 @@ export default function QuizListPage() {
                   </td>
                 </tr>
               )}
+
+              {/* 🔄 MODIFIED: Map over 'quizzes' directly */}
               {status === "succeeded" &&
-                filteredQuizzes.map((quiz) => (
+                quizzes.map((quiz) => (
                   <tr key={quiz._id}>
                     <td
                       className="fw-bold"
@@ -167,9 +197,7 @@ export default function QuizListPage() {
                       {quiz.question}
                     </td>
                     <td>{quiz.correctanswer}</td>
-                    {/* ✨ ADDED Language Column */}
                     <td>{languageNameMap.get(quiz.language) || "N/A"}</td>
-                    {/* ✨ CORRECTED God Column */}
                     <td>{godNameMap.get(quiz.god) || "N/A"}</td>
                     <td>
                       <span
@@ -204,6 +232,19 @@ export default function QuizListPage() {
           </table>
         </div>
       </div>
+
+      {/* ✨ --- NEW PAGINATION FOOTER --- ✨ */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="card-footer">
+          <CustomPagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+            totalItems={pagination.totalRecords}
+            itemsPerPage={itemsPerPage}
+          />
+        </div>
+      )}
 
       <ConfirmationModal
         show={quizToDelete !== null}

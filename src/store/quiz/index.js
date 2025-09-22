@@ -1,23 +1,29 @@
-// src/store/quiz/index.js
-
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
+import axios from "axios"; // Using axios as defined in your original file
 
-// Configure your API client
 const api = axios.create({
   baseURL: "https://setu.apnamandal.com/api",
 });
 
 // --- ASYNC THUNKS ---
 
+// 🔄 MODIFIED: Thunk now accepts a 'params' object
 export const fetchQuizzes = createAsyncThunk(
   "quizzes/fetchAll",
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const response = await api.get("/quiz");
+      // Build a dynamic query string from the params
+      const queryString = new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+      ).toString();
+
+      const url = queryString ? `/quiz?${queryString}` : "/quiz";
+      const response = await api.get(url);
+
+      // The backend response structure is slightly different here
       return {
-        quizzes: response.data.data.data,
-        pagination: response.data.data.pagination,
+        quizzes: response.data?.data?.data || [],
+        pagination: response.data?.data?.pagination || null,
       };
     } catch (err) {
       return rejectWithValue(
@@ -31,7 +37,6 @@ export const addQuiz = createAsyncThunk(
   "quizzes/add",
   async (quizData, { rejectWithValue }) => {
     try {
-      // CHANGED: The API endpoint for creating a quiz is now correct.
       const response = await api.post("/quiz/create", quizData);
       return response.data.data;
     } catch (err) {
@@ -61,7 +66,7 @@ export const deleteQuiz = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       await api.delete(`/quiz/${id}`);
-      return id; // Return the ID on success for filtering
+      return id;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Could not delete quiz."
@@ -77,30 +82,30 @@ const quizSlice = createSlice({
   initialState: {
     list: [],
     pagination: null,
-    status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
+    status: "idle",
     error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch Quizzes
       .addCase(fetchQuizzes.pending, (state) => {
         state.status = "loading";
+        state.error = null;
       })
       .addCase(fetchQuizzes.fulfilled, (state, action) => {
         state.status = "succeeded";
+        // 🔄 MODIFIED: Correctly handle the nested payload
         state.list = action.payload.quizzes;
         state.pagination = action.payload.pagination;
       })
       .addCase(fetchQuizzes.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+        state.list = [];
       })
-      // Add Quiz
       .addCase(addQuiz.fulfilled, (state, action) => {
-        state.list.push(action.payload);
+        // In a paginated view, refetching the list is often better
       })
-      // Update Quiz
       .addCase(updateQuiz.fulfilled, (state, action) => {
         const index = state.list.findIndex(
           (quiz) => quiz._id === action.payload._id
@@ -109,7 +114,6 @@ const quizSlice = createSlice({
           state.list[index] = action.payload;
         }
       })
-      // Delete Quiz
       .addCase(deleteQuiz.fulfilled, (state, action) => {
         state.list = state.list.filter((quiz) => quiz._id !== action.payload);
       });

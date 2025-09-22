@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { toast } from "react-toastify";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
+import { toast } from "react-toastify";
 import { uploadImage } from "../../services/uploadService";
 
 // --- Redux Actions ---
@@ -24,72 +24,70 @@ export default function TempleFormPage() {
   const { list: temples, status: templeStatus } = useSelector(
     (state) => state.temple
   );
-  const { masterList: gods, masterStatus: godStatus } = useSelector(
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
   // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
-    description: "",
-    address: "",
+    sort: 0,
     isFamous: false,
     god: "",
     language: "",
+    description: "",
+    address: "",
+    files: "",
     openTime: "",
     closeTime: "",
-    files: "",
-    rating: 0,
-    location: { type: "Point", coordinates: [0, 0] },
+    latitude: "",
+    longitude: "",
+    rating: "0",
   });
 
-  // ✨ NEW: State to hold the list of gods filtered by language
   const [filteredGods, setFilteredGods] = useState([]);
-
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // Effect for fetching initial data
+  // --- Effects ---
   useEffect(() => {
-    if (godStatus === "idle") {
-      dispatch(fetchAllGods());
-    }
-    if (id && templeStatus === "idle") {
-      dispatch(fetchTemples());
-    }
-  }, [godStatus, templeStatus, dispatch, id]);
+    if (templeStatus === "idle") dispatch(fetchTemples());
+    if (godStatus === "idle") dispatch(fetchAllGods());
+  }, [templeStatus, godStatus, dispatch]);
 
-  // Effect for populating the form when editing
   useEffect(() => {
     if (id && temples.length > 0) {
       const temple = temples.find((t) => t._id === id);
       if (temple) {
         setFormData({
           name: temple.name || "",
-          description: temple.description || "",
-          address: temple.address || "",
-          isFamous: temple.isFamous || false,
+          sort: temple.sort || 0,
+          isFamous: temple.isFamous === true,
           god: temple.god?._id || temple.god || "",
           language: temple.language || "",
+          description: temple.description || "",
+          address: temple.address || "",
+          files: temple.files || "",
           openTime: temple.openTime || "",
           closeTime: temple.closeTime || "",
-          files: temple.files || "",
-          rating: temple.rating || 0,
-          location: temple.location || { type: "Point", coordinates: [0, 0] },
+          latitude: temple.location?.coordinates?.[1] || formData.latitude,
+          longitude: temple.location?.coordinates?.[0] || formData.longitude,
+          rating: temple.rating || "0",
         });
       }
     }
   }, [id, temples]);
 
-  // ✨ NEW: Effect to filter the God list based on the selected language
   useEffect(() => {
-    if (formData.language && gods.length > 0) {
-      const godsByLang = gods.filter((g) => g.language === formData.language);
+    if (formData.language && allGods.length > 0) {
+      const godsByLang = allGods.filter(
+        (g) => g.language === formData.language
+      );
       setFilteredGods(godsByLang);
     } else {
       setFilteredGods([]);
     }
-  }, [formData.language, gods]);
+  }, [formData.language, allGods]);
 
   // --- Validation ---
   const validateForm = () => {
@@ -97,49 +95,63 @@ export default function TempleFormPage() {
     if (!formData.name.trim()) newErrors.name = "Temple name is required.";
     if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.language) newErrors.language = "Please select a language.";
-    if (
-      formData.location.coordinates[0] < -180 ||
-      formData.location.coordinates[0] > 180
-    )
-      newErrors.longitude = "Longitude must be between -180 and 180.";
-    if (
-      formData.location.coordinates[1] < -90 ||
-      formData.location.coordinates[1] > 90
-    )
-      newErrors.latitude = "Latitude must be between -90 and 90.";
+    if (!formData.description.replace(/<[^>]*>?/gm, "").trim())
+      newErrors.description = "Description / Content is required.";
+    if (formData.sort === "" || isNaN(formData.sort))
+      newErrors.sort = "Sort order must be a valid number.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // --- Event Handlers ---
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
     setIsSaving(true);
     try {
       const uploadedUrl = await uploadImage(file);
       setFormData((prev) => ({ ...prev, files: uploadedUrl }));
-      toast.success("Image uploaded successfully!");
-    } catch (err) {
-      toast.error("Failed to upload image.");
+      toast.success("Image uploaded!");
+    } catch {
+      toast.error("Image upload failed.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // --- Form Submission ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
     setIsSaving(true);
     try {
-      const action = id
-        ? updateTemple({ id, ...formData })
-        : addTemple(formData);
+      // Correct payload for backend
+      const payload = {
+        name: formData.name,
+        sort: Number(formData.sort),
+        isActive: formData.isActive,
+        isFamous: formData.isFamous,
+        god: formData.god,
+        language: formData.language,
+        description: formData.description,
+        address: formData.address,
+        files: formData.files,
+        openTime: formData.openTime,
+        closeTime: formData.closeTime,
+        location: {
+          type: "Point",
+          coordinates: [formData.longitude, formData.latitude], // GeoJSON [lng, lat]
+        },
+        rating: formData.rating,
+      };
+
+      const action = id ? updateTemple({ id, ...payload }) : addTemple(payload);
+
       await dispatch(action).unwrap();
+
       toast.success(
         id ? "Temple updated successfully!" : "Temple added successfully!"
       );
-      navigate("/temple");
+      navigate("/temple"); // Navigate to singular temple list page
     } catch (err) {
       toast.error(err?.message || "An error occurred while saving.");
     } finally {
@@ -147,15 +159,20 @@ export default function TempleFormPage() {
     }
   };
 
-  // ✨ NEW: Helper function for react-select value
+  const handleFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+  };
+
   const getSelectedOption = (list, id) => {
     if (!id || !list) return null;
     const selected = list.find((item) => item._id === id);
     return selected
-      ? {
-          value: selected._id,
-          label: selected.name || selected.nativeName,
-        }
+      ? { value: selected._id, label: selected.name || selected.nativeName }
       : null;
   };
 
@@ -183,263 +200,231 @@ export default function TempleFormPage() {
       <div className="card shadow-sm">
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
-            {/* --- Section 1: Basic Info --- */}
-            <h5 className="mb-4 text-primary">Basic Information</h5>
             <div className="row">
-              <div className="col-md-4 mb-3">
-                <label className="form-label fw-bold">
-                  Temple Name <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  className={`form-control ${errors.name ? "is-invalid" : ""}`}
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, name: e.target.value }))
-                  }
-                />
-                {errors.name && (
-                  <div className="invalid-feedback">{errors.name}</div>
-                )}
-              </div>
-
-              {/* ✨ MODIFIED: Language Select - Placed before God */}
-              <div className="col-md-4 mb-3">
-                <label className="form-label fw-bold">
-                  Language <span className="text-danger">*</span>
-                </label>
-                <Select
-                  options={staticLanguages.map((l) => ({
-                    value: l._id,
-                    label: `${l.nativeName} (${l.language})`,
-                  }))}
-                  value={getSelectedOption(staticLanguages, formData.language)}
-                  onChange={(option) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      language: option?.value || "",
-                      god: "", // Reset god selection
-                    }))
-                  }
-                />
-                {errors.language && (
-                  <div className="text-danger small mt-1">
-                    {errors.language}
-                  </div>
-                )}
-              </div>
-
-              {/* ✨ MODIFIED: God Select - Now filtered by language */}
-              <div className="col-md-4 mb-3">
-                <label className="form-label fw-bold">
-                  Main God <span className="text-danger">*</span>
-                </label>
-                <Select
-                  options={filteredGods.map((g) => ({
-                    value: g._id,
-                    label: g.name,
-                  }))}
-                  value={getSelectedOption(filteredGods, formData.god)}
-                  onChange={(option) =>
-                    setFormData((p) => ({ ...p, god: option?.value || "" }))
-                  }
-                  placeholder={
-                    formData.language
-                      ? "Select God..."
-                      : "Select Language first..."
-                  }
-                  isDisabled={!formData.language}
-                  isLoading={godStatus === "loading"}
-                />
-                {errors.god && (
-                  <div className="text-danger small mt-1">{errors.god}</div>
-                )}
-              </div>
-            </div>
-            <hr className="my-4" />
-
-            {/* --- Other form sections... --- */}
-
-            <div className="mb-3">
-              <label className="form-label fw-bold">Featured Image</label>
-              <input
-                type="file"
-                className="form-control mb-2"
-                accept="image/*"
-                onChange={handleImageUpload}
-                disabled={isSaving}
-              />
-              <small className="text-muted d-block mb-3">
-                Upload JPG, PNG, or GIF (max 5MB)
-              </small>
-
-              {formData.files && (
-                <div
-                  className="position-relative d-inline-block"
-                  style={{ maxWidth: "200px" }}
-                >
-                  <img
-                    src={formData.files}
-                    alt="Preview"
-                    className="img-fluid rounded shadow-sm"
+              {/* --- Left Column --- */}
+              <div className="col-md-8">
+                <h5 className="mb-4 text-primary">Temple Content</h5>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Temple Name <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    className={`form-control ${
+                      errors.name ? "is-invalid" : ""
+                    }`}
+                    value={formData.name}
+                    onChange={handleFormChange}
                   />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, files: "" }))
-                    }
-                    className="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 p-0"
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "50%",
-                    }}
-                    disabled={isSaving}
-                  >
-                    &times;
-                  </button>
+                  {errors.name && (
+                    <div className="invalid-feedback">{errors.name}</div>
+                  )}
                 </div>
-              )}
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label fw-bold">Description</label>
-              <RichTextEditor
-                value={formData.description}
-                onChange={(html) =>
-                  setFormData((p) => ({ ...p, description: html }))
-                }
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label fw-bold">Address</label>
-              <RichTextEditor
-                value={formData.address}
-                onChange={(html) =>
-                  setFormData((p) => ({ ...p, address: html }))
-                }
-              />
-            </div>
-
-            <hr className="my-4" />
-
-            <h5 className="mb-4 text-primary">Details & Timings</h5>
-            <div className="row">
-              <div className="col-md-3 mb-3">
-                <label className="form-label fw-bold">Open Time</label>
-                <input
-                  type="time"
-                  className="form-control"
-                  value={formData.openTime}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, openTime: e.target.value }))
-                  }
-                />
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Address</label>
+                  <textarea
+                    name="address"
+                    className="form-control"
+                    value={formData.address}
+                    onChange={handleFormChange}
+                    rows="3"
+                  ></textarea>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Description / Content <span className="text-danger">*</span>
+                  </label>
+                  <RichTextEditor
+                    value={formData.description}
+                    onChange={(html) =>
+                      setFormData((prev) => ({ ...prev, description: html }))
+                    }
+                  />
+                  {errors.description && (
+                    <div className="invalid-feedback d-block mt-1">
+                      {errors.description}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="col-md-3 mb-3">
-                <label className="form-label fw-bold">Close Time</label>
-                <input
-                  type="time"
-                  className="form-control"
-                  value={formData.closeTime}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, closeTime: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="col-md-3 mb-3">
-                <label className="form-label fw-bold">Rating (0-5)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="5"
-                  className="form-control"
-                  value={formData.rating}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, rating: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="col-md-3 d-flex align-items-center pt-3">
-                <div className="form-check form-switch fs-5">
+
+              {/* --- Right Column --- */}
+              <div className="col-md-4">
+                <h5 className="mb-4 text-primary">Details & Settings</h5>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Temple Image</label>
+                  <input
+                    type="file"
+                    className="form-control"
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    disabled={isSaving}
+                  />
+                  {formData.files && (
+                    <img
+                      src={formData.files}
+                      alt="Preview"
+                      className="img-fluid rounded mt-2"
+                      style={{ maxHeight: "150px" }}
+                    />
+                  )}
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Open Time</label>
+                  <input
+                    type="time"
+                    name="openTime"
+                    className="form-control"
+                    value={formData.openTime}
+                    onChange={handleFormChange}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Close Time</label>
+                  <input
+                    type="time"
+                    name="closeTime"
+                    className="form-control"
+                    value={formData.closeTime}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Language <span className="text-danger">*</span>
+                  </label>
+                  <Select
+                    options={staticLanguages.map((l) => ({
+                      value: l._id,
+                      label: l.nativeName,
+                    }))}
+                    value={getSelectedOption(
+                      staticLanguages,
+                      formData.language
+                    )}
+                    onChange={(option) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        language: option?.value || "",
+                        god: "",
+                      }))
+                    }
+                    placeholder="Select Language..."
+                  />
+                  {errors.language && (
+                    <div className="text-danger small mt-1">
+                      {errors.language}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    God <span className="text-danger">*</span>
+                  </label>
+                  <Select
+                    options={filteredGods.map((g) => ({
+                      value: g._id,
+                      label: g.name,
+                    }))}
+                    value={getSelectedOption(filteredGods, formData.god)}
+                    onChange={(option) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        god: option?.value || "",
+                      }))
+                    }
+                    placeholder={
+                      formData.language ? "Select God..." : "Language first..."
+                    }
+                    isDisabled={!formData.language}
+                  />
+                  {errors.god && (
+                    <div className="text-danger small mt-1">{errors.god}</div>
+                  )}
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Sort Order <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="sort"
+                    className={`form-control ${
+                      errors.sort ? "is-invalid" : ""
+                    }`}
+                    value={formData.sort}
+                    onChange={handleFormChange}
+                  />
+                  {errors.sort && (
+                    <div className="invalid-feedback">{errors.sort}</div>
+                  )}
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Latitude</label>
+                  <input
+                    type="number"
+                    name="latitude"
+                    className="form-control"
+                    value={formData.latitude}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Longitude</label>
+                  <input
+                    type="number"
+                    name="longitude"
+                    className="form-control"
+                    value={formData.longitude}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Rating</label>
+                  <input
+                    type="text"
+                    name="rating"
+                    className="form-control"
+                    value={formData.rating}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                {/* <div className="form-check form-switch fs-5 mb-3">
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    checked={formData.isFamous}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, isFamous: e.target.checked }))
-                    }
+                    role="switch"
+                    name="isActive"
+                    checked={formData.isActive}
+                    onChange={handleFormChange}
                   />
-                  <label className="form-check-label">Is Famous?</label>
+                  <label className="form-check-label">Active</label>
+                </div> */}
+
+                <div className="form-check form-switch fs-5 mb-3">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    name="isFamous"
+                    checked={formData.isFamous}
+                    onChange={handleFormChange}
+                  />
+                  <label className="form-check-label">Famous</label>
                 </div>
               </div>
             </div>
 
-            <hr className="my-4" />
-
-            <h5 className="mb-4 text-primary">Geolocation</h5>
-            <div className="row">
-              <div className="col-md-6 mb-3">
-                <label className="form-label fw-bold">
-                  Longitude <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  className={`form-control ${
-                    errors.longitude ? "is-invalid" : ""
-                  }`}
-                  value={formData.location.coordinates[0]}
-                  onChange={(e) =>
-                    setFormData((p) => ({
-                      ...p,
-                      location: {
-                        ...p.location,
-                        coordinates: [
-                          parseFloat(e.target.value),
-                          p.location.coordinates[1],
-                        ],
-                      },
-                    }))
-                  }
-                />
-                {errors.longitude && (
-                  <div className="invalid-feedback">{errors.longitude}</div>
-                )}
-              </div>
-              <div className="col-md-6 mb-3">
-                <label className="form-label fw-bold">
-                  Latitude <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  className={`form-control ${
-                    errors.latitude ? "is-invalid" : ""
-                  }`}
-                  value={formData.location.coordinates[1]}
-                  onChange={(e) =>
-                    setFormData((p) => ({
-                      ...p,
-                      location: {
-                        ...p.location,
-                        coordinates: [
-                          p.location.coordinates[0],
-                          parseFloat(e.target.value),
-                        ],
-                      },
-                    }))
-                  }
-                />
-                {errors.latitude && (
-                  <div className="invalid-feedback">{errors.latitude}</div>
-                )}
-              </div>
-            </div>
-
-            <div className="d-flex justify-content-end gap-2 mt-4">
+            <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
                 className="btn btn-outline-secondary"

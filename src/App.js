@@ -65,12 +65,13 @@ import SlokFormPage from "./pages/SlokManagementPage/SlokFormPage.js";
 import ArticleFormPage from "./pages/ArticleManagementPage/ArticleFormPage.js";
 import TempleFormPage from "./pages/TempleManagementPage/TempleFormPage.js";
 import QuizFormPage from "./pages/QuizManagement/QuizFormPage.js";
-import NewsFormPage from "./pages/NewsFormPage/NewsManagementPage";
-import NewsManagementPage from "./pages/NewsFormPage/index.js";
+import NewsFormPage from "./pages/NewsManagementPage/NewsManagementForm.js";
+import NewsManagementPage from "./pages/NewsManagementPage/index.js";
 import StoryManagementPage from "./pages/StoryManagementPage/index.js";
 import StoryFormPage from "./pages/StoryManagementPage/StoryFormPage.js";
 import StutiManagementPage from "./pages/StutiManagementPage/index.js";
 import StutiFormPage from "./pages/StutiManagementPage/StutiFormPage.js";
+import GodFormPage from "./pages/GodManagementPage/GodFormModal.js";
 
 function App() {
   const navigate = useNavigate();
@@ -122,6 +123,9 @@ function App() {
           <Route path="/mantras/new" element={<MantraFormPage />} />
           <Route path="/mantras/edit/:id" element={<MantraFormPage />} />
           <Route path="/god" element={<GodManagementPage />} />
+          <Route path="/god-form" element={<GodFormPage />} />
+          <Route path="/god-form/:id" element={<GodFormPage />} />
+
           <Route path="/sloka" element={<SlokManagementPage />} />
           <Route path="/sloks/new" element={<SlokFormPage />} />
           <Route path="/sloks/edit/:id" element={<SlokFormPage />} />
@@ -131,8 +135,8 @@ function App() {
           <Route path="/articles/edit/:id" element={<ArticleFormPage />} />
           <Route path="/users" element={<UserManagementPage />} />
           <Route path="/temple" element={<TempleManagementPage />} />
-          <Route path="/temple/new" element={<TempleFormPage />} />
-          <Route path="/temple/edit/:id" element={<TempleFormPage />} />
+          <Route path="/temples/new" element={<TempleFormPage />} />
+          <Route path="/temples/edit/:id" element={<TempleFormPage />} />
 
           <Route path="/news" element={<NewsManagementPage />} />
           <Route path="/news/new" element={<NewsFormPage />} />

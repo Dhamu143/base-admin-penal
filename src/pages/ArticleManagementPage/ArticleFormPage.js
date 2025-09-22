@@ -306,7 +306,7 @@ export default function ArticleFormPage() {
               <label className="form-label fw-bold">
                 Short Description <span className="text-danger">*</span>
               </label>
-              <textarea
+              <RichTextEditor
                 name="shortdesc"
                 rows={3}
                 className={`form-control ${
@@ -314,7 +314,7 @@ export default function ArticleFormPage() {
                 }`}
                 value={formData.shortdesc}
                 onChange={handleInputChange}
-              ></textarea>
+              ></RichTextEditor>
               {errors.shortdesc && (
                 <div className="invalid-feedback">{errors.shortdesc}</div>
               )}

@@ -1,202 +1,118 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-
+import Select from "react-select"; // 🔄 ADDED: Import Select component
 import { fetchTemples, deleteTemple } from "../../store/temple";
-import { fetchAllGods } from "../../store/god/index";
+import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
-import DynamicImage from "../../components/PostPreview/PostPreview";
+import CustomPagination from "../../common/Pagination";
+
+// 🔄 ADDED: Options for the language filter dropdown
+const languageOptions = [
+  { value: "", label: "All Languages" },
+  ...staticLanguages.map((lang) => ({
+    value: lang._id,
+    label: `${lang.language} (${lang.nativeName})`,
+  })),
+];
 
 export default function TempleListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // --- Redux Store ---
-  const { list: temples, status, error } = useSelector((state) => state.temple);
+  const { list: temples, pagination, status, error } = useSelector(
+    (state) => state.temple
+  );
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
-  // --- Local State ---
-  const [isDeleting, setIsDeleting] = useState(false);
   const [templeToDelete, setTempleToDelete] = useState(null);
-  const [filters, setFilters] = useState({
-    language: "",
-    god: "",
-  });
+  const [isDeleting, setIsDeleting] = useState(false); // 🔄 ADDED: Loading state for delete
+  const [filters, setFilters] = useState({ language: "" });
+  const itemsPerPage = 10; // 🔥 Show 10 per page
 
-  // --- Data Fetching ---
-  const loadTemples = (params = {}) => {
-    dispatch(fetchTemples(params))
-      .unwrap()
-      .catch((err) => {
-        toast.error(err?.message || "Failed to load temples.");
-      });
-  };
+  const loadTemples = useCallback(
+    (params = {}) => {
+      // Pass all filters and pagination params to the fetch action
+      dispatch(fetchTemples({ ...filters, ...params, limit: itemsPerPage }))
+        .unwrap()
+        .catch((err) => toast.error(err?.message || "Failed to load temples."));
+    },
+    [dispatch, itemsPerPage, filters] // 🔄 MODIFIED: Added filters as a dependency
+  );
 
   useEffect(() => {
-    loadTemples();
+    loadTemples({ page: 1 });
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
     }
-  }, [dispatch, godStatus]);
+  }, [dispatch, godStatus]); // 🔄 MODIFIED: Removed loadTemples to prevent extra calls on filter change
 
-  // Filters the god dropdown based on the selected language.
-  const filteredGodsForDropdown = useMemo(() => {
-    if (!filters.language) {
-      return allGods; // If no language is selected, show all gods
-    }
-    return allGods.filter((god) => god.language === filters.language);
-  }, [filters.language, allGods]);
+  const getGodNameById = (godId) =>
+    allGods.find((g) => g._id === godId)?.name || "N/A";
 
-  // --- Handlers ---
-  // When language changes, the god filter is reset.
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters((prev) => {
-      const newFilters = { ...prev, [name]: value };
-      if (name === "language") {
-        newFilters.god = ""; // Reset god filter when language changes
-      }
-      return newFilters;
-    });
+  const getLanguageName = (langId) =>
+    staticLanguages.find((l) => l._id === langId)?.language || "N/A";
+
+  // 🔄 ADDED: Handler for language filter change
+  const handleLanguageChange = (selectedOption) => {
+    const value = selectedOption ? selectedOption.value : "";
+    setFilters({ language: value });
+    loadTemples({ language: value, page: 1 }); // Refetch from page 1
   };
 
-  const handleSearch = () => {
-    const activeFilters = Object.fromEntries(
-      Object.entries(filters).filter(([_, v]) => v)
-    );
-    loadTemples(activeFilters);
-  };
-
+  // 🔄 ADDED: Handler to reset filters
   const handleResetFilters = () => {
-    setFilters({ language: "", god: "" });
-    loadTemples();
+    setFilters({ language: "" });
+    loadTemples({ language: "", page: 1 });
   };
 
+  const handlePageChange = (newPage) => {
+    if (newPage !== pagination?.currentPage) {
+      loadTemples({ page: newPage });
+    }
+  };
+
+  // 🔄 MODIFIED: Improved deletion logic to handle pagination correctly
   const confirmDelete = async () => {
     if (!templeToDelete) return;
     setIsDeleting(true);
     try {
       await dispatch(deleteTemple(templeToDelete._id)).unwrap();
       toast.success(`Temple "${templeToDelete.name}" deleted successfully.`);
-      loadTemples(filters);
-    } catch (err) {
-      toast.error(err?.message || "An error occurred while deleting.");
-    } finally {
+
+      // If the last item on a page is deleted, go to the previous page
+      const pageToFetch =
+        temples.length === 1 && pagination?.currentPage > 1
+          ? pagination.currentPage - 1
+          : pagination?.currentPage || 1;
+
+      loadTemples({ page: pageToFetch });
       setTempleToDelete(null);
+    } catch (err) {
+      toast.error(err?.message || "Failed to delete temple.");
+    } finally {
       setIsDeleting(false);
     }
   };
 
-  // --- Render helpers ---
-  const renderTableContent = () => {
-    if (status === "loading") {
-      return (
-        <tr>
-          <td colSpan="7" className="text-center py-5">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </td>
-        </tr>
-      );
-    }
+  // 🔄 ADDED: Find the selected option object for the Select component's value
+  const selectedLanguage = languageOptions.find(
+    (opt) => opt.value === filters.language
+  );
 
-    if (status === "failed") {
-      return (
-        <tr>
-          <td colSpan="7" className="text-center py-5 text-danger">
-            <strong>Error:</strong> {error}
-          </td>
-        </tr>
-      );
-    }
-
-    if (temples.length === 0) {
-      return (
-        <tr>
-          <td colSpan="7" className="text-center py-5 text-muted">
-            No Temples Found
-          </td>
-        </tr>
-      );
-    }
-
-    return temples.map((temple) => (
-      <tr key={temple._id}>
-        <td>
-          <DynamicImage
-            // ✨ UPDATED: Using 'featureimage' for the temple image source
-            src={temple.featureimage || "/placeholder.jpg"}
-            alt={temple.name}
-            style={{
-              width: "60px",
-              height: "60px",
-              objectFit: "cover",
-              borderRadius: "8px",
-            }}
-          />
-        </td>
-        <td className="fw-bold">{temple.name}</td>
-        <td
-          style={{
-            maxWidth: "200px",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-          title={temple.address}
-        >
-          {temple.address}
-        </td>
-        <td>{temple.rating ? `⭐ ${temple.rating}` : "-"}</td>
-        <td>
-          {temple.openTime && temple.closeTime
-            ? `${temple.openTime} - ${temple.closeTime}`
-            : "-"}
-        </td>
-        <td>
-          <span
-            className={`badge fs-6 ${
-              temple.isFamous ? "text-bg-success" : "text-bg-secondary"
-            }`}
-          >
-            {temple.isFamous ? "Yes" : "No"}
-          </span>
-        </td>
-        <td className="text-center">
-          <button
-            className="btn btn-sm btn-outline-secondary me-2"
-            title="Edit"
-            onClick={() => navigate(`/temple/edit/${temple._id}`)}
-          >
-            <i className="fas fa-pencil-alt"></i>
-          </button>
-          <button
-            className="btn btn-sm btn-outline-danger"
-            title="Delete"
-            onClick={() => setTempleToDelete(temple)}
-          >
-            <i className="fas fa-trash"></i>
-          </button>
-        </td>
-      </tr>
-    ));
-  };
-
-  // --- UI ---
   return (
     <div className="card shadow-sm">
-      {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">🕌 Temple Management</h4>
+        <h4 className="mb-0 text-primary-emphasis">🛕 Temple Management</h4>
         <button
           className="btn btn-labeled btn-success"
+          type="button"
           style={{ fontSize: "17px" }}
-          onClick={() => navigate("/temple/new")}
+          onClick={() => navigate("/temples/new")}
         >
           <span className="btn-label me-2">
             <i className="fas fa-plus"></i>
@@ -205,84 +121,156 @@ export default function TempleListPage() {
         </button>
       </div>
 
-      {/* Filter Section */}
+      {/* 🔄 ADDED: Filter section */}
       <div className="card-body border-bottom">
-        <div className="row g-3">
-          <div className="col-md-6">
-            <select
-              className="form-control"
-              name="language"
-              value={filters.language}
-              onChange={handleFilterChange}
-            >
-              <option value="">All Languages</option>
-              {staticLanguages.map((lang) => (
-                <option key={lang._id} value={lang._id}>
-                  {lang.language} ({lang.nativeName})
-                </option>
-              ))}
-            </select>
+        <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
+          <div style={{ minWidth: "300px" }}>
+            <label className="form-label fw-bold small mb-1">
+              Filter by Language
+            </label>
+            <Select
+              placeholder="Select..."
+              options={languageOptions}
+              value={selectedLanguage}
+              onChange={handleLanguageChange}
+              isClearable={true}
+              classNamePrefix="react-select"
+            />
           </div>
-
-          <div className="col-md-6">
-            <select
-              className="form-control"
-              name="god"
-              value={filters.god}
-              onChange={handleFilterChange}
-              disabled={godStatus !== "succeeded"} // Disable if gods are not loaded
+          <div className="mt-md-auto">
+            <button
+              className="btn btn-outline-secondary w-100"
+              onClick={handleResetFilters}
             >
-              <option value="">All Gods</option>
-              {filteredGodsForDropdown.map((g) => (
-                <option key={g._id} value={g._id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
+              <i className="fas fa-undo me-2"></i>Reset
+            </button>
           </div>
-        </div>
-
-        <div className="mt-3 d-flex gap-2">
-          <button className="btn btn-primary" onClick={handleSearch}>
-            <i className="fas fa-search me-2"></i>Search
-          </button>
-          <button className="btn btn-secondary" onClick={handleResetFilters}>
-            <i className="fas fa-undo me-2"></i>Reset
-          </button>
         </div>
       </div>
 
-      {/* Table */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle">
-            <thead>
+            <thead className="table-light">
               <tr>
                 <th>Image</th>
                 <th>Name</th>
-                <th>Address</th>
-                <th>Rating</th>
-                <th>Timings</th>
-                <th>Famous</th>
+                <th>God</th>
+                <th>Language</th>
+                <th>Status</th>
                 <th className="text-center">Actions</th>
               </tr>
             </thead>
-            <tbody>{renderTableContent()}</tbody>
+            <tbody>
+              {status === "loading" && (
+                <tr>
+                  <td colSpan="6" className="text-center py-5">
+                    <div className="spinner-border text-primary"></div>
+                  </td>
+                </tr>
+              )}
+              {status === "failed" && (
+                <tr>
+                  <td colSpan="6" className="text-center py-5 text-danger">
+                    <strong>Error:</strong> {error}
+                  </td>
+                </tr>
+              )}
+              {status === "succeeded" && temples.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="text-center text-muted py-5">
+                    No Temples Found.
+                  </td>
+                </tr>
+              )}
+              {status === "succeeded" &&
+                temples.map((temple) => (
+                  <tr key={temple._id}>
+                    <td>
+                      {temple.files ? (
+                        <img
+                          src={temple.files}
+                          alt={temple.name}
+                          style={{
+                            width: "60px",
+                            height: "60px",
+                            objectFit: "cover",
+                            borderRadius: "8px",
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className="d-flex justify-content-center align-items-center bg-light"
+                          style={{
+                            width: "60px",
+                            height: "60px",
+                            borderRadius: "8px",
+                          }}
+                        >
+                          <i className="fas fa-image text-muted"></i>
+                        </div>
+                      )}
+                    </td>
+                    <td className="fw-semibold">{temple.name}</td>
+                    <td>{getGodNameById(temple.god)}</td>
+                    <td>{getLanguageName(temple.language)}</td>
+                    <td>
+                      <span
+                        className={`badge fs-6 ${
+                          temple.isActive
+                            ? "text-bg-success"
+                            : "text-bg-secondary"
+                        }`}
+                      >
+                        {temple.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="text-center">
+                      <button
+                        className="btn btn-sm btn-outline-primary me-2"
+                        onClick={() => navigate(`/temples/edit/${temple._id}`)}
+                        title="Edit"
+                      >
+                        <i className="fas fa-pencil-alt"></i>
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => setTempleToDelete(temple)}
+                        title="Delete"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
           </table>
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="card-footer">
+          <CustomPagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalRecords}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      )}
+
       <ConfirmationModal
-        show={!!templeToDelete}
+        show={templeToDelete !== null}
         onClose={() => setTempleToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
+        confirmText="Delete"
         isLoading={isDeleting}
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">
-          Are you sure you want to delete <br />
+          Are you sure you want to delete the temple: <br />
           <strong className="text-danger">{templeToDelete?.name}</strong>?
         </p>
       </ConfirmationModal>

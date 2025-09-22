@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import Select from "react-select"; // ✨ 1. IMPORTED REACT-SELECT
+import Select from "react-select";
 
 // --- Festival Actions ---
 import { fetchFestivals, deleteFestival } from "../../store/festival/index";
@@ -10,7 +10,7 @@ import { fetchFestivals, deleteFestival } from "../../store/festival/index";
 // --- Reusable Components & Data ---
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
-import CustomPagination from "../../common/Pagination"; // ✨ 2. IMPORTED PAGINATION
+import CustomPagination from "../../common/Pagination";
 
 // --- Prepare options for react-select ---
 const languageOptions = [
@@ -36,40 +36,38 @@ export default function FestivalListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // --- Redux State ---
   const { list: festivals, pagination, status, error } = useSelector(
     (state) => state.festivals
   );
 
-  // --- Component State ---
   const [isDeleting, setIsDeleting] = useState(false);
   const [festivalToDelete, setFestivalToDelete] = useState(null);
-  // ✨ 3. ADDED STATE FOR FILTERS
   const [filters, setFilters] = useState({ language: "" });
 
-  const itemsPerPage = 10;
+  const itemsPerPage = 1;
 
-  // ✨ 4. CENTRALIZED DATA LOADING FUNCTION
-  const loadFestivals = (params = {}) => {
-    dispatch(fetchFestivals({ ...params, pageSize: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err || "Failed to load festivals."));
-  };
+  const loadFestivals = useCallback(
+    (params = {}) => {
+      // 🔄 MODIFIED: Changed 'pageSize' to 'limit' to match your other working APIs
+      dispatch(fetchFestivals({ ...params, limit: itemsPerPage }))
+        .unwrap()
+        .catch((err) => toast.error(err || "Failed to load festivals."));
+    },
+    [dispatch, itemsPerPage]
+  );
 
   useEffect(() => {
     loadFestivals({ page: 1 });
-  }, [dispatch]);
+  }, [loadFestivals]);
 
   const getLanguageNameById = (langId) => {
     const language = staticLanguages.find((lang) => lang._id === langId);
     return language ? language.nativeName : "N/A";
   };
 
-  // ✨ 5. HANDLERS FOR FILTERING AND PAGINATION
   const handleLanguageChange = (selectedOption) => {
     const value = selectedOption ? selectedOption.value : "";
     setFilters((prev) => ({ ...prev, language: value }));
-    // Trigger the API call directly on change
     loadFestivals({ language: value, page: 1 });
   };
 
@@ -89,7 +87,15 @@ export default function FestivalListPage() {
       toast.success(
         `Festival "${festivalToDelete.name}" deleted successfully.`
       );
-      loadFestivals({ ...filters, page: pagination?.currentPage || 1 }); // Reload current page
+
+      // 🔄 MODIFIED: Better UX when deleting the last item on a page
+      const currentPage = pagination?.currentPage || 1;
+      if (festivals.length === 1 && currentPage > 1) {
+        loadFestivals({ ...filters, page: currentPage - 1 });
+      } else {
+        loadFestivals({ ...filters, page: currentPage });
+      }
+
       setFestivalToDelete(null);
     } catch (err) {
       toast.error(err?.message || "Failed to delete the festival.");
@@ -98,7 +104,6 @@ export default function FestivalListPage() {
     }
   };
 
-  // Find the currently selected language object for react-select's value prop
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
@@ -112,8 +117,7 @@ export default function FestivalListPage() {
           <button
             className="btn btn-labeled btn-success"
             type="button"
-            style={{ fontSize: "17px" }}
-            onClick={() => navigate("/festivals/new")} // Corrected route from plural to singular
+            onClick={() => navigate("/festivals/new")}
           >
             <span className="btn-label me-2">
               <i className="fas fa-plus"></i>
@@ -122,7 +126,6 @@ export default function FestivalListPage() {
           </button>
         </div>
 
-        {/* ✨ 6. ADDED COMPACT FILTER SECTION */}
         <div className="card-body border-bottom">
           <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
             <div style={{ minWidth: "300px" }}>
@@ -140,11 +143,11 @@ export default function FestivalListPage() {
             </div>
             <div className="mt-md-auto">
               <button
-                className="btn btn-outline-secondary w-100 ml-4"
+                className="btn btn-outline-secondary w-100"
                 onClick={handleResetFilters}
               >
-                <span className="mr-2">
-                  <i className="fas fa-undo me-2"></i>
+                <span className="me-2">
+                  <i className="fas fa-undo"></i>
                 </span>
                 Reset
               </button>
@@ -211,8 +214,8 @@ export default function FestivalListPage() {
                         <td className="text-center">
                           <button
                             className="btn btn-sm btn-outline-primary me-2"
-                            onClick={
-                              () => navigate(`/festivals/edit/${festival._id}`) // Corrected route
+                            onClick={() =>
+                              navigate(`/festivals/edit/${festival._id}`)
                             }
                             title="Edit"
                           >
@@ -240,7 +243,6 @@ export default function FestivalListPage() {
           </div>
         </div>
 
-        {/* ✨ 7. ADDED PAGINATION FOOTER */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination
@@ -267,7 +269,6 @@ export default function FestivalListPage() {
           Are you sure you want to delete <br />
           <strong className="text-danger">{festivalToDelete?.name}</strong>?
         </p>
-        <p className="text-muted text-center">This action cannot be undone.</p>
       </ConfirmationModal>
     </>
   );

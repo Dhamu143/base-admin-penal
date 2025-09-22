@@ -68,7 +68,7 @@ export const deleteStuti = createAsyncThunk(
 
 // --- SLICE ---
 const stutiSlice = createSlice({
-  name: "stutis",
+  name: "stuti", // 🔄 MODIFIED: Changed from "stutis" to "stuti" to match the component's selector
   initialState: {
     list: [],
     pagination: null,
@@ -93,10 +93,11 @@ const stutiSlice = createSlice({
       .addCase(fetchStutis.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+        state.list = [];
       })
       // Add
       .addCase(addStuti.fulfilled, (state, action) => {
-        state.list.push(action.payload);
+        state.list.unshift(action.payload);
       })
       // Update
       .addCase(updateStuti.fulfilled, (state, action) => {

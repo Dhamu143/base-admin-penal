@@ -1,5 +1,3 @@
-// store/slok/index.js (or slokSlice.js)
-
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
@@ -13,13 +11,14 @@ const api = axios.create({
 
 // --- Async Thunks ---
 
-// Fetch all sloks
+// 🔄 MODIFIED: Thunk now accepts parameters and builds a dynamic URL
 export const fetchSloks = createAsyncThunk(
   "sloks/fetchSloks",
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const response = await api.get("/slok");
-      // The API response nests the data, so we return the inner object
+      // Use URLSearchParams to easily build the query string (e.g., ?page=1&limit=10&language=...)
+      const queryParams = new URLSearchParams(params).toString();
+      const response = await api.get(`/slok?${queryParams}`); // The API response nests the data, so we return the inner object
       return response.data.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -32,7 +31,6 @@ export const addSlok = createAsyncThunk(
   "sloks/addSlok",
   async (slokData, { rejectWithValue }) => {
     try {
-      // Assuming a similar endpoint structure to your other features
       const response = await api.post("/slok/create", slokData);
       return response.data.data;
     } catch (err) {
@@ -81,8 +79,7 @@ const sloksSlice = createSlice({
   initialState,
   reducers: {},
   extraReducers: (builder) => {
-    builder
-      // --- Fetch Sloks ---
+    builder // --- Fetch Sloks ---
       .addCase(fetchSloks.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -95,18 +92,13 @@ const sloksSlice = createSlice({
       .addCase(fetchSloks.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || "Failed to fetch sloks";
-      })
+      }) // --- Add Slok ---
 
-      // --- Add Slok ---
       .addCase(addSlok.fulfilled, (state, action) => {
-        state.list.push(action.payload);
-      })
-      .addCase(addSlok.rejected, (state, action) => {
-        // You might want to display this error in the UI
-        state.error = action.payload || "Failed to add slok";
-      })
-
-      // --- Update Slok ---
+        // To avoid duplicating data, we let the component re-fetch the list
+        // This ensures pagination remains correct.
+        state.status = "idle"; // Trigger a re-fetch if needed
+      }) // --- Update Slok ---
       .addCase(updateSlok.fulfilled, (state, action) => {
         const index = state.list.findIndex(
           (slok) => slok._id === action.payload._id
@@ -114,17 +106,9 @@ const sloksSlice = createSlice({
         if (index !== -1) {
           state.list[index] = action.payload;
         }
-      })
-      .addCase(updateSlok.rejected, (state, action) => {
-        state.error = action.payload || "Failed to update slok";
-      })
-
-      // --- Delete Slok ---
+      }) // --- Delete Slok ---
       .addCase(deleteSlok.fulfilled, (state, action) => {
         state.list = state.list.filter((slok) => slok._id !== action.payload);
-      })
-      .addCase(deleteSlok.rejected, (state, action) => {
-        state.error = action.payload || "Failed to delete slok";
       });
   },
 });

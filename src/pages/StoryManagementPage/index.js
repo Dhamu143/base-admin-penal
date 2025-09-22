@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -29,17 +29,22 @@ export default function StoryManagementPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [filters, setFilters] = useState({ language: "" });
 
-  const itemsPerPage = 10;
+  const itemsPerPage = 1;
 
-  const loadStories = (params = {}) => {
-    dispatch(fetchStories({ ...params, pageSize: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err || "Failed to load stories."));
-  };
+  // 🔄 MODIFIED: Wrapped in useCallback and changed 'pageSize' to 'limit'
+  const loadStories = useCallback(
+    (params = {}) => {
+      // Your API expects 'limit', not 'pageSize'
+      dispatch(fetchStories({ ...params, limit: itemsPerPage }))
+        .unwrap()
+        .catch((err) => toast.error(err || "Failed to load stories."));
+    },
+    [dispatch, itemsPerPage]
+  ); // Added dependencies
 
   useEffect(() => {
     loadStories({ page: 1 });
-  }, [dispatch]);
+  }, [loadStories]); // 🔄 MODIFIED: Correct dependency
 
   const handleLanguageChange = (selectedOption) => {
     const value = selectedOption ? selectedOption.value : "";
@@ -61,7 +66,17 @@ export default function StoryManagementPage() {
     try {
       await dispatch(deleteStory(storyToDelete._id)).unwrap();
       toast.success(`Story "${storyToDelete.name}" deleted successfully.`);
-      loadStories({ ...filters, page: pagination?.currentPage || 1 });
+
+      // 💡 UX Improvement: Smarter reload logic after delete
+      const currentPage = pagination?.currentPage || 1;
+      if (stories.length === 1 && currentPage > 1) {
+        // If it was the last item on a page, fetch the previous page
+        loadStories({ ...filters, page: currentPage - 1 });
+      } else {
+        // Otherwise, reload the current page
+        loadStories({ ...filters, page: currentPage });
+      }
+
       setStoryToDelete(null);
     } catch (err) {
       toast.error(err || "Failed to delete story.");
@@ -110,7 +125,7 @@ export default function StoryManagementPage() {
           </div>
           <div className="mt-md-auto">
             <button
-              className="btn btn-outline-secondary w-100 ml-4"
+              className="btn btn-outline-secondary w-100"
               onClick={handleResetFilters}
             >
               <i className="fas fa-undo me-2"></i>
@@ -138,9 +153,7 @@ export default function StoryManagementPage() {
               {status === "loading" && (
                 <tr>
                   <td colSpan="6" className="text-center py-5">
-                    <div className="spinner-border text-primary" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
+                    <div className="spinner-border text-primary"></div>
                   </td>
                 </tr>
               )}

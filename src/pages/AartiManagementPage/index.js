@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-
 import { fetchAartis, deleteAarti } from "../../store/aarti/index";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import { staticLanguages } from "../../constants/languages";
 import CustomPagination from "../../common/Pagination";
 
-// Options are defined outside the component for better performance
 const languageOptions = [
   { value: "", label: "All Languages" },
   ...staticLanguages.map((lang) => ({
@@ -32,15 +30,18 @@ export default function AartiManagementPage() {
 
   const itemsPerPage = 10;
 
-  const loadAartis = (params = {}) => {
-    dispatch(fetchAartis({ ...params, pageSize: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err || "Failed to load aartis."));
-  };
+  const loadAartis = useCallback(
+    (params = {}) => {
+      dispatch(fetchAartis({ ...filters, ...params, limit: itemsPerPage }))
+        .unwrap()
+        .catch((err) => toast.error(err?.message || "Failed to load aartis."));
+    },
+    [dispatch, itemsPerPage, filters]
+  );
 
   useEffect(() => {
     loadAartis({ page: 1 });
-  }, [dispatch]);
+  }, []); // Changed dependency to run only once on mount
 
   const handleLanguageChange = (selectedOption) => {
     const value = selectedOption ? selectedOption.value : "";
@@ -53,8 +54,11 @@ export default function AartiManagementPage() {
     loadAartis({ language: "", page: 1 });
   };
 
-  const handlePageChange = (newPage) =>
-    loadAartis({ ...filters, page: newPage });
+  const handlePageChange = (newPage) => {
+    if (newPage !== pagination?.currentPage) {
+      loadAartis({ page: newPage });
+    }
+  };
 
   const confirmDelete = async () => {
     if (!aartiToDelete) return;
@@ -62,10 +66,16 @@ export default function AartiManagementPage() {
     try {
       await dispatch(deleteAarti(aartiToDelete._id)).unwrap();
       toast.success(`Aarti "${aartiToDelete.name}" deleted successfully.`);
-      loadAartis({ ...filters, page: pagination?.currentPage || 1 });
+
+      const pageToFetch =
+        aartis.length === 1 && pagination?.currentPage > 1
+          ? pagination.currentPage - 1
+          : pagination?.currentPage || 1;
+
+      loadAartis({ page: pageToFetch });
       setAartiToDelete(null);
     } catch (err) {
-      toast.error(err || "Failed to delete aarti.");
+      toast.error(err?.message || "Failed to delete aarti.");
     } finally {
       setIsDeleting(false);
     }
@@ -77,7 +87,6 @@ export default function AartiManagementPage() {
 
   return (
     <div className="card shadow-sm">
-      {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">📜 Aarti Management</h4>
         <button
@@ -93,12 +102,9 @@ export default function AartiManagementPage() {
         </button>
       </div>
 
-      {/* ✨ --- MODIFIED FILTERS SECTION --- ✨ */}
       <div className="card-body border-bottom">
         <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
           <div style={{ minWidth: "300px" }}>
-            {" "}
-            {/* Set a minimum width for the dropdown */}
             <label className="form-label fw-bold small mb-1">
               Filter by Language
             </label>
@@ -112,26 +118,19 @@ export default function AartiManagementPage() {
             />
           </div>
           <div className="mt-md-auto">
-            {" "}
-            {/* Aligns button to the bottom in flex view */}
             <button
-              className="btn btn-outline-secondary w-100 ml-4"
+              className="btn btn-outline-secondary w-100"
               onClick={handleResetFilters}
             >
-              <span className="mr-2">
-                <i className="fas fa-undo me-2"></i>
-              </span>
-              Reset
+              <i className="fas fa-undo me-2"></i>Reset
             </button>
           </div>
         </div>
       </div>
 
-      {/* Table */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
-            {/* ... table head and body remain the same ... */}
             <thead className="table-light">
               <tr>
                 <th>Name</th>
@@ -146,9 +145,7 @@ export default function AartiManagementPage() {
               {status === "loading" && (
                 <tr>
                   <td colSpan="6" className="text-center py-5">
-                    <div className="spinner-border text-primary" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
+                    <div className="spinner-border text-primary"></div>
                   </td>
                 </tr>
               )}
@@ -182,9 +179,11 @@ export default function AartiManagementPage() {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                       }}
-                      title={aarti.description.replace(/<[^>]+>/g, "")}
+                      // ✅ --- FIX APPLIED HERE --- ✅
+                      title={(aarti.description || "").replace(/<[^>]+>/g, "")}
                     >
-                      {aarti.description.replace(/<[^>]+>/g, "")}
+                      {/* ✅ --- AND FIX APPLIED HERE --- ✅ */}
+                      {(aarti.description || "").replace(/<[^>]+>/g, "")}
                     </td>
                     <td>{aarti.sort}</td>
                     <td>
@@ -221,7 +220,6 @@ export default function AartiManagementPage() {
         </div>
       </div>
 
-      {/* Pagination Footer */}
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
@@ -234,7 +232,6 @@ export default function AartiManagementPage() {
         </div>
       )}
 
-      {/* Delete Modal */}
       <ConfirmationModal
         show={aartiToDelete !== null}
         onClose={() => setAartiToDelete(null)}
@@ -248,7 +245,6 @@ export default function AartiManagementPage() {
           Are you sure you want to delete <br />
           <strong className="text-danger">{aartiToDelete?.name}</strong>?
         </p>
-        <p className="text-muted text-center">This action cannot be undone.</p>
       </ConfirmationModal>
     </div>
   );

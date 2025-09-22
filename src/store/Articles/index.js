@@ -1,17 +1,23 @@
-// store/articles/index.js
-
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
 // --- Async Thunks ---
 
-// Fetch all articles
+// 🔄 MODIFIED: Now accepts a 'params' object for pagination and filtering
 export const fetchArticles = createAsyncThunk(
   "articles/fetchArticles",
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const response = await httpService.get("/articles");
-      return response.data?.data; // Expecting { data: [], pagination: {} }
+      // Build a query string from the params object, ignoring empty values
+      const queryString = new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+      ).toString();
+
+      const url = queryString ? `/articles?${queryString}` : "/articles";
+      const response = await httpService.get(url);
+
+      // The backend should return a structure like: { data: { data: [...], pagination: {...} } }
+      return response.data?.data;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Failed to fetch articles"
@@ -72,7 +78,7 @@ export const deleteArticle = createAsyncThunk(
 // --- Slice ---
 const initialState = {
   list: [],
-  pagination: {},
+  pagination: null, // 🔄 MODIFIED: Default to null for better conditional checks
   status: "idle",
   error: null,
 };
@@ -90,17 +96,21 @@ const articlesSlice = createSlice({
       })
       .addCase(fetchArticles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list = action.payload?.data || [];
-        state.pagination = action.payload?.pagination || {};
+        state.list = Array.isArray(action.payload?.data)
+          ? action.payload.data
+          : [];
+        state.pagination = action.payload?.pagination || null; // 🔄 MODIFIED: Handle payload
       })
       .addCase(fetchArticles.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
+        state.list = []; // Clear list on error
       })
 
       // Add
       .addCase(addArticle.fulfilled, (state, action) => {
-        state.list.push(action.payload);
+        // For paginated lists, re-fetching is often better than pushing
+        // state.list.push(action.payload);
       })
 
       // Update

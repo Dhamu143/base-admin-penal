@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import Select from "react-select"; // Import react-select
+import Select from "react-select";
 
 // --- Redux Actions ---
 import { fetchArticles, deleteArticle } from "../../store/Articles/index";
 import { fetchGods as fetchgods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
+
+// --- Common Components ---
 import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
+import CustomPagination from "../../common/Pagination";
 
 const styles = `
   .truncate-text {
@@ -22,7 +25,6 @@ const styles = `
   }
 `;
 
-// Prepare options for react-select
 const languageOptions = [
   { value: "", label: "All Languages" },
   ...staticLanguages.map((lang) => ({
@@ -35,28 +37,34 @@ export default function ArticleListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { list: articles, status, error } = useSelector(
+  const { list: articles, pagination, status, error } = useSelector(
     (state) => state.articles
   );
   const { list: Gods, status: GodStatus } = useSelector((state) => state.God);
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState(null);
-  // --- NEW: State for filters ---
   const [filters, setFilters] = useState({ language: "" });
 
-  useEffect(() => {
-    if (status === "idle") dispatch(fetchArticles());
-    if (GodStatus === "idle") dispatch(fetchgods());
-  }, [status, GodStatus, dispatch]);
+  const itemsPerPage = 1;
 
-  // --- NEW: Client-side filtering using useMemo for performance ---
-  const filteredArticles = useMemo(() => {
-    if (!filters.language) {
-      return articles; // No filter, return all articles
+  const loadArticles = useCallback(
+    (params = {}) => {
+      dispatch(fetchArticles({ ...params, limit: itemsPerPage }))
+        .unwrap()
+        .catch((err) =>
+          toast.error(err?.message || "Failed to load articles.")
+        );
+    },
+    [dispatch, itemsPerPage]
+  );
+
+  useEffect(() => {
+    loadArticles({ page: 1 });
+    if (GodStatus === "idle") {
+      dispatch(fetchgods());
     }
-    return articles.filter((article) => article.language === filters.language);
-  }, [articles, filters.language]);
+  }, [GodStatus, dispatch, loadArticles]);
 
   const getLanguageNameById = (langId) => {
     const language = staticLanguages.find((lang) => lang._id === langId);
@@ -68,14 +76,19 @@ export default function ArticleListPage() {
     return god ? god.name : "N/A";
   };
 
-  // --- NEW: Handlers for the filter ---
   const handleLanguageChange = (selectedOption) => {
     const value = selectedOption ? selectedOption.value : "";
-    setFilters((prev) => ({ ...prev, language: value }));
+    setFilters({ language: value });
+    loadArticles({ language: value, page: 1 });
   };
 
   const handleResetFilters = () => {
     setFilters({ language: "" });
+    loadArticles({ language: "", page: 1 });
+  };
+
+  const handlePageChange = (newPage) => {
+    loadArticles({ ...filters, page: newPage });
   };
 
   const confirmDelete = async () => {
@@ -84,6 +97,13 @@ export default function ArticleListPage() {
     try {
       await dispatch(deleteArticle(articleToDelete._id)).unwrap();
       toast.success(`Article "${articleToDelete.title}" deleted successfully.`);
+
+      const currentPage = pagination?.currentPage || 1;
+      if (articles.length === 1 && currentPage > 1) {
+        loadArticles({ ...filters, page: currentPage - 1 });
+      } else {
+        loadArticles({ ...filters, page: currentPage });
+      }
       setArticleToDelete(null);
     } catch (err) {
       toast.error(err?.message || "Failed to delete article.");
@@ -92,7 +112,6 @@ export default function ArticleListPage() {
     }
   };
 
-  // Find the currently selected language object for react-select's value prop
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
@@ -116,26 +135,28 @@ export default function ArticleListPage() {
           </button>
         </div>
 
-        {/* --- NEW: Filter Section --- */}
         <div className="card-body border-bottom">
-          <div className="row g-3 align-items-center">
+          <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
             <div style={{ minWidth: "300px" }}>
-              <div className="col-md-10">
-                <Select
-                  placeholder="Filter by language..."
-                  options={languageOptions}
-                  value={selectedLanguage}
-                  onChange={handleLanguageChange}
-                  isClearable={true}
-                />
-              </div>
+              <label className="form-label fw-bold small mb-1">
+                Filter by Language
+              </label>
+              <Select
+                placeholder="Select..."
+                options={languageOptions}
+                value={selectedLanguage}
+                onChange={handleLanguageChange}
+                isClearable={true}
+                classNamePrefix="react-select"
+              />
             </div>
-            <div className="col-md-2">
+            <div className="mt-md-auto">
               <button
-                className="btn btn-secondary w-100"
+                className="btn btn-outline-secondary w-100"
                 onClick={handleResetFilters}
               >
-                <i className="fas fa-undo me-2"></i>Reset
+                <i className="fas fa-undo me-2"></i>
+                Reset
               </button>
             </div>
           </div>
@@ -171,9 +192,8 @@ export default function ArticleListPage() {
                     </td>
                   </tr>
                 )}
-                {/* --- MODIFIED: Map over filteredArticles --- */}
-                {status === "succeeded" && filteredArticles.length > 0
-                  ? filteredArticles.map((article) => (
+                {status === "succeeded" && articles.length > 0
+                  ? articles.map((article) => (
                       <tr key={article._id}>
                         <td className="fw-bold">
                           <span className="truncate-text" title={article.title}>
@@ -250,6 +270,18 @@ export default function ArticleListPage() {
             </table>
           </div>
         </div>
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="card-footer">
+            <CustomPagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+              totalItems={pagination.totalRecords}
+              itemsPerPage={itemsPerPage}
+            />
+          </div>
+        )}
       </div>
 
       <ConfirmationModal

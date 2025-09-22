@@ -8,61 +8,80 @@ const CustomPagination = ({
   totalItems,
   itemsPerPage,
 }) => {
-  if (totalPages <= 1) return null; // No pagination needed
+  if (totalPages <= 1) {
+    return null; // Don't show pagination if there's only one page
+  }
 
   // --- Calculations for "Showing X to Y of Z" text ---
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
-  // --- Logic to generate a window of page numbers with ellipses ---
+  // --- A simpler, more robust logic for generating page numbers ---
   const getPageItems = () => {
-    const pageWindow = 2; // How many pages to show around the current page
-    const pages = [];
+    const pageItems = [];
+    const neighbours = 1; // How many pages to show on each side of the current page
+    const totalNumbers = neighbours * 2 + 3; // e.g., 1 ... 4 [5] 6 ... 10
+    const totalButtons = totalNumbers + 2; // Including ellipses
 
-    // Always show the first page
-    if (currentPage > pageWindow + 1) {
-      pages.push(
-        <Pagination.Item key={1} onClick={() => onPageChange(1)}>
-          {1}
-        </Pagination.Item>
-      );
-      if (currentPage > pageWindow + 2) {
-        pages.push(<Pagination.Ellipsis key="start-ellipsis" />);
-      }
-    }
+    if (totalPages > totalButtons) {
+      const startPage = Math.max(2, currentPage - neighbours);
+      const endPage = Math.min(totalPages - 1, currentPage + neighbours);
 
-    // Determine the range of pages to display
-    const startPage = Math.max(1, currentPage - pageWindow);
-    const endPage = Math.min(totalPages, currentPage + pageWindow);
-
-    for (let number = startPage; number <= endPage; number++) {
-      pages.push(
+      pageItems.push(
         <Pagination.Item
-          key={number}
-          active={number === currentPage}
-          onClick={() => onPageChange(number)}
+          key={1}
+          active={currentPage === 1}
+          onClick={() => onPageChange(1)}
         >
-          {number}
+          1
         </Pagination.Item>
       );
-    }
 
-    // Always show the last page
-    if (currentPage < totalPages - pageWindow) {
-      if (currentPage < totalPages - pageWindow - 1) {
-        pages.push(<Pagination.Ellipsis key="end-ellipsis" />);
+      if (startPage > 2) {
+        pageItems.push(<Pagination.Ellipsis key="start-ellipsis" />);
       }
-      pages.push(
+
+      for (let i = startPage; i <= endPage; i++) {
+        pageItems.push(
+          <Pagination.Item
+            key={i}
+            active={currentPage === i}
+            onClick={() => onPageChange(i)}
+          >
+            {i}
+          </Pagination.Item>
+        );
+      }
+
+      if (endPage < totalPages - 1) {
+        pageItems.push(<Pagination.Ellipsis key="end-ellipsis" />);
+      }
+
+      pageItems.push(
         <Pagination.Item
           key={totalPages}
+          active={currentPage === totalPages}
           onClick={() => onPageChange(totalPages)}
         >
           {totalPages}
         </Pagination.Item>
       );
+    } else {
+      // If there are fewer pages than the max buttons, show all of them
+      for (let i = 1; i <= totalPages; i++) {
+        pageItems.push(
+          <Pagination.Item
+            key={i}
+            active={currentPage === i}
+            onClick={() => onPageChange(i)}
+          >
+            {i}
+          </Pagination.Item>
+        );
+      }
     }
 
-    return pages;
+    return pageItems;
   };
 
   return (
@@ -80,18 +99,12 @@ const CustomPagination = ({
           <Pagination.Prev
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-          >
-            <em className="fa fa-caret-left"></em>
-          </Pagination.Prev>
-
+          />
           {getPageItems()}
-
           <Pagination.Next
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-          >
-            <em className="fa fa-caret-right"></em>
-          </Pagination.Next>
+          />
         </Pagination>
       </div>
     </div>

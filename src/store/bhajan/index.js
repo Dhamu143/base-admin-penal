@@ -1,14 +1,23 @@
-import { createSlice, createAsyncThunk, isAllOf } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { toast } from "react-toastify";
 import httpService from "../../common/http.service";
 
 // --- Async Thunks ---
+
+// 🔄 MODIFIED: Now accepts a 'params' object for pagination and filtering
 export const fetchBhajans = createAsyncThunk(
   "bhajans/fetchAll",
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const response = await httpService.get("/bhajan");
-      return response.data?.data?.data;
+      const queryString = new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+      ).toString();
+
+      const url = queryString ? `/bhajan?${queryString}` : "/bhajan";
+      const response = await httpService.get(url);
+
+      // Expecting API response: { data: { data: [...], pagination: {...} } }
+      return response.data?.data;
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
       return rejectWithValue(error?.response?.data?.message || error.message);
@@ -21,7 +30,6 @@ export const addBhajan = createAsyncThunk(
   async (bhajanData, { rejectWithValue }) => {
     try {
       const response = await httpService.post("/bhajan/create", {}, bhajanData);
-      // toast.success("Bhajan added successfully!");
       return response.data?.data;
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
@@ -35,7 +43,6 @@ export const updateBhajan = createAsyncThunk(
   async ({ id, ...bhajanData }, { rejectWithValue }) => {
     try {
       const response = await httpService.put(`/bhajan/${id}`, {}, bhajanData);
-      // toast.success("Bhajan updated successfully!");
       return response.data?.data;
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
@@ -49,7 +56,6 @@ export const deleteBhajan = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       await httpService.delete(`/bhajan/${id}`);
-      // toast.success("Bhajan deleted successfully!");
       return id;
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message);
@@ -63,43 +69,54 @@ export const bhajanSlice = createSlice({
   name: "bhajans",
   initialState: {
     list: [],
+    pagination: null, // ✨ NEW: State for pagination data
     status: "idle",
     error: null,
+    // 🗑️ REMOVED: Filters are no longer needed in Redux state
   },
-  reducers: {},
+  reducers: {
+    // 🗑️ REMOVED: setFilters and resetFilters are no longer needed
+  },
   extraReducers: (builder) => {
-    // Fetch
-    builder.addMatcher(isAllOf(fetchBhajans.pending), (state) => {
-      state.status = "loading";
-      state.error = null;
-    });
-    builder.addMatcher(isAllOf(fetchBhajans.fulfilled), (state, action) => {
-      state.status = "succeeded";
-      state.list = action.payload;
-    });
-    builder.addMatcher(isAllOf(fetchBhajans.rejected), (state, action) => {
-      state.status = "failed";
-      state.error = action.payload;
-    });
+    // Using .addCase for clarity
+    builder
+      // Fetch
+      .addCase(fetchBhajans.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchBhajans.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        // 🔄 MODIFIED: Handle paginated response
+        state.list = Array.isArray(action.payload?.data)
+          ? action.payload.data
+          : [];
+        state.pagination = action.payload?.pagination || null;
+      })
+      .addCase(fetchBhajans.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+        state.list = [];
+      })
 
-    // Add
-    builder.addMatcher(isAllOf(addBhajan.fulfilled), (state, action) => {
-      state.list.push(action.payload);
-    });
+      // Add
+      .addCase(addBhajan.fulfilled, (state, action) => {
+        // Optimistic update; for paginated data, a refetch is often preferred.
+        state.list.unshift(action.payload);
+      })
 
-    // Update
-    builder.addMatcher(isAllOf(updateBhajan.fulfilled), (state, action) => {
-      const index = state.list.findIndex(
-        (bhajan) => bhajan._id === action.payload._id
-      );
-      if (index !== -1) state.list[index] = action.payload;
-    });
+      // Update
+      .addCase(updateBhajan.fulfilled, (state, action) => {
+        const index = state.list.findIndex((b) => b._id === action.payload._id);
+        if (index !== -1) state.list[index] = action.payload;
+      })
 
-    // Delete
-    builder.addMatcher(isAllOf(deleteBhajan.fulfilled), (state, action) => {
-      state.list = state.list.filter((bhajan) => bhajan._id !== action.payload);
-    });
+      // Delete
+      .addCase(deleteBhajan.fulfilled, (state, action) => {
+        state.list = state.list.filter((b) => b._id !== action.payload);
+      });
   },
 });
 
+// 🗑️ REMOVED: No longer exporting setFilters, resetFilters
 export default bhajanSlice.reducer;

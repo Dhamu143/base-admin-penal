@@ -1,4 +1,4 @@
-// store/ringtone/index.js (or ringtoneSlice.js)
+// store/ringtone/index.js (ringtoneSlice.js)
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
@@ -7,16 +7,26 @@ const api = axios.create({
   baseURL: "https://setu.apnamandal.com/api",
 });
 
-// --- REMOVED: The buildFormData helper is not needed ---
-
 // --- Async Thunks ---
 
+// Fetch ringtones (with filters & pagination)
 export const fetchRingtones = createAsyncThunk(
   "ringtones/fetchRingtones",
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const response = await api.get("/ringtone");
-      return response.data.data;
+      // Build query string (skip empty values)
+      const queryString = new URLSearchParams(
+        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+      ).toString();
+
+      const url = queryString ? `/ringtone?${queryString}` : "/ringtone";
+
+      const response = await api.get(url);
+
+      return {
+        data: response.data?.data?.data || [],
+        pagination: response.data?.data?.pagination || {},
+      };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -26,13 +36,12 @@ export const fetchRingtones = createAsyncThunk(
 // Add a new ringtone
 export const addRingtone = createAsyncThunk(
   "ringtones/addRingtone",
-  // CHANGED: The first argument 'ringtoneFormData' is already the FormData object. Use it directly.
   async (ringtoneFormData, { rejectWithValue }) => {
     try {
       const response = await api.post("/ringtone/create", ringtoneFormData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      return response.data.data;
+      return response.data?.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -42,13 +51,12 @@ export const addRingtone = createAsyncThunk(
 // Update an existing ringtone
 export const updateRingtone = createAsyncThunk(
   "ringtones/updateRingtone",
-  // CHANGED: Destructure the payload to get id and data (which is the FormData object). Use 'data' directly.
   async ({ id, data }, { rejectWithValue }) => {
     try {
       const response = await api.put(`/ringtone/${id}`, data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      return response.data.data;
+      return response.data?.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -71,7 +79,7 @@ export const deleteRingtone = createAsyncThunk(
 // --- Slice Definition ---
 const initialState = {
   list: [],
-  pagination: {},
+  pagination: {}, // for page, totalPages, limit etc.
   status: "idle", // 'idle', 'loading', 'succeeded', 'failed'
   error: null,
 };
@@ -85,11 +93,12 @@ const ringtoneSlice = createSlice({
       // --- Fetch ---
       .addCase(fetchRingtones.pending, (state) => {
         state.status = "loading";
+        state.error = null;
       })
       .addCase(fetchRingtones.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.list = action.payload.data || [];
-        state.pagination = action.payload.pagination || {};
+        state.list = action.payload.data;
+        state.pagination = action.payload.pagination;
       })
       .addCase(fetchRingtones.rejected, (state, action) => {
         state.status = "failed";
