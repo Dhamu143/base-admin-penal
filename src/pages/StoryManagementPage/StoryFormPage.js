@@ -3,6 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
+import { toast } from "react-toastify"; // Added for better user feedback
+
+// --- Store Imports ---
 import { fetchStories, addStory, updateStory } from "../../store/story/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
@@ -12,56 +15,66 @@ export default function StoryFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { list: stories, status: storiesStatus } = useSelector(
-    (state) => state.story
-  );
-  const { masterList: allMasters, masterStatus } = useSelector(
-    (state) => state.God
-  );
+  // --- Redux State ---
+  const { list: stories = [] } = useSelector((state) => state.story || {});
 
+  // CORRECTED: Select from state.God and use consistent variable names
+  const {
+    masterList: allGods = [],
+    masterStatus: godStatus = "idle",
+  } = useSelector((state) => state.God || {});
+
+  // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
     isActive: true,
     language: "",
-    master: "",
+    god: "", // CHANGED: from 'master' to 'god' for consistency
     description: "",
   });
 
-  const [filteredMasters, setFilteredMasters] = useState([]);
+  const [filteredGods, setFilteredGods] = useState([]); // CHANGED: from 'filteredMasters'
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (storiesStatus === "idle") dispatch(fetchStories());
-    if (masterStatus === "idle") dispatch(fetchAllGods());
-  }, [storiesStatus, masterStatus, dispatch]);
+  // --- Effects ---
 
+  // Fetch initial data if not already loaded
+  useEffect(() => {
+    dispatch(fetchStories()); // Always fetch list for consistency
+    if (godStatus === "idle") {
+      dispatch(fetchAllGods());
+    }
+  }, [godStatus, dispatch]);
+
+  // Populate form when editing an existing item
   useEffect(() => {
     if (id && stories.length > 0) {
       const storyItem = stories.find((s) => s._id === id);
       if (storyItem) {
         setFormData({
-          name: storyItem.name,
-          sort: storyItem.sort,
-          isActive: storyItem.isActive,
-          language: storyItem.language,
-          master: storyItem.master?._id || storyItem.master,
-          description: storyItem.description,
+          name: storyItem.name || "",
+          sort: storyItem.sort || "",
+          isActive: storyItem.isActive ?? true,
+          language: storyItem.language || "",
+          god: storyItem.god?._id || storyItem.god || "", // CHANGED: Populating 'god' field
+          description: storyItem.description || "",
         });
       }
     }
   }, [id, stories]);
 
+  // Filter gods whenever the selected language or the main god list changes
   useEffect(() => {
-    if (formData.language && allMasters.length > 0) {
-      setFilteredMasters(
-        allMasters.filter((master) => master.language === formData.language)
-      );
+    if (formData.language && Array.isArray(allGods)) {
+      setFilteredGods(allGods.filter((g) => g.language === formData.language));
     } else {
-      setFilteredMasters([]);
+      setFilteredGods([]);
     }
-  }, [formData.language, allMasters]);
+  }, [formData.language, allGods]);
+
+  // --- Handlers ---
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -69,13 +82,36 @@ export default function StoryFormPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
+    }
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setIsSaving(true);
+    try {
+      const action = id ? updateStory({ id, ...formData }) : addStory(formData);
+      await dispatch(action).unwrap();
+      toast.success(`Story ${id ? "updated" : "created"} successfully!`);
+      navigate("/story");
+    } catch (err) {
+      toast.error(err?.message || "Failed to save the story.");
+      console.error("Error saving story:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // --- Validation ---
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Story title is required.";
     if (!formData.language) newErrors.language = "Please select a language.";
-    if (!formData.master) newErrors.master = "Please select a Master.";
+    if (!formData.god) newErrors.god = "Please select a God."; // CHANGED: Validating 'god'
     if (!formData.description.trim())
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(formData.sort))
@@ -85,36 +121,20 @@ export default function StoryFormPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    setIsSaving(true);
-    try {
-      if (id) {
-        await dispatch(updateStory({ id, ...formData })).unwrap();
-      } else {
-        await dispatch(addStory(formData)).unwrap();
-      }
-      navigate("/story");
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // --- Helpers ---
 
-  const getSelectedOption = (list, id) => {
+  // Helper for react-select to find the selected option object
+  const getSelectedOption = (list = [], id) => {
+    if (!id || !Array.isArray(list)) return null;
     const selected = list.find((item) => item._id === id);
     return selected
-      ? {
-          value: selected._id,
-          label: selected.name || selected.nativeName,
-        }
+      ? { value: selected._id, label: selected.name || selected.nativeName }
       : null;
   };
 
   return (
     <div className="content-wrapper p-4">
+      {/* Header */}
       <div className="mb-4 d-flex align-items-center justify-content-between">
         <div>
           <span
@@ -135,14 +155,14 @@ export default function StoryFormPage() {
         </button>
       </div>
 
+      {/* Form Card */}
       <div className="card shadow-sm p-4">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="row">
             {/* Left Column */}
             <div className="col-md-6">
               <h5 className="mb-3 text-primary">Story Details</h5>
 
-              {/* Name/Title */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   Story Title <span className="text-danger">*</span>
@@ -160,7 +180,6 @@ export default function StoryFormPage() {
                 )}
               </div>
 
-              {/* Language */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   Language <span className="text-danger">*</span>
@@ -175,7 +194,7 @@ export default function StoryFormPage() {
                     setFormData((prev) => ({
                       ...prev,
                       language: option?.value || "",
-                      master: "",
+                      god: "", // Reset god selection
                     }))
                   }
                   placeholder="Select Language..."
@@ -187,62 +206,64 @@ export default function StoryFormPage() {
                 )}
               </div>
 
-              {/* Master */}
+              {/* God Dropdown */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
-                  Master <span className="text-danger">*</span>
+                  God <span className="text-danger">*</span>
                 </label>
                 <Select
-                  options={filteredMasters.map((master) => ({
-                    value: master._id,
-                    label: master.name,
+                  options={filteredGods.map((god) => ({
+                    value: god._id,
+                    label: god.name,
                   }))}
-                  value={getSelectedOption(filteredMasters, formData.master)}
+                  value={getSelectedOption(filteredGods, formData.god)}
                   onChange={(option) =>
                     setFormData((prev) => ({
                       ...prev,
-                      master: option?.value || "",
+                      god: option?.value || "",
                     }))
                   }
                   placeholder={
                     formData.language
-                      ? "Select Master..."
+                      ? "Select God..."
                       : "Select Language first..."
                   }
-                  isDisabled={
-                    !formData.language || filteredMasters.length === 0
-                  }
+                  isDisabled={!formData.language || filteredGods.length === 0}
                 />
-                {errors.master && (
-                  <div className="text-danger small mt-1">{errors.master}</div>
+                {errors.god && (
+                  <div className="text-danger small mt-1">{errors.god}</div>
                 )}
               </div>
 
-              {/* Sort */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">Sort Order *</label>
-                <input
-                  type="number"
-                  name="sort"
-                  className={`form-control ${errors.sort ? "is-invalid" : ""}`}
-                  value={formData.sort}
-                  onChange={handleFormChange}
-                />
-                {errors.sort && (
-                  <div className="invalid-feedback">{errors.sort}</div>
-                )}
-              </div>
-
-              {/* Active */}
-              <div className="form-check form-switch mb-3">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  name="isActive"
-                  checked={formData.isActive}
-                  onChange={handleFormChange}
-                />
-                <label className="form-check-label">Active Status</label>
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <label className="form-label fw-bold">Sort Order *</label>
+                  <input
+                    type="number"
+                    name="sort"
+                    className={`form-control ${
+                      errors.sort ? "is-invalid" : ""
+                    }`}
+                    value={formData.sort}
+                    onChange={handleFormChange}
+                  />
+                  {errors.sort && (
+                    <div className="invalid-feedback">{errors.sort}</div>
+                  )}
+                </div>
+                <div className="col-md-6 d-flex align-items-center mb-3">
+                  <div className="form-check form-switch mt-3">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      name="isActive"
+                      checked={formData.isActive}
+                      onChange={handleFormChange}
+                      role="switch"
+                    />
+                    <label className="form-check-label">Active Status</label>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -257,10 +278,9 @@ export default function StoryFormPage() {
                   setFormData((prev) => ({ ...prev, description: html }))
                 }
                 placeholder="Enter the full story here..."
-                error={errors.description}
               />
               {errors.description && (
-                <div className="invalid-feedback d-block mt-2">
+                <div className="text-danger small mt-2">
                   {errors.description}
                 </div>
               )}

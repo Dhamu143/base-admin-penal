@@ -8,28 +8,25 @@ import { act } from "react";
 export const appLoginUser = createAsyncThunk(
   "appUser/appLoginUser",
   async (params) => {
-    console.log(params, "params")
     try {
+      const { email, password, navigate } = params;
+
       const response = await httpService.post(
         "/admin/auth/signin",
-        {},
-        params
-        // {
-        //   email: params.email,
-        //   password: params.password,
-        // }
+        {}, // query params
+        { email, password } // body
       );
-      console.log(response, "response")
+
       if (response.data) {
-        response.data.navigate = params.navigate;
+        response.data.navigate = navigate;
       }
-      return await response.data;
+      return response.data;
     } catch (error) {
       toast.error(error?.message);
+      throw error;
     }
   }
 );
-
 
 export const appUserSlice = createSlice({
   name: "User",
@@ -42,16 +39,18 @@ export const appUserSlice = createSlice({
     builder.addMatcher(isAllOf(appLoginUser.fulfilled), (state, action) => {
       state.user = action.payload?.data;
       const userPermissions = action.payload?.data?.user?.permissions || [];
-      const permissionNames = userPermissions.map(permission => permission.name);
+      const permissionNames = userPermissions.map(
+        (permission) => permission.name
+      );
       state.userType = permissionNames;
-      console.log(state.userType)
-      console.log(action)
+      console.log(state.userType);
+      console.log(action);
       if (action?.payload?.data?.token) {
         localStorage.setItem("token", action?.payload?.data?.token);
         localStorage.setItem("user", JSON.stringify(action?.payload?.data));
-        localStorage.setItem("permissions", permissionNames.join(','));
-        
-        if(action?.payload?.data?.user?.admin === true) {
+        localStorage.setItem("permissions", permissionNames.join(","));
+
+        if (action?.payload?.data?.user?.admin === true) {
           action.payload.navigate("/dashboard");
         } else {
           action.payload.navigate(`/${permissionNames[0]}`);
@@ -115,7 +114,6 @@ export default appUserSlice.reducer;
 //       localStorage.setItem("token", response.data.token);
 //       localStorage.setItem("user", JSON.stringify(user));
 //       localStorage.setItem("permissions", permissionNames.join(","));
-
 
 //       if (!isAdmin && !hasPermissions && hasAnyAccess) {
 //         toast.success(`You do not have access to this portal.`);
@@ -185,4 +183,3 @@ export default appUserSlice.reducer;
 // });
 
 // export default appHubAdminSlice.reducer;
-
