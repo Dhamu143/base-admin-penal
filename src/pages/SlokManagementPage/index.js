@@ -1,15 +1,17 @@
-// pages/SlokListPage.jsx
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
+// --- Redux Actions & Components ---
 import { fetchSloks, deleteSlok } from "../../store/sloks/index";
+// ✨ NEW: Import action to fetch gods
+import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
-import CustomPagination from "../../common/Pagination"; // ✨ NEW: Import pagination
+import CustomPagination from "../../common/Pagination";
+import { TableStatus } from "../../components/TableStatus";
 
 const languageOptions = [
   { value: "", label: "All Languages" },
@@ -26,61 +28,75 @@ export default function SlokListPage() {
   const { list: sloks, pagination, status, error } = useSelector(
     (state) => state.sloks
   );
+  // ✨ NEW: Selecting God list and status for the new filter
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [slokToDelete, setSlokToDelete] = useState(null);
-  const [filters, setFilters] = useState({ language: "" }); // ✨ NEW: State for filters
 
-  const itemsPerPage = 1; // ✨ NEW: Define items per page
+  // 🔄 MODIFIED: Centralized filters state now includes 'god' and 'page'.
+  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
+  const itemsPerPage = 10; // You can adjust this value
 
-  // 🔄 MODIFIED: Centralized function to load sloks with filters/pagination
-  const loadSloks = (params = {}) => {
-    const query = {
-      ...filters, // Include existing filters
-      limit: itemsPerPage,
-      ...params, // Overwrite with new params (e.g., new page or filter)
-    };
-    dispatch(fetchSloks(query))
+  // 🔄 MODIFIED: loadSloks now reads from the unified 'filters' state.
+  const loadSloks = useCallback(() => {
+    dispatch(fetchSloks({ ...filters, limit: itemsPerPage }))
       .unwrap()
-      .catch((err) => toast.error(err || "Failed to load slokas."));
+      .catch((err) => toast.error(err?.message || "Failed to load slokas."));
+  }, [dispatch, filters, itemsPerPage]);
+
+  // 🔄 MODIFIED: This useEffect now handles all data loading based on filter changes.
+  useEffect(() => {
+    loadSloks();
+  }, [loadSloks]);
+
+  // ✨ NEW: This useEffect fetches the master list of gods, but only once.
+  useEffect(() => {
+    if (godStatus === "idle") {
+      dispatch(fetchAllGods());
+    }
+  }, [dispatch, godStatus]);
+
+  const getLanguageNameById = (langId) =>
+    staticLanguages.find((l) => l._id === langId)?.language || "N/A";
+
+  // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect handles fetching.
+  const handleLanguageChange = (option) => {
+    const value = option?.value || "";
+    setFilters((prev) => ({ ...prev, language: value, page: 1 }));
   };
 
-  // 🔄 MODIFIED: Use the new load function on mount
-  useEffect(() => {
-    loadSloks({ page: 1 });
-  }, [dispatch]);
-
-  // ✨ NEW: Handlers for the language filter
-  const handleLanguageChange = (selectedOption) => {
-    const value = selectedOption ? selectedOption.value : "";
-    setFilters({ language: value });
-    loadSloks({ language: value, page: 1 }); // Reset to page 1 on filter change
+  // ✨ NEW: Handler for the new God filter.
+  const handleGodChange = (option) => {
+    const value = option?.value || "";
+    setFilters((prev) => ({ ...prev, god: value, page: 1 }));
   };
 
   const handleResetFilters = () => {
-    setFilters({ language: "" });
-    loadSloks({ language: "", page: 1 });
+    setFilters({ language: "", god: "", page: 1 });
   };
 
-  // ✨ NEW: Handler for pagination
   const handlePageChange = (newPage) => {
-    if (newPage !== pagination?.currentPage) {
-      loadSloks({ page: newPage });
+    if (newPage !== filters.page) {
+      setFilters((prev) => ({ ...prev, page: newPage }));
     }
   };
 
+  // 🔄 MODIFIED: Deletion logic now correctly reloads or navigates pages.
   const confirmDelete = async () => {
     if (!slokToDelete) return;
     setIsDeleting(true);
     try {
       await dispatch(deleteSlok(slokToDelete._id)).unwrap();
       toast.success(`Sloka "${slokToDelete.name}" deleted successfully.`);
-      // 🔄 MODIFIED: Refresh the list correctly after delete
-      const pageToFetch =
-        sloks.length === 1 && pagination?.currentPage > 1
-          ? pagination.currentPage - 1
-          : pagination?.currentPage || 1;
-      loadSloks({ page: pageToFetch });
+
+      if (sloks.length === 1 && filters.page > 1) {
+        setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
+      } else {
+        loadSloks();
+      }
       setSlokToDelete(null);
     } catch (err) {
       toast.error(err?.message || "An error occurred while deleting.");
@@ -89,10 +105,17 @@ export default function SlokListPage() {
     }
   };
 
-  // ✨ NEW: Helper for react-select value
+  // ✨ NEW: Options for the God filter dropdown.
+  const godOptions = [
+    { value: "", label: "All Gods" },
+    ...allGods.map((god) => ({ value: god._id, label: god.name })),
+  ];
+
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
+  // ✨ NEW: Find the currently selected god option.
+  const selectedGod = godOptions.find((opt) => opt.value === filters.god);
 
   return (
     <>
@@ -115,28 +138,46 @@ export default function SlokListPage() {
           </button>
         </div>
 
-        {/* ✨ --- NEW FILTERS SECTION --- ✨ */}
+        {/* 🔄 MODIFIED: Filter section with new God filter and consistent layout */}
         <div className="card-body border-bottom">
-          <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
-            <div style={{ minWidth: "300px" }}>
+          <div className="d-flex flex-column flex-md-row align-items-md-center">
+            <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
               <label className="form-label fw-bold small mb-1">
                 Filter by Language
               </label>
               <Select
-                placeholder="Select..."
+                placeholder="Select Language..."
                 options={languageOptions}
                 value={selectedLanguage}
                 onChange={handleLanguageChange}
-                isClearable={true}
+                isClearable
                 classNamePrefix="react-select"
               />
             </div>
-            <div className="mt-md-auto">
+
+            {/* ✨ NEW: God Filter Select component */}
+            <div className="ml-4" style={{ minWidth: "250px" }}>
+              <label className="form-label fw-bold small mb-1">
+                Filter by God
+              </label>
+              <Select
+                placeholder="Select God..."
+                options={godOptions}
+                value={selectedGod}
+                onChange={handleGodChange}
+                isClearable
+                isLoading={godStatus === "loading"}
+                isDisabled={godStatus !== "succeeded"}
+                classNamePrefix="react-select"
+              />
+            </div>
+
+            <div className="mt-md-auto ms-md-auto">
               <button
-                className="btn btn-outline-secondary w-100"
+                className="btn btn-outline-secondary w-100 p-2 ml-4"
                 onClick={handleResetFilters}
               >
-                <i className="fas fa-undo me-2"></i>Reset
+                <i className="fas fa-undo mr-1"></i>Reset
               </button>
             </div>
           </div>
@@ -158,40 +199,24 @@ export default function SlokListPage() {
                 </tr>
               </thead>
               <tbody>
-                {status === "loading" && (
-                  <tr>
-                    <td colSpan="8" className="text-center py-5">
-                      <div className="spinner-border text-primary"></div>
-                    </td>
-                  </tr>
-                )}
-                {status === "failed" && (
-                  <tr>
-                    <td colSpan="8" className="text-center py-5 text-danger">
-                      Error: {error}
-                    </td>
-                  </tr>
-                )}
-                {status === "succeeded" && sloks.length === 0 && (
-                  <tr>
-                    <td colSpan="8" className="text-center py-5 text-muted">
-                      No Slokas Found
-                    </td>
-                  </tr>
-                )}
+                <TableStatus
+                  status={status}
+                  error={error}
+                  dataLength={sloks.length}
+                  colSpan={7}
+                  loadingText="Loading sloks..."
+                  emptyText="No sloks Found."
+                />
                 {status === "succeeded" &&
                   sloks.map((slok) => (
                     <tr key={slok._id}>
-                      <td className="fw-bold">{slok.name}</td>
-                      <td>{slok.master?.name || "N/A"}</td>
-                      <td>{slok.language?.language || "N/A"}</td>
+                      <td style={{ maxWidth: "150px" }}>{slok.name}</td>
+                      <td>{slok.god.name}</td>
+                      <td>{getLanguageNameById(slok.language)}</td>
                       <td>
-                        <span
-                          className="truncate-text"
-                          title={slok.description.replace(/<[^>]+>/g, "")}
-                        >
+                        <p style={{ maxWidth: "270px" }}>
                           {slok.description.replace(/<[^>]+>/g, "")}
-                        </span>
+                        </p>
                       </td>
                       <td>
                         <span
@@ -216,14 +241,16 @@ export default function SlokListPage() {
                       </td>
                       <td className="text-center">
                         <button
-                          className="btn btn-sm btn-outline-secondary me-2"
+                          className="btn btn-sm btn-outline-primary mr-2"
                           onClick={() => navigate(`/sloks/edit/${slok._id}`)}
+                          title="Edit"
                         >
                           <i className="fas fa-pencil-alt"></i>
                         </button>
                         <button
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => setSlokToDelete(slok)}
+                          title="Delete"
                         >
                           <i className="fas fa-trash"></i>
                         </button>
@@ -235,11 +262,11 @@ export default function SlokListPage() {
           </div>
         </div>
 
-        {/* ✨ --- NEW PAGINATION FOOTER --- ✨ */}
+        {/* 🔄 MODIFIED: Pagination now reads from the unified filters state */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination
-              currentPage={pagination.currentPage}
+              currentPage={filters.page}
               totalPages={pagination.totalPages}
               totalItems={pagination.totalRecords}
               itemsPerPage={itemsPerPage}
@@ -260,9 +287,6 @@ export default function SlokListPage() {
           <p className="fs-5 text-center">
             Are you sure you want to delete <br />
             <strong className="text-danger">{slokToDelete?.name}</strong>?
-          </p>
-          <p className="text-muted text-center">
-            This action cannot be undone.
           </p>
         </ConfirmationModal>
       </div>

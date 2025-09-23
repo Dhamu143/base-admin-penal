@@ -60,7 +60,7 @@ export default function QuizFormPage() {
           option3: quiz.options?.[2] || "",
           option4: quiz.options?.[3] || "",
           correctanswer: quiz.correctanswer || "",
-          sort: quiz.sort || 0,
+          sort: quiz.sort || "",
           language: quiz.language,
           god: quiz.god?._id || quiz.god,
           isActive: quiz.isActive !== undefined ? quiz.isActive : true,
@@ -79,6 +79,8 @@ export default function QuizFormPage() {
       question,
       option1,
       option2,
+      option3,
+      option4,
       correctanswer,
       language,
       god,
@@ -87,6 +89,9 @@ export default function QuizFormPage() {
     if (!question.trim()) newErrors.question = "Question is required.";
     if (!option1.trim()) newErrors.option1 = "Option 1 is required.";
     if (!option2.trim()) newErrors.option2 = "Option 2 is required.";
+    if (!option3.trim()) newErrors.option3 = "Option 3 is required.";
+    if (!option4.trim()) newErrors.option4 = "Option 4 is required.";
+
     // Options 3 and 4 are now optional
     if (!correctanswer)
       newErrors.correctanswer = "Please select a correct answer.";
@@ -395,7 +400,7 @@ export default function QuizFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-3"
                 onClick={() => navigate("/quiz")}
                 disabled={isSaving}
               >
@@ -409,7 +414,7 @@ export default function QuizFormPage() {
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save me-2"></i>
+                  <i className="fas fa-save mr-2"></i>
                 )}
                 {id ? "Update Quiz" : "Create Quiz"}
               </button>

@@ -20,7 +20,7 @@ export default function GodFormPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    sort: 0,
+    sort: "",
     master: "",
     language: "",
     isActive: true,
@@ -43,7 +43,7 @@ export default function GodFormPage() {
         setFormData({
           name: god.name || "",
           description: god.description || "",
-          sort: god.sort || 0,
+          sort: god.sort || "",
           master: god.master?._id || "",
           language: god.language?._id || god.language || "",
           isActive: god.isActive !== undefined ? god.isActive : true,
@@ -218,6 +218,36 @@ export default function GodFormPage() {
                     isDisabled={!formData.language}
                   />
                 </div>
+                <div>
+                  <label className="form-label fw-bold">
+                    Sort Order <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="sort"
+                    className={`form-control ${
+                      errors.sort ? "is-invalid" : ""
+                    }`}
+                    value={formData.sort}
+                    onChange={handleFormChange}
+                  />
+                  {errors.sort && (
+                    <div className="invalid-feedback">{errors.sort}</div>
+                  )}
+                </div>
+                <div className="col-md-6 d-flex align-items-center pt-3">
+                  <div className="form-check form-switch fs-5">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      name="isActive"
+                      checked={formData.isActive}
+                      onChange={handleFormChange}
+                    />
+                    <label className="form-check-label">is Active</label>
+                  </div>
+                </div>
               </div>
 
               {/* Right Column */}
@@ -239,39 +269,6 @@ export default function GodFormPage() {
                       {errors.description}
                     </div>
                   )}
-                </div>
-
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label fw-bold">
-                      Sort Order <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="sort"
-                      className={`form-control ${
-                        errors.sort ? "is-invalid" : ""
-                      }`}
-                      value={formData.sort}
-                      onChange={handleFormChange}
-                    />
-                    {errors.sort && (
-                      <div className="invalid-feedback">{errors.sort}</div>
-                    )}
-                  </div>
-                  <div className="col-md-6 d-flex align-items-center pt-3">
-                    <div className="form-check form-switch fs-5">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        role="switch"
-                        name="isActive"
-                        checked={formData.isActive}
-                        onChange={handleFormChange}
-                      />
-                      <label className="form-check-label">Active</label>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>

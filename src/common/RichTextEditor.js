@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Editor } from "react-draft-wysiwyg";
 import { EditorState, ContentState, convertToRaw } from "draft-js";
 import htmlToDraft from "html-to-draftjs";
 import draftToHtml from "draftjs-to-html";
 import "react-draft-wysiwyg/dist/react-draft-wysiwyg.css";
 
-// Helper: Convert HTML to EditorState
 const htmlToEditorState = (html) => {
-  if (!html) return EditorState.createEmpty();
+  if (!html || html === "<p><br></p>") return EditorState.createEmpty();
   const contentBlock = htmlToDraft(html);
-  if (contentBlock) {
+  if (contentBlock && contentBlock.contentBlocks) {
     const contentState = ContentState.createFromBlockArray(
       contentBlock.contentBlocks
     );
@@ -17,6 +16,9 @@ const htmlToEditorState = (html) => {
   }
   return EditorState.createEmpty();
 };
+
+const editorStateToHtml = (editorState) =>
+  draftToHtml(convertToRaw(editorState.getCurrentContent()));
 
 const RichTextEditor = ({
   value,
@@ -28,17 +30,21 @@ const RichTextEditor = ({
 }) => {
   const [editorState, setEditorState] = useState(EditorState.createEmpty());
 
-  // ✅ Always update editor when `value` changes
+  // Only update editorState if `value` changed externally
   useEffect(() => {
     if (value !== undefined && value !== null) {
-      setEditorState(htmlToEditorState(value));
+      const currentHtml = editorStateToHtml(editorState);
+      if (currentHtml !== value) {
+        setEditorState(htmlToEditorState(value));
+      }
     }
   }, [value]);
 
   const handleEditorChange = (state) => {
     setEditorState(state);
-    const html = draftToHtml(convertToRaw(state.getCurrentContent()));
-    onChange(html);
+    if (onChange) {
+      onChange(editorStateToHtml(state));
+    }
   };
 
   return (
@@ -75,8 +81,6 @@ const RichTextEditor = ({
         />
       </div>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-
-      {/* Height control via wrapper */}
       <style>{`
         .rdw-editor-main {
           min-height: ${minHeight}px;

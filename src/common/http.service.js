@@ -18,7 +18,7 @@ const setLoading = (isLoading) => {
 // Add request interceptor to show loader
 axios.interceptors.request.use(
   (config) => {
-    setLoading(true);
+    // setLoading(true);
     return config;
   },
   (error) => {

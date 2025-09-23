@@ -2,14 +2,15 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import Select from "react-select"; // 🔄 ADDED: Import Select component
+import Select from "react-select";
 import { fetchTemples, deleteTemple } from "../../store/temple";
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
+import { TableStatus } from "../../components/TableStatus";
+import DynamicImage from "../../components/PostPreview/PostPreview";
 
-// 🔄 ADDED: Options for the language filter dropdown
 const languageOptions = [
   { value: "", label: "All Languages" },
   ...staticLanguages.map((lang) => ({
@@ -30,53 +31,57 @@ export default function TempleListPage() {
   );
 
   const [templeToDelete, setTempleToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false); // 🔄 ADDED: Loading state for delete
-  const [filters, setFilters] = useState({ language: "" });
-  const itemsPerPage = 10; // 🔥 Show 10 per page
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const loadTemples = useCallback(
-    (params = {}) => {
-      // Pass all filters and pagination params to the fetch action
-      dispatch(fetchTemples({ ...filters, ...params, limit: itemsPerPage }))
-        .unwrap()
-        .catch((err) => toast.error(err?.message || "Failed to load temples."));
-    },
-    [dispatch, itemsPerPage, filters] // 🔄 MODIFIED: Added filters as a dependency
-  );
+  // 🔄 MODIFIED: 'page' is now part of the filters state for a single source of truth.
+  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
+  const itemsPerPage = 10;
 
+  // 🔄 MODIFIED: loadTemples is now simpler and doesn't need params.
+  const loadTemples = useCallback(() => {
+    dispatch(fetchTemples({ ...filters, limit: itemsPerPage }))
+      .unwrap()
+      .catch((err) => toast.error(err?.message || "Failed to load temples."));
+  }, [dispatch, filters, itemsPerPage]);
+
+  // 🔄 MODIFIED: This useEffect now correctly handles all data loading for temples.
+  // It runs ONLY when the filters (language, god, or page) change.
   useEffect(() => {
-    loadTemples({ page: 1 });
+    loadTemples();
+  }, [loadTemples]);
+
+  // This useEffect fetches the master list of gods, but only once.
+  useEffect(() => {
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
     }
-  }, [dispatch, godStatus]); // 🔄 MODIFIED: Removed loadTemples to prevent extra calls on filter change
-
-  const getGodNameById = (godId) =>
-    allGods.find((g) => g._id === godId)?.name || "N/A";
+  }, [dispatch, godStatus]);
 
   const getLanguageName = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.language || "N/A";
 
-  // 🔄 ADDED: Handler for language filter change
-  const handleLanguageChange = (selectedOption) => {
-    const value = selectedOption ? selectedOption.value : "";
-    setFilters({ language: value });
-    loadTemples({ language: value, page: 1 }); // Refetch from page 1
+  // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect above handles fetching.
+  const handleLanguageChange = (option) => {
+    const value = option?.value || "";
+    // When a filter changes, always reset to page 1.
+    setFilters((prev) => ({ ...prev, language: value, page: 1 }));
   };
 
-  // 🔄 ADDED: Handler to reset filters
+  const handleGodChange = (option) => {
+    const value = option?.value || "";
+    setFilters((prev) => ({ ...prev, god: value, page: 1 }));
+  };
+
   const handleResetFilters = () => {
-    setFilters({ language: "" });
-    loadTemples({ language: "", page: 1 });
+    setFilters({ language: "", god: "", page: 1 });
   };
 
   const handlePageChange = (newPage) => {
-    if (newPage !== pagination?.currentPage) {
-      loadTemples({ page: newPage });
+    if (newPage !== filters.page) {
+      setFilters((prev) => ({ ...prev, page: newPage }));
     }
   };
 
-  // 🔄 MODIFIED: Improved deletion logic to handle pagination correctly
   const confirmDelete = async () => {
     if (!templeToDelete) return;
     setIsDeleting(true);
@@ -84,13 +89,14 @@ export default function TempleListPage() {
       await dispatch(deleteTemple(templeToDelete._id)).unwrap();
       toast.success(`Temple "${templeToDelete.name}" deleted successfully.`);
 
-      // If the last item on a page is deleted, go to the previous page
-      const pageToFetch =
-        temples.length === 1 && pagination?.currentPage > 1
-          ? pagination.currentPage - 1
-          : pagination?.currentPage || 1;
-
-      loadTemples({ page: pageToFetch });
+      // After deletion, if it was the last item on a page, update the page filter.
+      // The useEffect will then automatically refetch the data.
+      if (temples.length === 1 && filters.page > 1) {
+        setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
+      } else {
+        // Otherwise, just reload the current page's data.
+        loadTemples();
+      }
       setTempleToDelete(null);
     } catch (err) {
       toast.error(err?.message || "Failed to delete temple.");
@@ -99,10 +105,15 @@ export default function TempleListPage() {
     }
   };
 
-  // 🔄 ADDED: Find the selected option object for the Select component's value
+  const godOptions = [
+    { value: "", label: "All Gods" },
+    ...allGods.map((god) => ({ value: god._id, label: god.name })),
+  ];
+
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
+  const selectedGod = godOptions.find((opt) => opt.value === filters.god);
 
   return (
     <div className="card shadow-sm">
@@ -121,28 +132,42 @@ export default function TempleListPage() {
         </button>
       </div>
 
-      {/* 🔄 ADDED: Filter section */}
       <div className="card-body border-bottom">
-        <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
-          <div style={{ minWidth: "300px" }}>
+        <div className="d-flex flex-column flex-md-row align-items-md-center">
+          <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
             <label className="form-label fw-bold small mb-1">
               Filter by Language
             </label>
             <Select
-              placeholder="Select..."
+              placeholder="Select Language..."
               options={languageOptions}
               value={selectedLanguage}
               onChange={handleLanguageChange}
-              isClearable={true}
+              isClearable
+              classNamePrefix="react-select"
+            />
+          </div>
+          <div className="ml-4" style={{ minWidth: "250px" }}>
+            <label className="form-label fw-bold small mb-1">
+              Filter by God
+            </label>
+            <Select
+              placeholder="Select God..."
+              options={godOptions}
+              value={selectedGod}
+              onChange={handleGodChange}
+              isClearable
+              isLoading={godStatus === "loading"}
+              isDisabled={godStatus !== "succeeded"}
               classNamePrefix="react-select"
             />
           </div>
           <div className="mt-md-auto">
             <button
-              className="btn btn-outline-secondary w-100"
+              className="btn btn-outline-secondary w-100 ml-4 p-2"
               onClick={handleResetFilters}
             >
-              <i className="fas fa-undo me-2"></i>Reset
+              <i className="fas fa-undo mr-1"></i>Reset
             </button>
           </div>
         </div>
@@ -157,38 +182,24 @@ export default function TempleListPage() {
                 <th>Name</th>
                 <th>God</th>
                 <th>Language</th>
-                <th>Status</th>
                 <th className="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {status === "loading" && (
-                <tr>
-                  <td colSpan="6" className="text-center py-5">
-                    <div className="spinner-border text-primary"></div>
-                  </td>
-                </tr>
-              )}
-              {status === "failed" && (
-                <tr>
-                  <td colSpan="6" className="text-center py-5 text-danger">
-                    <strong>Error:</strong> {error}
-                  </td>
-                </tr>
-              )}
-              {status === "succeeded" && temples.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="text-center text-muted py-5">
-                    No Temples Found.
-                  </td>
-                </tr>
-              )}
+              <TableStatus
+                status={status}
+                error={error}
+                dataLength={temples.length}
+                colSpan={7}
+                loadingText="Loading temples..."
+                emptyText="No temples Found."
+              />
               {status === "succeeded" &&
                 temples.map((temple) => (
                   <tr key={temple._id}>
                     <td>
                       {temple.files ? (
-                        <img
+                        <DynamicImage
                           src={temple.files}
                           alt={temple.name}
                           style={{
@@ -212,22 +223,11 @@ export default function TempleListPage() {
                       )}
                     </td>
                     <td className="fw-semibold">{temple.name}</td>
-                    <td>{getGodNameById(temple.god)}</td>
+                    <td>{temple.god.name}</td>
                     <td>{getLanguageName(temple.language)}</td>
-                    <td>
-                      <span
-                        className={`badge fs-6 ${
-                          temple.isActive
-                            ? "text-bg-success"
-                            : "text-bg-secondary"
-                        }`}
-                      >
-                        {temple.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
                     <td className="text-center">
                       <button
-                        className="btn btn-sm btn-outline-primary me-2"
+                        className="btn btn-sm btn-outline-primary mr-2"
                         onClick={() => navigate(`/temples/edit/${temple._id}`)}
                         title="Edit"
                       >
@@ -251,7 +251,8 @@ export default function TempleListPage() {
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
-            currentPage={pagination.currentPage}
+            // 🔄 MODIFIED: Read currentPage from the unified filters state
+            currentPage={filters.page}
             totalPages={pagination.totalPages}
             totalItems={pagination.totalRecords}
             itemsPerPage={itemsPerPage}

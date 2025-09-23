@@ -26,7 +26,7 @@ export default function StutiFormPage() {
   // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
-    sort: 0,
+    sort: "",
     isActive: true,
     god: "",
     description: "",
@@ -52,7 +52,7 @@ export default function StutiFormPage() {
       if (stuti) {
         setFormData({
           name: stuti.name || "",
-          sort: stuti.sort || 0,
+          sort: stuti.sort || "",
           isActive: stuti.isActive,
           god: stuti.god?._id || stuti.god,
           description: stuti.description || "",

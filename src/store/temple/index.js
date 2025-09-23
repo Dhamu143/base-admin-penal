@@ -5,13 +5,23 @@ import httpService from "../../common/http.service";
 
 export const fetchTemples = createAsyncThunk(
   "temple/fetchAll",
-  async (params = {}, { rejectWithValue }) => {
+  async (params = { page: 1, limit: 10 }, { rejectWithValue }) => {
     try {
+      // ✨ MODIFIED: Added a cache-busting parameter with the current timestamp.
+      const paramsWithCacheBuster = {
+        ...params,
+        _: Date.now(), // The underscore '_' is a common convention
+      };
+
       const queryString = new URLSearchParams(
-        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+        Object.fromEntries(
+          Object.entries(paramsWithCacheBuster).filter(([_, v]) => v)
+        )
       ).toString();
-      const url = queryString ? `/temple?${queryString}` : "/temple";
+
+      const url = `/temple?${queryString}`; // The URL will now be unique for each request
       const response = await httpService.get(url);
+
       return {
         data: response.data?.data?.data || [],
         pagination: response.data?.data?.pagination || null,
@@ -23,6 +33,8 @@ export const fetchTemples = createAsyncThunk(
     }
   }
 );
+
+// ... rest of your templeSlice.js file remains the same ...
 
 export const addTemple = createAsyncThunk(
   "temple/add",

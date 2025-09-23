@@ -10,6 +10,7 @@ import DynamicImage from "../../components/PostPreview/PostPreview";
 
 import { staticLanguages } from "../../constants/languages";
 import { fetchGods, fetchAllGods, deleteGod } from "../../store/god/index";
+import { TableStatus } from "../../components/TableStatus";
 
 export default function GodTablePage() {
   const dispatch = useDispatch();
@@ -127,10 +128,13 @@ export default function GodTablePage() {
           />
         </div>
         <button
-          className="btn btn-outline-secondary"
+          className="btn btn-outline-secondary ml-4"
           onClick={handleResetFilters}
         >
-          <i className="fas fa-undo me-2"></i> Reset
+          <span className="mr-1">
+            <i className="fas fa-undo me-2"></i>
+          </span>
+          Reset
         </button>
       </div>
 
@@ -148,30 +152,14 @@ export default function GodTablePage() {
               </tr>
             </thead>
             <tbody>
-              {status === "loading" && (
-                <tr>
-                  <td colSpan="5" className="text-center py-5">
-                    <div className="spinner-border text-primary"></div>
-                  </td>
-                </tr>
-              )}
-
-              {status === "failed" && (
-                <tr>
-                  <td colSpan="5" className="text-center text-danger py-5">
-                    {error}
-                  </td>
-                </tr>
-              )}
-
-              {status === "succeeded" && gods.length === 0 && (
-                <tr>
-                  <td colSpan="5" className="text-center text-muted py-5">
-                    No Gods Found.
-                  </td>
-                </tr>
-              )}
-
+              <TableStatus
+                status={status}
+                error={error}
+                dataLength={gods.length}
+                colSpan={7}
+                loadingText="Loading gods..."
+                emptyText="No gods Found."
+              />
               {status === "succeeded" &&
                 gods.map((god) => (
                   <tr key={god._id}>
@@ -192,7 +180,7 @@ export default function GodTablePage() {
                     <td>{god.sort}</td>
                     <td className="text-center">
                       <button
-                        className="btn btn-sm btn-outline-secondary me-2"
+                        className="btn btn-sm btn-outline-secondary mr-2"
                         onClick={() => navigate(`/god-form/${god._id}`)}
                       >
                         <em className="fas fa-pencil-alt"></em>

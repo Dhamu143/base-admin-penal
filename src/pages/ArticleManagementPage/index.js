@@ -6,13 +6,15 @@ import Select from "react-select";
 
 // --- Redux Actions ---
 import { fetchArticles, deleteArticle } from "../../store/Articles/index";
-import { fetchGods as fetchgods } from "../../store/god/index";
+// ✨ NEW: Renamed import for clarity, though functionality is the same.
+import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
 // --- Common Components ---
 import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 import CustomPagination from "../../common/Pagination";
+import { TableStatus } from "../../components/TableStatus";
 
 const styles = `
   .truncate-text {
@@ -40,57 +42,70 @@ export default function ArticleListPage() {
   const { list: articles, pagination, status, error } = useSelector(
     (state) => state.articles
   );
-  const { list: Gods, status: GodStatus } = useSelector((state) => state.God);
+  // 🔄 MODIFIED: Using masterList to align with the pattern, assuming your slice provides it.
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState(null);
-  const [filters, setFilters] = useState({ language: "" });
 
-  const itemsPerPage = 1;
+  // 🔄 MODIFIED: Centralized filters state, including 'god' and 'page'.
+  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
+  const itemsPerPage = 10; // You can adjust this value
 
-  const loadArticles = useCallback(
-    (params = {}) => {
-      dispatch(fetchArticles({ ...params, limit: itemsPerPage }))
-        .unwrap()
-        .catch((err) =>
-          toast.error(err?.message || "Failed to load articles.")
-        );
-    },
-    [dispatch, itemsPerPage]
-  );
+  // 🔄 MODIFIED: Simplified loadArticles, now dependent on the central 'filters' state.
+  const loadArticles = useCallback(() => {
+    dispatch(fetchArticles({ ...filters, limit: itemsPerPage }))
+      .unwrap()
+      .catch((err) => toast.error(err?.message || "Failed to load articles."));
+  }, [dispatch, filters, itemsPerPage]);
 
+  // 🔄 MODIFIED: This useEffect now correctly handles all data loading for articles.
+  // It runs ONLY when the filters (language, god, or page) change.
   useEffect(() => {
-    loadArticles({ page: 1 });
-    if (GodStatus === "idle") {
-      dispatch(fetchgods());
+    loadArticles();
+  }, [loadArticles]);
+
+  // ✨ NEW: This useEffect fetches the master list of gods, but only once.
+  useEffect(() => {
+    if (godStatus === "idle") {
+      dispatch(fetchAllGods());
     }
-  }, [GodStatus, dispatch, loadArticles]);
+  }, [dispatch, godStatus]);
 
-  const getLanguageNameById = (langId) => {
-    const language = staticLanguages.find((lang) => lang._id === langId);
-    return language ? language.nativeName : "N/A";
+  // Helper Functions
+  const getLanguageNameById = (langId) =>
+    staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
+
+  const getGodNameById = (godId) =>
+    allGods.find((g) => g._id === godId)?.name || "N/A";
+
+  // --- Event Handlers ---
+
+  // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect above handles fetching.
+  const handleLanguageChange = (option) => {
+    const value = option?.value || "";
+    setFilters((prev) => ({ ...prev, language: value, page: 1 }));
   };
 
-  const getGodNameById = (id) => {
-    const god = Gods.find((g) => g._id === id);
-    return god ? god.name : "N/A";
-  };
-
-  const handleLanguageChange = (selectedOption) => {
-    const value = selectedOption ? selectedOption.value : "";
-    setFilters({ language: value });
-    loadArticles({ language: value, page: 1 });
+  // ✨ NEW: Handler for the new God filter.
+  const handleGodChange = (option) => {
+    const value = option?.value || "";
+    setFilters((prev) => ({ ...prev, god: value, page: 1 }));
   };
 
   const handleResetFilters = () => {
-    setFilters({ language: "" });
-    loadArticles({ language: "", page: 1 });
+    setFilters({ language: "", god: "", page: 1 });
   };
 
   const handlePageChange = (newPage) => {
-    loadArticles({ ...filters, page: newPage });
+    if (newPage !== filters.page) {
+      setFilters((prev) => ({ ...prev, page: newPage }));
+    }
   };
 
+  // 🔄 MODIFIED: Deletion logic now correctly reloads or changes page.
   const confirmDelete = async () => {
     if (!articleToDelete) return;
     setIsDeleting(true);
@@ -98,11 +113,10 @@ export default function ArticleListPage() {
       await dispatch(deleteArticle(articleToDelete._id)).unwrap();
       toast.success(`Article "${articleToDelete.title}" deleted successfully.`);
 
-      const currentPage = pagination?.currentPage || 1;
-      if (articles.length === 1 && currentPage > 1) {
-        loadArticles({ ...filters, page: currentPage - 1 });
+      if (articles.length === 1 && filters.page > 1) {
+        setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
       } else {
-        loadArticles({ ...filters, page: currentPage });
+        loadArticles();
       }
       setArticleToDelete(null);
     } catch (err) {
@@ -112,9 +126,17 @@ export default function ArticleListPage() {
     }
   };
 
+  // ✨ NEW: Options for the God filter dropdown.
+  const godOptions = [
+    { value: "", label: "All Gods" },
+    ...allGods.map((god) => ({ value: god._id, label: god.name })),
+  ];
+
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
+  // ✨ NEW: Find the currently selected god option.
+  const selectedGod = godOptions.find((opt) => opt.value === filters.god);
 
   return (
     <>
@@ -129,42 +151,62 @@ export default function ArticleListPage() {
             onClick={() => navigate("/articles/new")}
           >
             <span className="btn-label me-2">
-              <em className="fas fa-plus"></em>
+              <i className="fas fa-plus"></i>
             </span>
             Add New Article
           </button>
         </div>
 
+        {/* 🔄 MODIFIED: Filter section with new God filter */}
         <div className="card-body border-bottom">
-          <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
-            <div style={{ minWidth: "300px" }}>
+          <div className="d-flex flex-column flex-md-row align-items-md-center">
+            <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
               <label className="form-label fw-bold small mb-1">
                 Filter by Language
               </label>
               <Select
-                placeholder="Select..."
+                placeholder="Select Language..."
                 options={languageOptions}
                 value={selectedLanguage}
                 onChange={handleLanguageChange}
-                isClearable={true}
+                isClearable
                 classNamePrefix="react-select"
               />
             </div>
-            <div className="mt-md-auto">
+
+            {/* ✨ NEW: God Filter Select component */}
+            <div className="ml-4" style={{ minWidth: "250px" }}>
+              <label className="form-label fw-bold small mb-1">
+                Filter by God
+              </label>
+              <Select
+                placeholder="Select God..."
+                options={godOptions}
+                value={selectedGod}
+                onChange={handleGodChange}
+                isClearable
+                isLoading={godStatus === "loading"}
+                isDisabled={godStatus !== "succeeded"}
+                classNamePrefix="react-select"
+              />
+            </div>
+
+            <div className="mt-md-auto ms-md-2">
               <button
-                className="btn btn-outline-secondary w-100"
+                className="btn btn-outline-secondary w-100 p-2 ml-4"
                 onClick={handleResetFilters}
               >
-                <i className="fas fa-undo me-2"></i>
-                Reset
+                <i className="fas fa-undo mr-1"></i>Reset
               </button>
             </div>
           </div>
         </div>
 
         <div className="card-body">
+          {/* Table and other content remains the same */}
           <div className="table-responsive">
             <table className="table table-hover align-middle">
+              {/* ... thead ... */}
               <thead className="table-light">
                 <tr>
                   <th>Title</th>
@@ -178,103 +220,101 @@ export default function ArticleListPage() {
                 </tr>
               </thead>
               <tbody>
-                {status === "loading" && (
-                  <tr>
-                    <td colSpan="8" className="text-center py-5">
-                      <div className="spinner-border text-primary"></div>
-                    </td>
-                  </tr>
-                )}
-                {status === "failed" && (
-                  <tr>
-                    <td colSpan="8" className="text-center py-5 text-danger">
-                      Error: {error}
-                    </td>
-                  </tr>
-                )}
-                {status === "succeeded" && articles.length > 0
-                  ? articles.map((article) => (
-                      <tr key={article._id}>
-                        <td className="fw-bold">
-                          <span className="truncate-text" title={article.title}>
-                            {article.title}
-                          </span>
-                        </td>
-                        <td>
-                          {article.featureimage ? (
-                            <DynamicImage
-                              src={article.featureimage}
-                              alt={article.title}
-                              style={{
-                                width: "60px",
-                                height: "60px",
-                                objectFit: "cover",
-                                borderRadius: "50%",
-                              }}
-                            />
-                          ) : (
-                            <span className="text-muted">No Image</span>
-                          )}
-                        </td>
-                        <td>{getGodNameById(article.god)}</td>
-                        <td>{getLanguageNameById(article.language)}</td>
-                        <td>{article.sort}</td>
-                        <td>
-                          <span
-                            className={`badge fs-6 ${
-                              article.isFree
-                                ? "text-bg-info"
-                                : "text-bg-warning"
-                            }`}
+                <TableStatus
+                  status={status}
+                  error={error}
+                  dataLength={articles.length}
+                  colSpan={7}
+                  loadingText="Loading articles..."
+                  emptyText="No articles Found."
+                />
+                {/* ... map through articles ... */}
+                {status === "succeeded" &&
+                  articles.map((article) => (
+                    <tr key={article._id}>
+                      <td className="fw-bold">
+                        <span className="truncate-text" title={article.title}>
+                          {article.title}
+                        </span>
+                      </td>
+                      <td>
+                        {article.featureimage ? (
+                          <DynamicImage
+                            src={article.featureimage}
+                            alt={article.title}
+                            style={{
+                              width: "60px",
+                              height: "60px",
+                              objectFit: "cover",
+                              borderRadius: "8px",
+                            }}
+                          />
+                        ) : (
+                          <div
+                            className="d-flex justify-content-center align-items-center bg-light"
+                            style={{
+                              width: "60px",
+                              height: "60px",
+                              borderRadius: "8px",
+                            }}
                           >
-                            {article.isFree ? "Free" : "Premium"}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`badge fs-6 ${
-                              article.isActive
-                                ? "text-bg-success"
-                                : "text-bg-secondary"
-                            }`}
-                          >
-                            {article.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="text-center">
-                          <button
-                            className="btn btn-sm btn-outline-primary me-2"
-                            onClick={() =>
-                              navigate(`/articles/edit/${article._id}`)
-                            }
-                          >
-                            <i className="fas fa-pencil-alt"></i>
-                          </button>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => setArticleToDelete(article)}
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  : status === "succeeded" && (
-                      <tr>
-                        <td colSpan="8" className="text-center py-5 text-muted">
-                          No Articles Found
-                        </td>
-                      </tr>
-                    )}
+                            <i className="fas fa-image text-muted"></i>
+                          </div>
+                        )}
+                      </td>
+                      <td>{article.god.name}</td>
+                      <td>{getLanguageNameById(article.language)}</td>
+                      <td>{article.sort}</td>
+                      <td>
+                        <span
+                          className={`badge fs-6 ${
+                            article.isFree ? "text-bg-info" : "text-bg-warning"
+                          }`}
+                        >
+                          {article.isFree ? "Free" : "Premium"}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge fs-6 ${
+                            article.isActive
+                              ? "text-bg-success"
+                              : "text-bg-secondary"
+                          }`}
+                        >
+                          {article.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        <button
+                          className="btn btn-sm btn-outline-primary mr-2"
+                          onClick={() =>
+                            navigate(`/articles/edit/${article._id}`)
+                          }
+                          title="Edit"
+                        >
+                          <i className="fas fa-pencil-alt"></i>
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => setArticleToDelete(article)}
+                          title="Delete"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
         </div>
 
+        {/* 🔄 MODIFIED: Pagination now reads from the unified filters state */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination
-              currentPage={pagination.currentPage}
+              currentPage={filters.page}
               totalPages={pagination.totalPages}
               onPageChange={handlePageChange}
               totalItems={pagination.totalRecords}

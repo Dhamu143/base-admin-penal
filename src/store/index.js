@@ -31,7 +31,7 @@ import socialprojectbookingReducer from "../store/socialprojectbooking/index";
 import eventReducer from "../store/event/index";
 import bolibookingReducer from "../store/boliBooking/index";
 import directoriesReducer from "../store/directories/directories";
-import godmaster from "../store/godmaster/index";
+import godmaster from "./godmaster";
 import aartisReducer from "./aarti";
 import bhajansReducer from "./bhajan";
 import festivalsReducer from "./festival";

@@ -4,13 +4,16 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-// --- Festival Actions ---
+// --- Redux Actions ---
 import { fetchFestivals, deleteFestival } from "../../store/festival/index";
+// ✨ NEW: Added import to fetch the list of Gods for the filter
+import { fetchAllGods } from "../../store/god";
 
 // --- Reusable Components & Data ---
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
+import { TableStatus } from "../../components/TableStatus";
 
 // --- Prepare options for react-select ---
 const languageOptions = [
@@ -39,46 +42,67 @@ export default function FestivalListPage() {
   const { list: festivals, pagination, status, error } = useSelector(
     (state) => state.festivals
   );
+  // ✨ NEW: Selecting God list and status for the new filter
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [festivalToDelete, setFestivalToDelete] = useState(null);
-  const [filters, setFilters] = useState({ language: "" });
 
-  const itemsPerPage = 1;
+  // 🔄 MODIFIED: Centralized filters state now includes 'god' and 'page'.
+  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
+  const itemsPerPage = 10; // You can adjust this value
 
-  const loadFestivals = useCallback(
-    (params = {}) => {
-      // 🔄 MODIFIED: Changed 'pageSize' to 'limit' to match your other working APIs
-      dispatch(fetchFestivals({ ...params, limit: itemsPerPage }))
-        .unwrap()
-        .catch((err) => toast.error(err || "Failed to load festivals."));
-    },
-    [dispatch, itemsPerPage]
-  );
+  // 🔄 MODIFIED: loadFestivals now reads from the unified 'filters' state.
+  const loadFestivals = useCallback(() => {
+    dispatch(fetchFestivals({ ...filters, limit: itemsPerPage }))
+      .unwrap()
+      .catch((err) => toast.error(err?.message || "Failed to load festivals."));
+  }, [dispatch, filters, itemsPerPage]);
 
+  // 🔄 MODIFIED: This useEffect now handles all data loading based on filter changes.
   useEffect(() => {
-    loadFestivals({ page: 1 });
+    loadFestivals();
   }, [loadFestivals]);
 
-  const getLanguageNameById = (langId) => {
-    const language = staticLanguages.find((lang) => lang._id === langId);
-    return language ? language.nativeName : "N/A";
+  // ✨ NEW: This useEffect fetches the master list of gods, but only once.
+  useEffect(() => {
+    if (godStatus === "idle") {
+      dispatch(fetchAllGods());
+    }
+  }, [dispatch, godStatus]);
+
+  const getLanguageNameById = (langId) =>
+    staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
+
+  // ✨ NEW: Helper function to get God's name from the list.
+  const getGodNameById = (godId) =>
+    allGods.find((g) => g._id === godId)?.name || "N/A";
+
+  // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect handles fetching.
+  const handleLanguageChange = (option) => {
+    const value = option?.value || "";
+    setFilters((prev) => ({ ...prev, language: value, page: 1 }));
   };
 
-  const handleLanguageChange = (selectedOption) => {
-    const value = selectedOption ? selectedOption.value : "";
-    setFilters((prev) => ({ ...prev, language: value }));
-    loadFestivals({ language: value, page: 1 });
+  // ✨ NEW: Handler for the new God filter.
+  const handleGodChange = (option) => {
+    const value = option?.value || "";
+    setFilters((prev) => ({ ...prev, god: value, page: 1 }));
   };
 
   const handleResetFilters = () => {
-    setFilters({ language: "" });
-    loadFestivals({ language: "", page: 1 });
+    setFilters({ language: "", god: "", page: 1 });
   };
 
-  const handlePageChange = (newPage) =>
-    loadFestivals({ ...filters, page: newPage });
+  const handlePageChange = (newPage) => {
+    if (newPage !== filters.page) {
+      setFilters((prev) => ({ ...prev, page: newPage }));
+    }
+  };
 
+  // 🔄 MODIFIED: Deletion logic now correctly reloads or navigates pages.
   const confirmDelete = async () => {
     if (!festivalToDelete) return;
     setIsDeleting(true);
@@ -88,14 +112,11 @@ export default function FestivalListPage() {
         `Festival "${festivalToDelete.name}" deleted successfully.`
       );
 
-      // 🔄 MODIFIED: Better UX when deleting the last item on a page
-      const currentPage = pagination?.currentPage || 1;
-      if (festivals.length === 1 && currentPage > 1) {
-        loadFestivals({ ...filters, page: currentPage - 1 });
+      if (festivals.length === 1 && filters.page > 1) {
+        setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
       } else {
-        loadFestivals({ ...filters, page: currentPage });
+        loadFestivals();
       }
-
       setFestivalToDelete(null);
     } catch (err) {
       toast.error(err?.message || "Failed to delete the festival.");
@@ -104,9 +125,17 @@ export default function FestivalListPage() {
     }
   };
 
+  // ✨ NEW: Options for the God filter dropdown.
+  const godOptions = [
+    { value: "", label: "All Gods" },
+    ...allGods.map((god) => ({ value: god._id, label: god.name })),
+  ];
+
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
+  // ✨ NEW: Find the currently selected god option.
+  const selectedGod = godOptions.find((opt) => opt.value === filters.god);
 
   return (
     <>
@@ -117,6 +146,7 @@ export default function FestivalListPage() {
           <button
             className="btn btn-labeled btn-success"
             type="button"
+            style={{ fontSize: "17px" }}
             onClick={() => navigate("/festivals/new")}
           >
             <span className="btn-label me-2">
@@ -126,30 +156,46 @@ export default function FestivalListPage() {
           </button>
         </div>
 
+        {/* 🔄 MODIFIED: Filter section with new God filter and consistent layout */}
         <div className="card-body border-bottom">
-          <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
-            <div style={{ minWidth: "300px" }}>
+          <div className="d-flex flex-column flex-md-row align-items-md-center">
+            <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
               <label className="form-label fw-bold small mb-1">
                 Filter by Language
               </label>
               <Select
-                placeholder="Select..."
+                placeholder="Select Language..."
                 options={languageOptions}
                 value={selectedLanguage}
                 onChange={handleLanguageChange}
-                isClearable={true}
+                isClearable
                 classNamePrefix="react-select"
               />
             </div>
-            <div className="mt-md-auto">
+
+            {/* ✨ NEW: God Filter Select component */}
+            <div className="ml-4" style={{ minWidth: "250px" }}>
+              <label className="form-label fw-bold small mb-1">
+                Filter by God
+              </label>
+              <Select
+                placeholder="Select God..."
+                options={godOptions}
+                value={selectedGod}
+                onChange={handleGodChange}
+                isClearable
+                isLoading={godStatus === "loading"}
+                isDisabled={godStatus !== "succeeded"}
+                classNamePrefix="react-select"
+              />
+            </div>
+
+            <div className="mt-md-auto ms-md-auto">
               <button
-                className="btn btn-outline-secondary w-100"
+                className="btn btn-outline-secondary w-100 p-2 ml-4"
                 onClick={handleResetFilters}
               >
-                <span className="me-2">
-                  <i className="fas fa-undo"></i>
-                </span>
-                Reset
+                <i className="fas fa-undo mr-1"></i>Reset
               </button>
             </div>
           </div>
@@ -170,83 +216,71 @@ export default function FestivalListPage() {
                 </tr>
               </thead>
               <tbody>
-                {status === "loading" && (
-                  <tr>
-                    <td colSpan="7" className="text-center py-5">
-                      <div className="spinner-border text-primary"></div>
-                    </td>
-                  </tr>
-                )}
-                {status === "failed" && (
-                  <tr>
-                    <td colSpan="7" className="text-center py-5 text-danger">
-                      <i className="fas fa-exclamation-triangle me-2"></i>{" "}
-                      Error: {error}
-                    </td>
-                  </tr>
-                )}
-                {status === "succeeded" && festivals.length > 0
-                  ? festivals.map((festival) => (
-                      <tr key={festival._id}>
-                        <td className="fw-bold">{festival.name}</td>
-                        <td>{festival.god?.name || "N/A"}</td>
-                        <td>{getLanguageNameById(festival.language)}</td>
-                        <td>
-                          <span
-                            className="truncate-text"
-                            title={festival.description.replace(/<[^>]+>/g, "")}
-                          >
-                            {festival.description.replace(/<[^>]+>/g, "")}
-                          </span>
-                        </td>
-                        <td>{festival.sort}</td>
-                        <td>
-                          <span
-                            className={`badge fs-6 ${
-                              festival.isActive
-                                ? "text-bg-success"
-                                : "text-bg-secondary"
-                            }`}
-                          >
-                            {festival.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="text-center">
-                          <button
-                            className="btn btn-sm btn-outline-primary me-2"
-                            onClick={() =>
-                              navigate(`/festivals/edit/${festival._id}`)
-                            }
-                            title="Edit"
-                          >
-                            <i className="fas fa-pencil-alt"></i>
-                          </button>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => setFestivalToDelete(festival)}
-                            title="Delete"
-                          >
-                            <i className="fas fa-trash"></i>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  : status === "succeeded" && (
-                      <tr>
-                        <td colSpan="7" className="text-center py-5 text-muted">
-                          No Festivals Found.
-                        </td>
-                      </tr>
-                    )}
+                <TableStatus
+                  status={status}
+                  error={error}
+                  dataLength={festivals.length}
+                  colSpan={7}
+                  loadingText="Loading festivals..."
+                  emptyText="No festivals Found."
+                />
+                {status === "succeeded" &&
+                  festivals.map((festival) => (
+                    <tr key={festival._id}>
+                      <td className="fw-bold">{festival.name}</td>
+                      {/* 🔄 MODIFIED: Using helper function for consistency */}
+                      <td>{getGodNameById(festival.god)}</td>
+                      <td>{getLanguageNameById(festival.language)}</td>
+                      <td>
+                        <span
+                          className="truncate-text"
+                          title={festival.description.replace(/<[^>]+>/g, "")}
+                        >
+                          {festival.description.replace(/<[^>]+>/g, "")}
+                        </span>
+                      </td>
+                      <td>{festival.sort}</td>
+                      <td>
+                        <span
+                          className={`badge fs-6 ${
+                            festival.isActive
+                              ? "text-bg-success"
+                              : "text-bg-secondary"
+                          }`}
+                        >
+                          {festival.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        <button
+                          className="btn btn-sm btn-outline-primary mr-2"
+                          onClick={() =>
+                            navigate(`/festivals/edit/${festival._id}`)
+                          }
+                          title="Edit"
+                        >
+                          <i className="fas fa-pencil-alt"></i>
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => setFestivalToDelete(festival)}
+                          title="Delete"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
         </div>
 
+        {/* 🔄 MODIFIED: Pagination now reads from the unified filters state */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination
-              currentPage={pagination.currentPage}
+              currentPage={filters.page}
               totalPages={pagination.totalPages}
               onPageChange={handlePageChange}
               totalItems={pagination.totalRecords}

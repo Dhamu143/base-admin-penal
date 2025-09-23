@@ -30,7 +30,7 @@ export default function MantraFormPage() {
   // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
-    sort: 0,
+    sort: "",
     isActive: true,
     god: "",
     description: "",
@@ -56,7 +56,7 @@ export default function MantraFormPage() {
       if (mantra) {
         setFormData({
           name: mantra.name || "",
-          sort: mantra.sort || 0,
+          sort: mantra.sort || "",
           isActive: mantra.isActive,
           god: mantra.god?._id || mantra.god,
           description: mantra.description || "",
@@ -238,6 +238,36 @@ export default function MantraFormPage() {
                     <div className="text-danger small mt-1">{errors.god}</div>
                   )}
                 </div>
+                <div className=" mb-3">
+                  <label className="form-label fw-bold">
+                    Sort Order <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="sort"
+                    className={`form-control ${
+                      errors.sort ? "is-invalid" : ""
+                    }`}
+                    value={formData.sort}
+                    onChange={handleFormChange}
+                  />
+                  {errors.sort && (
+                    <div className="invalid-feedback">{errors.sort}</div>
+                  )}
+                </div>
+                <div className="col-md-6 d-flex align-items-center justify-content-start pt-3">
+                  <div className="form-check form-switch fs-5">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      name="isActive"
+                      checked={formData.isActive}
+                      onChange={handleFormChange}
+                    />
+                    <label className="form-check-label">is Active</label>
+                  </div>
+                </div>
               </div>
 
               {/* Right Column */}
@@ -259,45 +289,13 @@ export default function MantraFormPage() {
                     </div>
                   )}
                 </div>
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label fw-bold">
-                      Sort Order <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="sort"
-                      className={`form-control ${
-                        errors.sort ? "is-invalid" : ""
-                      }`}
-                      value={formData.sort}
-                      onChange={handleFormChange}
-                    />
-                    {errors.sort && (
-                      <div className="invalid-feedback">{errors.sort}</div>
-                    )}
-                  </div>
-                  <div className="col-md-6 d-flex align-items-center justify-content-start pt-3">
-                    <div className="form-check form-switch fs-5">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        role="switch"
-                        name="isActive"
-                        checked={formData.isActive}
-                        onChange={handleFormChange}
-                      />
-                      <label className="form-check-label">Active</label>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
             <div className="d-flex justify-content-end gap-2 mt-4">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-3"
                 onClick={() => navigate("/mantra")}
                 disabled={isSaving}
               >
@@ -311,7 +309,7 @@ export default function MantraFormPage() {
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save me-2"></i>
+                  <i className="fas fa-save mr-2"></i>
                 )}
                 {id ? "Update Mantra" : "Create Mantra"}
               </button>

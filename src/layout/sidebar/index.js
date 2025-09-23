@@ -89,7 +89,7 @@ function Sidebar() {
 
   const routeActive = (paths) => {
     paths = Array.isArray(paths) ? paths : [paths];
-    return paths.some((p) => location.pathname.indexOf(p) > -1);
+    return paths.some((p) => location.pathname === p);
   };
 
   const toggleItemCollapse = (stateName) => {

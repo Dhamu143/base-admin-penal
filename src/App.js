@@ -107,12 +107,12 @@ function App() {
       <Routes>
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/godMaster" element={<GodMaster />} />
+         
           <Route path="/aarti" element={<AartiManagementPage />} />
           {/* Create New Aarti */}
-          <Route path="/aarti/new" element={<AartiFormPage />} />
+          <Route path="/aartis/new" element={<AartiFormPage />} />
           {/* Edit Existing Aarti */}
-          <Route path="/aarti/:id/edit" element={<AartiFormPage />} />
+          <Route path="/aartis/edit/:id" element={<AartiFormPage />} />
           <Route path="/bhajan" element={<BhajanManagementPage />} />
           <Route path="/bhajans/new" element={<BhajanFormPage />} />
           <Route path="/bhajans/edit/:id" element={<BhajanFormPage />} />
@@ -122,6 +122,9 @@ function App() {
           <Route path="/mantra" element={<MantraManagementPage />} />
           <Route path="/mantras/new" element={<MantraFormPage />} />
           <Route path="/mantras/edit/:id" element={<MantraFormPage />} />
+
+           <Route path="/godMaster" element={<GodMaster />} />
+           
           <Route path="/god" element={<GodManagementPage />} />
           <Route path="/god-form" element={<GodFormPage />} />
           <Route path="/god-form/:id" element={<GodFormPage />} />

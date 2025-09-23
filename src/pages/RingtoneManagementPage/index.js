@@ -17,6 +17,7 @@ import { fetchAllGods } from "../../store/god/index";
 // Constants and Common Components
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
+import { TableStatus } from "../../components/TableStatus";
 
 // ✨ NEW: Options for the language filter dropdown
 const languageOptions = [
@@ -54,7 +55,7 @@ export default function RingtoneManagementPage() {
     god: "",
     language: "",
     description: "",
-    file: null,
+    file: "",
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -139,42 +140,71 @@ export default function RingtoneManagementPage() {
       }));
     }
   };
-
   const handleSaveRingtone = async (e) => {
     e.preventDefault();
+
+    console.log("Form Data Before Submit:", formData);
+
+    // ✅ Validate required fields
     if (!formData.god || !formData.language) {
       toast.warn("Please select a Language and a God.");
       return;
     }
+
+    // If adding new ringtone, file is required
     if (!editingRingtone && !formData.file) {
       toast.warn("Please select a ringtone file to upload.");
       return;
     }
+
     setIsSaving(true);
+
     try {
       const dataToSubmit = new FormData();
+
+      // Append all form fields
       for (const key in formData) {
-        if (key === "file" && !formData[key]) continue;
-        dataToSubmit.append(key, formData[key]);
+        // For file, only append if available
+        if (key === "file") {
+          if (formData.file) {
+            console.log("Appending file:", formData.file);
+            dataToSubmit.append(key, formData.file);
+          }
+        } else {
+          console.log(`Appending ${key}:`, formData[key]);
+          dataToSubmit.append(key, formData[key]);
+        }
       }
 
+      // 🔄 If editing, and file is not replaced, backend should handle existing file
       const isEditing = !!editingRingtone;
+
+      console.log("Submitting FormData to backend...");
       const action = isEditing
         ? updateRingtone({ id: editingRingtone._id, data: dataToSubmit })
         : addRingtone(dataToSubmit);
 
       await dispatch(action).unwrap();
 
-      loadRingtones(filters); // Refresh the list with current filters
-
       toast.success(
         isEditing
           ? "Ringtone updated successfully! 🎵"
           : "Ringtone added successfully! 🎶"
       );
+
+      // Refresh the list with current filters
+      loadRingtones(filters);
+
+      // Close modal
       handleCloseModal();
     } catch (err) {
-      toast.error(err?.message || "Failed to save the ringtone.");
+      console.error("Error saving ringtone:", err);
+      // Catch backend validation errors
+      if (err?.response?.data?.message) {
+        toast.error(err.response.data.message);
+      } else {
+        toast.error(err?.message || "Failed to save the ringtone.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -227,10 +257,10 @@ export default function RingtoneManagementPage() {
             </div>
             <div className="mt-md-auto">
               <button
-                className="btn btn-outline-secondary w-100"
+                className="btn btn-outline-secondary w-100 ml-4"
                 onClick={handleResetFilters}
               >
-                <i className="fas fa-undo me-2"></i>
+                <i className="fas fa-undo mr-1"></i>
                 Reset
               </button>
             </div>
@@ -251,28 +281,14 @@ export default function RingtoneManagementPage() {
                 </tr>
               </thead>
               <tbody>
-                {status === "loading" && (
-                  <tr>
-                    <td colSpan="6" className="text-center py-5">
-                      <div className="spinner-border text-primary"></div>
-                    </td>
-                  </tr>
-                )}
-                {status === "failed" && (
-                  <tr>
-                    <td colSpan="6" className="text-center py-5 text-danger">
-                      <em className="fas fa-exclamation-triangle me-2"></em>
-                      Error: {error}
-                    </td>
-                  </tr>
-                )}
-                {status === "succeeded" && ringtones.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="text-center py-5 text-muted">
-                      No Ringtones Found.
-                    </td>
-                  </tr>
-                )}
+                <TableStatus
+                  status={status}
+                  error={error}
+                  dataLength={ringtones.length}
+                  colSpan={7}
+                  loadingText="Loading ringtones..."
+                  emptyText="No ringtones Found."
+                />
                 {status === "succeeded" &&
                   ringtones.map((ringtone) => (
                     <tr key={ringtone._id}>
@@ -309,7 +325,7 @@ export default function RingtoneManagementPage() {
                       </td>
                       <td className="text-center">
                         <button
-                          className="btn btn-sm btn-outline-secondary me-2"
+                          className="btn btn-sm btn-outline-secondary mr-2"
                           onClick={() => handleOpenModal(ringtone)}
                           title="Edit"
                         >

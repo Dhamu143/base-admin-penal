@@ -18,6 +18,7 @@ import DynamicImage from "../../components/PostPreview/PostPreview";
 import ImageUpload from "../../components/ImageUpload";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination"; // Import pagination
+import { TableStatus } from "../../components/TableStatus";
 
 export default function FeatureManagementPage() {
   const dispatch = useDispatch();
@@ -34,7 +35,7 @@ export default function FeatureManagementPage() {
   const [isUploading, setIsUploading] = useState(false);
 
   // 🔄 MODIFIED: Page size is now 4
-  const itemsPerPage = 2;
+  const itemsPerPage = 10;
 
   const initialFormState = {
     name: "",
@@ -69,7 +70,7 @@ export default function FeatureManagementPage() {
         id: god._id,
         name: god.name || "",
         featureimage: god.featureimage || "",
-        sort: god.sort || 0,
+        sort: god.sort || "",
         percentage: god.percentage || 0,
         isActive: god.isActive,
       });
@@ -194,8 +195,16 @@ export default function FeatureManagementPage() {
       <div className="card shadow-sm">
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
           <h4 className="mb-0 text-primary-emphasis">✨ God Management</h4>
-          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-            <i className="fas fa-plus me-2"></i>
+
+          <button
+            className="btn btn-labeled btn-success"
+            type="button"
+            style={{ fontSize: "17px" }}
+            onClick={() => handleOpenModal()}
+          >
+            <span className="btn-label me-2">
+              <i className="fas fa-plus"></i>
+            </span>
             Add New God
           </button>
         </div>
@@ -214,28 +223,14 @@ export default function FeatureManagementPage() {
                 </tr>
               </thead>
               <tbody>
-                {status === "loading" && (
-                  <tr>
-                    <td colSpan="6" className="text-center py-5">
-                      <div className="spinner-border text-primary"></div>
-                    </td>
-                  </tr>
-                )}
-                {status === "failed" && (
-                  <tr>
-                    <td colSpan="6" className="text-center py-5 text-danger">
-                      <i className="fas fa-exclamation-triangle me-2"></i>{" "}
-                      Error: {error}
-                    </td>
-                  </tr>
-                )}
-                {status === "succeeded" && gods.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="text-center py-5 text-muted">
-                      No Gods Found.
-                    </td>
-                  </tr>
-                )}
+                <TableStatus
+                  status={status}
+                  error={error}
+                  dataLength={gods.length}
+                  colSpan={7}
+                  loadingText="Loading gods..."
+                  emptyText="No gods Found."
+                />
                 {status === "succeeded" &&
                   gods.map((god) => (
                     <tr key={god._id}>
@@ -268,7 +263,7 @@ export default function FeatureManagementPage() {
                       </td>
                       <td className="text-center">
                         <button
-                          className="btn btn-sm btn-outline-secondary me-2"
+                          className="btn btn-sm btn-outline-secondary mr-2"
                           onClick={() => handleOpenModal(god)}
                           title="Edit"
                         >
