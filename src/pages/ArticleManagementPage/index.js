@@ -78,9 +78,6 @@ export default function ArticleListPage() {
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
 
-  const getGodNameById = (godId) =>
-    allGods.find((g) => g._id === godId)?.name || "N/A";
-
   // --- Event Handlers ---
 
   // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect above handles fetching.
@@ -266,24 +263,19 @@ export default function ArticleListPage() {
                       <td>{getLanguageNameById(article.language)}</td>
                       <td>{article.sort}</td>
                       <td>
-                        <span
-                          className={`badge fs-6 ${
-                            article.isFree ? "text-bg-info" : "text-bg-warning"
-                          }`}
-                        >
-                          {article.isFree ? "Free" : "Premium"}
-                        </span>
+                       
+                        {article.isFree ? (
+                      <span className="badge bg-info">Free</span>
+                    ) : (
+                      <span className="badge bg-warning">Premium</span>
+                    )}
                       </td>
                       <td>
-                        <span
-                          className={`badge fs-6 ${
-                            article.isActive
-                              ? "text-bg-success"
-                              : "text-bg-secondary"
-                          }`}
-                        >
-                          {article.isActive ? "Active" : "Inactive"}
-                        </span>
+                        {article.isActive ? (
+                          <span className="badge bg-success">Active</span>
+                        ) : (
+                          <span className="badge bg-secondary">Inactive</span>
+                        )}
                       </td>
                       <td className="text-center">
                         <button

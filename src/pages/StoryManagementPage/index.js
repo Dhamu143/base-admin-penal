@@ -59,10 +59,6 @@ export default function StoryManagementPage() {
     }
   }, [dispatch, godStatus]);
 
-  // --- Helper Functions ---
-  const getGodNameById = (godId) =>
-    allGods.find((g) => g._id === godId)?.name || "N/A";
-
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
 
@@ -214,7 +210,7 @@ export default function StoryManagementPage() {
                   <tr key={storyItem._id}>
                     <td className="fw-semibold">{storyItem.name}</td>
                     {/* ✨ NEW: Displaying God's name */}
-                    <td>{getGodNameById(storyItem.god)}</td>
+                    <td>{storyItem.god.name}</td>
                     <td>{getLanguageNameById(storyItem.language)}</td>
                     <td
                       style={{
@@ -229,15 +225,11 @@ export default function StoryManagementPage() {
                     </td>
                     <td>{storyItem.sort}</td>
                     <td>
-                      <span
-                        className={`badge fs-6 ${
-                          storyItem.isActive
-                            ? "text-bg-success"
-                            : "text-bg-secondary"
-                        }`}
-                      >
-                        {storyItem.isActive ? "Active" : "Inactive"}
-                      </span>
+                      {storyItem.isActive ? (
+                        <span className="badge bg-success">Active</span>
+                      ) : (
+                        <span className="badge bg-secondary">Inactive</span>
+                      )}
                     </td>
                     <td className="text-center">
                       <button

@@ -5,7 +5,12 @@ import { toast } from "react-toastify";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 
-import { addGod, updateGod, fetchAllGods } from "../../store/god/index";
+// CRUD from /store/god
+import { addGod, updateGod, fetchAllGods } from "../../store/god";
+
+// Master gods from /store/godmaster
+import { fetchGods as fetchMasterGods } from "../../store/godmaster";
+
 import { staticLanguages } from "../../constants/languages";
 
 export default function GodFormPage() {
@@ -13,8 +18,14 @@ export default function GodFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
+  // god slice
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
+  );
+
+  // godmaster slice
+  const { list: masterGods, status: masterStatus } = useSelector(
+    (state) => state.gods
   );
 
   const [formData, setFormData] = useState({
@@ -26,14 +37,15 @@ export default function GodFormPage() {
     isActive: true,
   });
 
-  const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
   // --- Fetch initial data ---
   useEffect(() => {
     if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [godStatus, dispatch]);
+    if (masterStatus === "idle")
+      dispatch(fetchMasterGods({ page: 1, limit: 1000 }));
+  }, [godStatus, masterStatus, dispatch]);
 
   // --- Populate form when editing ---
   useEffect(() => {
@@ -51,18 +63,6 @@ export default function GodFormPage() {
       }
     }
   }, [id, allGods]);
-
-  // --- Filter gods based on selected language ---
-  useEffect(() => {
-    if (formData.language && Array.isArray(allGods)) {
-      const godsByLang = allGods.filter(
-        (god) => god.language === formData.language && god._id !== id
-      );
-      setFilteredGods(godsByLang);
-    } else {
-      setFilteredGods([]);
-    }
-  }, [formData.language, allGods, id]);
 
   // --- Validation ---
   const validateForm = () => {
@@ -88,15 +88,19 @@ export default function GodFormPage() {
 
   const getSelectedOption = (list, value) => {
     if (!value || !list) return null;
-    const selected = list.find(
-      (item) => item._id === value || item._id === value.value
-    );
-    return selected
-      ? { value: selected._id, label: selected.nativeName || selected.name }
-      : null;
+    const selected = list.find((item) => item._id === value);
+    return selected ? { value: selected._id, label: selected.name } : null;
   };
+
   const getLanguageOption = (value) => {
-    return staticLanguages.find((l) => l._id === value) || null;
+    return staticLanguages.find((l) => l._id === value)
+      ? {
+          value: value,
+          label: `${staticLanguages.find((l) => l._id === value).nativeName} (${
+            staticLanguages.find((l) => l._id === value).language
+          })`,
+        }
+      : null;
   };
 
   const handleSubmit = async (e) => {
@@ -120,7 +124,7 @@ export default function GodFormPage() {
 
   return (
     <div className="content-wrapper p-4">
-      {/* Header / Breadcrumb */}
+      {/* Header */}
       <div className="mb-4 d-flex align-items-center justify-content-between">
         <div>
           <span
@@ -140,7 +144,7 @@ export default function GodFormPage() {
         </button>
       </div>
 
-      {/* Form Card */}
+      {/* Form */}
       <div className="card shadow-sm">
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
@@ -149,6 +153,7 @@ export default function GodFormPage() {
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">God Details</h5>
 
+                {/* Name */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Name <span className="text-danger">*</span>
@@ -167,6 +172,7 @@ export default function GodFormPage() {
                   )}
                 </div>
 
+                {/* Language */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Language <span className="text-danger">*</span>
@@ -176,15 +182,11 @@ export default function GodFormPage() {
                       value: l._id,
                       label: `${l.nativeName} (${l.language})`,
                     }))}
-                    value={getSelectedOption(
-                      staticLanguages,
-                      formData.language
-                    )}
+                    value={getLanguageOption(formData.language)}
                     onChange={(option) =>
                       setFormData((prev) => ({
                         ...prev,
                         language: option?.value || "",
-                        master: "",
                       }))
                     }
                     placeholder="Select Language..."
@@ -196,29 +198,27 @@ export default function GodFormPage() {
                   )}
                 </div>
 
+                {/* Master God (Independent) */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">Master God</label>
                   <Select
-                    options={filteredGods.map((g) => ({
+                    options={masterGods.map((g) => ({
                       value: g._id,
                       label: g.name,
                     }))}
-                    value={getSelectedOption(filteredGods, formData.master)}
+                    value={getSelectedOption(masterGods, formData.master)}
                     onChange={(option) =>
                       setFormData((prev) => ({
                         ...prev,
                         master: option?.value || "",
                       }))
                     }
-                    placeholder={
-                      formData.language
-                        ? "Select Master God..."
-                        : "Select Language first..."
-                    }
-                    isDisabled={!formData.language}
+                    placeholder="Select Master God..."
                   />
                 </div>
-                <div>
+
+                {/* Sort Order */}
+                <div className="mb-3">
                   <label className="form-label fw-bold">
                     Sort Order <span className="text-danger">*</span>
                   </label>
@@ -235,6 +235,8 @@ export default function GodFormPage() {
                     <div className="invalid-feedback">{errors.sort}</div>
                   )}
                 </div>
+
+                {/* Active Toggle */}
                 <div className="col-md-6 d-flex align-items-center pt-3">
                   <div className="form-check form-switch fs-5">
                     <input
@@ -245,7 +247,7 @@ export default function GodFormPage() {
                       checked={formData.isActive}
                       onChange={handleFormChange}
                     />
-                    <label className="form-check-label">is Active</label>
+                    <label className="form-check-label">Is Active</label>
                   </div>
                 </div>
               </div>
@@ -254,6 +256,7 @@ export default function GodFormPage() {
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Content & Settings</h5>
 
+                {/* Description */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Description <span className="text-danger">*</span>
@@ -273,10 +276,11 @@ export default function GodFormPage() {
               </div>
             </div>
 
+            {/* Buttons */}
             <div className="d-flex justify-content-end gap-2 mt-4">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-4"
                 onClick={() => navigate("/god")}
                 disabled={isSaving}
               >
@@ -290,7 +294,7 @@ export default function GodFormPage() {
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save me-2"></i>
+                  <i className="fas fa-save mr-2"></i>
                 )}
                 {id ? "Update God" : "Create God"}
               </button>

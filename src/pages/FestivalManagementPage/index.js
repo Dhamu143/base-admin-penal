@@ -76,9 +76,6 @@ export default function FestivalListPage() {
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
 
-  // ✨ NEW: Helper function to get God's name from the list.
-  const getGodNameById = (godId) =>
-    allGods.find((g) => g._id === godId)?.name || "N/A";
 
   // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect handles fetching.
   const handleLanguageChange = (option) => {
@@ -229,7 +226,7 @@ export default function FestivalListPage() {
                     <tr key={festival._id}>
                       <td className="fw-bold">{festival.name}</td>
                       {/* 🔄 MODIFIED: Using helper function for consistency */}
-                      <td>{getGodNameById(festival.god)}</td>
+                      <td>{festival.god.name}</td>
                       <td>{getLanguageNameById(festival.language)}</td>
                       <td>
                         <span
@@ -241,15 +238,11 @@ export default function FestivalListPage() {
                       </td>
                       <td>{festival.sort}</td>
                       <td>
-                        <span
-                          className={`badge fs-6 ${
-                            festival.isActive
-                              ? "text-bg-success"
-                              : "text-bg-secondary"
-                          }`}
-                        >
-                          {festival.isActive ? "Active" : "Inactive"}
-                        </span>
+                        {festival.isActive ? (
+                          <span className="badge bg-success">Active</span>
+                        ) : (
+                          <span className="badge bg-secondary">Inactive</span>
+                        )}
                       </td>
                       <td className="text-center">
                         <button

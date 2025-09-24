@@ -3,7 +3,7 @@ import { createSlice, createAsyncThunk, isAllOf } from "@reduxjs/toolkit";
 // ** Axios Imports
 import { toast } from "react-toastify";
 import httpService from "../../common/http.service";
-import { act } from "react";
+// import { act } from "react";
 
 export const appLoginUser = createAsyncThunk(
   "appUser/appLoginUser",

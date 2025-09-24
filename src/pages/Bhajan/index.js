@@ -15,17 +15,6 @@ import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 
-const styles = `
-  .truncate-text {
-    max-width: 250px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: inline-block;
-    vertical-align: middle;
-  }
-`;
-
 const languageOptions = [
   { value: "", label: "All Languages" },
   ...staticLanguages.map((lang) => ({
@@ -197,8 +186,8 @@ export default function BhajanListPage() {
                 <th>Name</th>
                 {/* ✨ NEW: Added God column */}
                 <th>God</th>
-                <th>Description</th>
                 <th>Language</th>
+                <th>Description</th>
                 <th>Sort</th>
                 <th>Status</th>
                 <th className="text-center">Actions</th>
@@ -232,13 +221,11 @@ export default function BhajanListPage() {
                     </td>
                     <td>{b.sort}</td>
                     <td>
-                      <span
-                        className={`badge fs-6 ${
-                          b.isActive ? "text-bg-success" : "text-bg-secondary"
-                        }`}
-                      >
-                        {b.isActive ? "Active" : "Inactive"}
-                      </span>
+                      {b.isActive ? (
+                        <span className="badge bg-success">Active</span>
+                      ) : (
+                        <span className="badge bg-secondary">Inactive</span>
+                      )}
                     </td>
                     <td className="text-center">
                       <button

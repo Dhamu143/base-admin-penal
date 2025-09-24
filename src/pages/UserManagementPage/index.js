@@ -1,147 +1,193 @@
-// src/components/UserManagement/index.js
-
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 
-// Child Components
-import UserFilterBar from "./UserFilterBar";
-import UserTable from "./UserTable";
+import CustomPagination from "../../common/Pagination";
 import ConfirmationModal from "../../common/ConfirmationModal";
+import DynamicImage from "../../components/PostPreview/PostPreview";
+import { TableStatus } from "../../components/TableStatus";
 
-// Redux Thunks
-import { fetchUsers, deleteUser } from "../../store/user2/index"; // Adjust path if needed
+import { fetchUsers, deleteUser } from "../../store/user2/index";
 
-export default function UserManagement() {
+export default function UserTablePage() {
   const dispatch = useDispatch();
 
-  // --- Redux State ---
-  const { list: users, status, error } = useSelector((state) => state.users);
+  const {
+    list: users,
+    status,
+    error,
+    currentPage,
+    totalPages,
+    totalItems,
+  } = useSelector((state) => state.users);
 
-  // --- Component State ---
-  const [isDeleting, setIsDeleting] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [filters, setFilters] = useState({
-    searchTerm: "",
-    rashi: "",
-    premiumStatus: "all", // 'all', 'yes', 'no'
-  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch initial data
+  const itemsPerPage = 10;
+
+  // --- Data Fetching ---
+  const loadUsers = useCallback(
+    (page = 1) => {
+      dispatch(fetchUsers({ page, limit: itemsPerPage }))
+        .unwrap()
+        .catch((err) => toast.error(err || "Failed to load users."));
+    },
+    [dispatch]
+  );
+
   useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchUsers());
-    }
-  }, [status, dispatch]);
+    loadUsers(1);
+  }, [loadUsers]);
 
-  // --- Filtering Logic ---
-  const uniqueRashis = useMemo(() => {
-    if (!users) return [];
-    const rashiSet = new Set(users.map((user) => user.rashi).filter(Boolean));
-    return Array.from(rashiSet).sort();
-  }, [users]);
-
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const matchesSearch = user.firstName
-        ? user.firstName.toLowerCase().includes(filters.searchTerm.toLowerCase())
-        : true;
-      const matchesRashi = filters.rashi ? user.rashi === filters.rashi : true;
-      const matchesPremium =
-        filters.premiumStatus === "all"
-          ? true
-          : filters.premiumStatus === "yes"
-          ? user.premium
-          : !user.premium;
-      return matchesSearch && matchesRashi && matchesPremium;
-    });
-  }, [users, filters]);
-
-  // --- Handlers ---
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleDropdownChange = (name, value) => {
-    setFilters((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      searchTerm: "",
-      rashi: "",
-      premiumStatus: "all",
-    });
-  };
-
-  const handleDeleteClick = (user) => {
-    setUserToDelete(user);
-  };
-
-  const confirmDelete = async () => {
+  // --- Delete Handler ---
+  const handleDelete = async () => {
     if (!userToDelete) return;
-
     setIsDeleting(true);
     try {
       await dispatch(deleteUser(userToDelete._id)).unwrap();
-      toast.success(`User "${userToDelete.firstName}" deleted successfully!`);
+      toast.success("User deleted successfully.");
+
+      const pageToFetch =
+        users.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      loadUsers(pageToFetch);
+
       setUserToDelete(null);
     } catch (err) {
-      const errorMessage = typeof err === "string" ? err : "Failed to delete the user.";
-      toast.error(errorMessage);
-      console.error("Failed to delete user:", err);
+      toast.error(err?.message || "Error deleting user.");
     } finally {
       setIsDeleting(false);
     }
   };
 
   return (
-    <>
-      <div className="card shadow-sm">
-        <div className="card-header bg-light d-flex flex-wrap justify-content-between align-items-center p-3">
-          <h4 className="mb-0 text-primary-emphasis">👥 User Management</h4>
-          <span className="badge bg-secondary-subtle text-secondary-emphasis rounded-pill fs-6">
-            Showing {filteredUsers.length} of {users.length} users
-          </span>
-        </div>
+    <div className="card shadow-sm">
+      {/* Header */}
+      <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
+        <h4 className="mb-0 text-primary-emphasis">👥 User Management</h4>
+      </div>
 
-        <UserFilterBar
-          filters={filters}
-          uniqueRashis={uniqueRashis}
-          onFilterChange={handleFilterChange}
-          onDropdownChange={handleDropdownChange}
-          onReset={resetFilters}
-        />
+      {/* Table */}
+      <div className="card-body">
+        <div className="table-responsive">
+          <table className="table table-hover align-middle">
+            <thead className="table-light">
+              <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Contact</th>
+                <th>Gender</th>
+                <th>Rashi</th>
+                <th>Location</th>
+                <th className="text-center">Status</th>
+                <th>Joined On</th>
+                <th className="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <TableStatus
+                status={status}
+                error={error}
+                dataLength={users.length}
+                colSpan={10}
+                loadingText="Loading users..."
+                emptyText="No users Found."
+              />
+              {status === "succeeded" &&
+                users.map((user) => (
+                  <tr key={user._id}>
+                    <td>
+                      <DynamicImage
+                        src={user.featureimage || "/img/user.jpg"}
+                        alt={`${user.firstName} ${user.lastName}`}
+                        style={{
+                          width: 50,
+                          height: 50,
+                          borderRadius: "50%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    </td>
+                    <td>{`${user.firstName} ${user.lastName}`}</td>
+                    <td>
+                      <div>{user.email}</div>
+                      <div className="small text-muted">{user.mobile}</div>
+                    </td>
+                    <td>{user.gender || "N/A"}</td>
+                    <td>{user.rashi || "N/A"}</td>
 
-        <div className="card-body">
-          <UserTable
-            users={filteredUsers}
-            status={status}
-            error={error}
-            totalUserCount={users.length}
-            onDeleteClick={handleDeleteClick}
-          />
+                    <td>
+                      {user.location?.coordinates?.length === 2 ? (
+                        <a
+                          href={`https://www.google.com/maps/?q=${user.location.coordinates[1]},${user.location.coordinates[0]}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-outline-primary"
+                        >
+                          View
+                        </a>
+                      ) : (
+                        "N/A"
+                      )}
+                    </td>
+
+                    <td className="text-center">
+                      {user.premium ? (
+                        <span className="badge bg-success-subtle text-success-emphasis">
+                          Premium
+                        </span>
+                      ) : (
+                        <span className="badge bg-secondary-subtle text-secondary-emphasis">
+                          Standard
+                        </span>
+                      )}
+                    </td>
+                    <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                    <td className="text-center">
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => setUserToDelete(user)}
+                      >
+                        <em className="fas fa-trash"></em>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
+      {/* Pagination */}
+      {totalItems > itemsPerPage && (
+        <div className="card-footer">
+          <CustomPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={loadUsers}
+          />
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
       <ConfirmationModal
         show={userToDelete !== null}
         onClose={() => setUserToDelete(null)}
-        onConfirm={confirmDelete}
+        onConfirm={handleDelete}
         title="Confirm Deletion"
         confirmText="Delete"
         isLoading={isDeleting}
         confirmButtonVariant="danger"
       >
-        <div className="text-center">
-            <p className="fs-5 mb-1">
-                Are you sure you want to permanently delete
-            </p>
-            <p className="h5 text-danger">{userToDelete?.firstName}?</p>
-            <p className="text-muted mt-2">This action cannot be undone.</p>
-        </div>
+        <p className="fs-5 text-center">
+          Are you sure you want to delete{" "}
+          <strong className="text-danger">{`${userToDelete?.firstName} ${userToDelete?.lastName}`}</strong>
+          ?
+        </p>
+        <p className="text-muted text-center">This action cannot be undone.</p>
       </ConfirmationModal>
-    </>
+    </div>
   );
 }

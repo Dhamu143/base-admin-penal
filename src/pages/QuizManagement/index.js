@@ -58,10 +58,6 @@ export default function QuizListPage() {
     }
   }, [dispatch, godStatus]);
 
-  // --- Helper Functions ---
-  const getGodNameById = (godId) =>
-    allGods.find((g) => g._id === godId)?.name || "N/A";
-
   const getLanguageNameById = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.nativeName || "N/A";
 
@@ -212,15 +208,11 @@ export default function QuizListPage() {
                     <td>{getLanguageNameById(quiz.language)}</td>
                     <td>{quiz.god.name}</td>
                     <td>
-                      <span
-                        className={`badge fs-6 ${
-                          quiz.isActive
-                            ? "text-bg-success"
-                            : "text-bg-secondary"
-                        }`}
-                      >
-                        {quiz.isActive ? "Active" : "Inactive"}
-                      </span>
+                      {quiz.isActive ? (
+                        <span className="badge bg-success">Active</span>
+                      ) : (
+                        <span className="badge bg-secondary">Inactive</span>
+                      )}
                     </td>
                     <td className="text-center">
                       <button

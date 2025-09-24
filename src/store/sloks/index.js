@@ -1,67 +1,52 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
-
-// --- Axios instance ---
-const api = axios.create({
-  baseURL: "https://setu.apnamandal.com/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+import HttpService from "../../common/http.service";
 
 // --- Async Thunks ---
 
-// 🔄 MODIFIED: Thunk now accepts parameters and builds a dynamic URL
 export const fetchSloks = createAsyncThunk(
   "sloks/fetchSloks",
   async (params = {}, { rejectWithValue }) => {
     try {
-      // Use URLSearchParams to easily build the query string (e.g., ?page=1&limit=10&language=...)
-      const queryParams = new URLSearchParams(params).toString();
-      const response = await api.get(`/slok?${queryParams}`); // The API response nests the data, so we return the inner object
+      const response = await HttpService.get("/slok", params);
       return response.data.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(err.message || "Failed to fetch sloks");
     }
   }
 );
 
-// Add a new slok
 export const addSlok = createAsyncThunk(
   "sloks/addSlok",
   async (slokData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/slok/create", slokData);
+      const response = await HttpService.post("/slok/create", {}, slokData);
       return response.data.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(err.message || "Failed to add slok");
     }
   }
 );
 
-// Update an existing slok
 export const updateSlok = createAsyncThunk(
   "sloks/updateSlok",
-  async (slokData, { rejectWithValue }) => {
+  async ({ id, ...data }, { rejectWithValue }) => {
     try {
-      const { id, ...data } = slokData;
-      const response = await api.put(`/slok/${id}`, data);
+      const response = await HttpService.put(`/slok/${id}`, {}, data);
       return response.data.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(err.message || "Failed to update slok");
     }
   }
 );
 
-// Delete a slok
 export const deleteSlok = createAsyncThunk(
   "sloks/deleteSlok",
   async (slokId, { rejectWithValue }) => {
     try {
-      await api.delete(`/slok/${slokId}`);
+      await HttpService.delete(`/slok/${slokId}`);
       return slokId;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(err.message || "Failed to delete slok");
     }
   }
 );
@@ -79,7 +64,8 @@ const sloksSlice = createSlice({
   initialState,
   reducers: {},
   extraReducers: (builder) => {
-    builder // --- Fetch Sloks ---
+    builder
+      // --- Fetch Sloks ---
       .addCase(fetchSloks.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -92,21 +78,19 @@ const sloksSlice = createSlice({
       .addCase(fetchSloks.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || "Failed to fetch sloks";
-      }) // --- Add Slok ---
-
-      .addCase(addSlok.fulfilled, (state, action) => {
-        // To avoid duplicating data, we let the component re-fetch the list
-        // This ensures pagination remains correct.
+      })
+      // --- Add Slok ---
+      .addCase(addSlok.fulfilled, (state) => {
         state.status = "idle"; // Trigger a re-fetch if needed
-      }) // --- Update Slok ---
+      })
+      // --- Update Slok ---
       .addCase(updateSlok.fulfilled, (state, action) => {
         const index = state.list.findIndex(
           (slok) => slok._id === action.payload._id
         );
-        if (index !== -1) {
-          state.list[index] = action.payload;
-        }
-      }) // --- Delete Slok ---
+        if (index !== -1) state.list[index] = action.payload;
+      })
+      // --- Delete Slok ---
       .addCase(deleteSlok.fulfilled, (state, action) => {
         state.list = state.list.filter((slok) => slok._id !== action.payload);
       });

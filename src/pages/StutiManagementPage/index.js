@@ -59,10 +59,7 @@ export default function StutiManagementPage() {
     }
   }, [dispatch, godStatus]);
 
-  // --- Helper Functions ---
-  const getGodNameById = (godId) =>
-    allGods.find((g) => g._id === godId)?.name || "N/A";
-
+ 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
 
@@ -210,23 +207,19 @@ export default function StutiManagementPage() {
                   <tr key={item._id}>
                     <td className="fw-semibold">{item.name}</td>
                     <td>{getLanguageNameById(item.language)}</td>
-                    <td>{getGodNameById(item.god)}</td>
+                    <td>{item.god.name}</td>
                     <td>{item.sort}</td>
                     <td>
-                      <span
-                        className={`badge fs-6 ${
-                          item.isActive
-                            ? "text-bg-success"
-                            : "text-bg-secondary"
-                        }`}
-                      >
-                        {item.isActive ? "Active" : "Inactive"}
-                      </span>
+                      {item.isActive ? (
+                        <span className="badge bg-success">Active</span>
+                      ) : (
+                        <span className="badge bg-secondary">Inactive</span>
+                      )}
                     </td>
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
-                        onClick={() => navigate(`/stuti/edit/${item._id}`)}
+                        onClick={() => navigate(`/stuti/${item._id}/edit`)}
                         title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>

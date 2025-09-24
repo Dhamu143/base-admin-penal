@@ -75,9 +75,6 @@ export default function MantraListPage() {
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
 
-  // ✨ NEW: Helper function to get God's name from the list.
-  const getGodNameById = (godId) =>
-    allGods.find((g) => g._id === godId)?.name || "N/A";
 
   // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect handles fetching.
   const handleLanguageChange = (option) => {
@@ -247,15 +244,11 @@ export default function MantraListPage() {
                       </td>
                       <td>{mantra.sort}</td>
                       <td>
-                        <span
-                          className={`badge fs-6 ${
-                            mantra.isActive
-                              ? "text-bg-success"
-                              : "text-bg-secondary"
-                          }`}
-                        >
-                          {mantra.isActive ? "Active" : "Inactive"}
-                        </span>
+                        {mantra.isActive ? (
+                          <span className="badge bg-success">Active</span>
+                        ) : (
+                          <span className="badge bg-secondary">Inactive</span>
+                        )}
                       </td>
                       <td className="text-center">
                         <button

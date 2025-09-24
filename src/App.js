@@ -72,6 +72,7 @@ import StoryFormPage from "./pages/StoryManagementPage/StoryFormPage.js";
 import StutiManagementPage from "./pages/StutiManagementPage/index.js";
 import StutiFormPage from "./pages/StutiManagementPage/StutiFormPage.js";
 import GodFormPage from "./pages/GodManagementPage/GodFormModal.js";
+import RingtoneFormPage from "./pages/RingtoneManagementPage/RingtoneForm.js";
 
 function App() {
   const navigate = useNavigate();
@@ -107,7 +108,7 @@ function App() {
       <Routes>
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
-         
+
           <Route path="/aarti" element={<AartiManagementPage />} />
           {/* Create New Aarti */}
           <Route path="/aartis/new" element={<AartiFormPage />} />
@@ -123,8 +124,8 @@ function App() {
           <Route path="/mantras/new" element={<MantraFormPage />} />
           <Route path="/mantras/edit/:id" element={<MantraFormPage />} />
 
-           <Route path="/godMaster" element={<GodMaster />} />
-           
+          <Route path="/godMaster" element={<GodMaster />} />
+
           <Route path="/god" element={<GodManagementPage />} />
           <Route path="/god-form" element={<GodFormPage />} />
           <Route path="/god-form/:id" element={<GodFormPage />} />
@@ -133,6 +134,9 @@ function App() {
           <Route path="/sloks/new" element={<SlokFormPage />} />
           <Route path="/sloks/edit/:id" element={<SlokFormPage />} />
           <Route path="/ringtones" element={<RingtoneManagementPage />} />
+          <Route path="/ringtones/new" element={<RingtoneFormPage />} />
+          <Route path="/ringtones/edit/:id" element={<RingtoneFormPage />} />
+
           <Route path="/articles" element={<ArticleManagementPage />} />
           <Route path="/articles/new" element={<ArticleFormPage />} />
           <Route path="/articles/edit/:id" element={<ArticleFormPage />} />

@@ -73,9 +73,7 @@ export default function NewsManagementPage() {
     }
   }, [dispatch, godStatus]);
 
-  // ✨ NEW: Helper function to get God's name from the list.
-  const getGodNameById = (godId) =>
-    allGods.find((g) => g._id === godId)?.name || "N/A";
+  
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
@@ -227,27 +225,18 @@ export default function NewsManagementPage() {
                   <tr key={newsItem._id}>
                     <td className="fw-semibold">{newsItem.name}</td>
                     {/* ✨ NEW: Displaying God's name */}
-                    <td>{getGodNameById(newsItem.god)}</td>
+                    <td>{newsItem.god.name}</td>
                     <td>{getLanguageNameById(newsItem.language)}</td>
-                    <td>
-                      <span
-                        className="truncate-text"
-                        title={newsItem.description.replace(/<[^>]+>/g, "")}
-                      >
-                        {newsItem.description.replace(/<[^>]+>/g, "")}
-                      </span>
+                    <td style={{ maxWidth: "150px" }}>
+                      <p>{newsItem.description.replace(/<[^>]+>/g, "")}</p>
                     </td>
                     <td>{newsItem.sort}</td>
                     <td>
-                      <span
-                        className={`badge fs-6 ${
-                          newsItem.isActive
-                            ? "text-bg-success"
-                            : "text-bg-secondary"
-                        }`}
-                      >
-                        {newsItem.isActive ? "Active" : "Inactive"}
-                      </span>
+                      {newsItem.isActive ? (
+                        <span className="badge bg-success">Active</span>
+                      ) : (
+                        <span className="badge bg-secondary">Inactive</span>
+                      )}
                     </td>
                     <td className="text-center">
                       <button

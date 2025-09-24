@@ -192,8 +192,8 @@ export default function SlokListPage() {
                   <th>God</th>
                   <th>Language</th>
                   <th>Description</th>
-                  <th>Type</th>
                   <th>Sort</th>
+                  <th>Type</th>
                   <th>Status</th>
                   <th className="text-center">Actions</th>
                 </tr>
@@ -217,27 +217,21 @@ export default function SlokListPage() {
                         <p style={{ maxWidth: "270px" }}>
                           {slok.description.replace(/<[^>]+>/g, "")}
                         </p>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge fs-6 ${
-                            slok.isFree ? "text-bg-info" : "text-bg-warning"
-                          }`}
-                        >
-                          {slok.isFree ? "Free" : "Premium"}
-                        </span>
-                      </td>
+                      </td>{" "}
                       <td>{slok.sort}</td>
                       <td>
-                        <span
-                          className={`badge fs-6 ${
-                            slok.isActive
-                              ? "text-bg-success"
-                              : "text-bg-secondary"
-                          }`}
-                        >
-                          {slok.isActive ? "Active" : "Inactive"}
-                        </span>
+                        {slok.isFree ? (
+                          <span className="badge bg-info">Free</span>
+                        ) : (
+                          <span className="badge bg-warning">Premium</span>
+                        )}
+                      </td>
+                      <td>
+                        {slok.isActive ? (
+                          <span className="badge bg-success">Active</span>
+                        ) : (
+                          <span className="badge bg-secondary">Inactive</span>
+                        )}
                       </td>
                       <td className="text-center">
                         <button

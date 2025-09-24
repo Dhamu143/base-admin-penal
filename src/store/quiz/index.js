@@ -1,34 +1,19 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios"; // Using axios as defined in your original file
-
-const api = axios.create({
-  baseURL: "https://setu.apnamandal.com/api",
-});
+import HttpService from "../../common/http.service";
 
 // --- ASYNC THUNKS ---
 
-// 🔄 MODIFIED: Thunk now accepts a 'params' object
 export const fetchQuizzes = createAsyncThunk(
   "quizzes/fetchAll",
   async (params = {}, { rejectWithValue }) => {
     try {
-      // Build a dynamic query string from the params
-      const queryString = new URLSearchParams(
-        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
-      ).toString();
-
-      const url = queryString ? `/quiz?${queryString}` : "/quiz";
-      const response = await api.get(url);
-
-      // The backend response structure is slightly different here
+      const response = await HttpService.get("/quiz", params);
       return {
         quizzes: response.data?.data?.data || [],
         pagination: response.data?.data?.pagination || null,
       };
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not fetch quizzes."
-      );
+      return rejectWithValue(err.message || "Could not fetch quizzes.");
     }
   }
 );
@@ -37,12 +22,10 @@ export const addQuiz = createAsyncThunk(
   "quizzes/add",
   async (quizData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/quiz/create", quizData);
+      const response = await HttpService.post("/quiz/create", {}, quizData);
       return response.data.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not add quiz."
-      );
+      return rejectWithValue(err.message || "Could not add quiz.");
     }
   }
 );
@@ -51,12 +34,10 @@ export const updateQuiz = createAsyncThunk(
   "quizzes/update",
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/quiz/${id}`, data);
+      const response = await HttpService.put(`/quiz/${id}`, {}, data);
       return response.data.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not update quiz."
-      );
+      return rejectWithValue(err.message || "Could not update quiz.");
     }
   }
 );
@@ -65,18 +46,15 @@ export const deleteQuiz = createAsyncThunk(
   "quizzes/delete",
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/quiz/${id}`);
+      await HttpService.delete(`/quiz/${id}`);
       return id;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not delete quiz."
-      );
+      return rejectWithValue(err.message || "Could not delete quiz.");
     }
   }
 );
 
 // --- SLICE DEFINITION ---
-
 const quizSlice = createSlice({
   name: "quizzes",
   initialState: {
@@ -94,7 +72,6 @@ const quizSlice = createSlice({
       })
       .addCase(fetchQuizzes.fulfilled, (state, action) => {
         state.status = "succeeded";
-        // 🔄 MODIFIED: Correctly handle the nested payload
         state.list = action.payload.quizzes;
         state.pagination = action.payload.pagination;
       })
@@ -104,7 +81,7 @@ const quizSlice = createSlice({
         state.list = [];
       })
       .addCase(addQuiz.fulfilled, (state, action) => {
-        // In a paginated view, refetching the list is often better
+        // Optionally, you can push new quiz or refetch list
       })
       .addCase(updateQuiz.fulfilled, (state, action) => {
         const index = state.list.findIndex(

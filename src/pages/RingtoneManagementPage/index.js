@@ -1,571 +1,235 @@
-import React, { useState, useEffect } from "react";
+// src/pages/ringtone/RingtoneManagementPage.js
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import Select from "react-select"; // ✨ NEW: Import react-select for the filter dropdown
+import Select from "react-select";
 
-// Redux Actions for Ringtone
-import {
-  fetchRingtones,
-  addRingtone,
-  updateRingtone,
-  deleteRingtone,
-} from "../../store/ringtone/index";
+import { fetchRingtones, deleteRingtone } from "../../store/ringtone";
+import { fetchAllGods } from "../../store/god";
 
-// Redux Actions for God
-import { fetchAllGods } from "../../store/god/index";
-
-// Constants and Common Components
-import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
+import { staticLanguages } from "../../constants/languages";
+import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
-
-// ✨ NEW: Options for the language filter dropdown
-const languageOptions = [
-  { value: "", label: "All Languages" },
-  ...staticLanguages.map((lang) => ({
-    value: lang._id,
-    label: `${lang.language} (${lang.nativeName})`,
-  })),
-];
 
 export default function RingtoneManagementPage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
-  // --- Redux State ---
-  const { list: ringtones, status, error } = useSelector(
+  const { list: ringtones, pagination, status, error } = useSelector(
     (state) => state.ringtones
   );
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
-  // --- Component State ---
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [editingRingtone, setEditingRingtone] = useState(null);
+  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
   const [ringtoneToDelete, setRingtoneToDelete] = useState(null);
-  const [filteredGods, setFilteredGods] = useState([]);
-  const [filters, setFilters] = useState({ language: "" }); // ✨ NEW: State for list filters
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // --- Form State ---
-  const initialFormState = {
-    sort: "",
-    isActive: true,
-    isFree: true,
-    god: "",
-    language: "",
-    description: "",
-    file: "",
-  };
-  const [formData, setFormData] = useState(initialFormState);
+  const itemsPerPage = 10;
 
-  // ✨ NEW: Reusable function to fetch ringtones with filter/pagination params
-  const loadRingtones = (params = {}) => {
-    dispatch(fetchRingtones(params))
+  const loadRingtones = useCallback(() => {
+    dispatch(fetchRingtones({ ...filters, limit: itemsPerPage }))
       .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load ringtones."));
-  };
+      .catch((err) => toast.error(err || "Failed to load ringtones."));
+  }, [dispatch, filters, itemsPerPage]);
 
-  // 🔄 MODIFIED: Fetch initial data using the new loadRingtones function
   useEffect(() => {
-    loadRingtones(); // Load all ringtones initially
+    loadRingtones();
+  }, [loadRingtones]);
+
+  useEffect(() => {
     if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [godStatus, dispatch]);
+  }, [dispatch, godStatus]);
 
-  // Effect to filter the god list for the modal
-  useEffect(() => {
-    if (formData.language && Array.isArray(allGods)) {
-      const godsByLang = allGods.filter(
-        (g) => g.language === formData.language
-      );
-      setFilteredGods(godsByLang);
-    } else {
-      setFilteredGods([]);
-    }
-  }, [formData.language, allGods]);
+  const handleLanguageChange = (option) =>
+    setFilters((prev) => ({ ...prev, language: option?.value || "", page: 1 }));
 
-  // ✨ NEW: Handler for changing the main language filter
-  const handleLanguageChange = (selectedOption) => {
-    const value = selectedOption ? selectedOption.value : "";
-    setFilters((prev) => ({ ...prev, language: value }));
-    loadRingtones({ language: value });
-  };
+  const handleGodChange = (option) =>
+    setFilters((prev) => ({ ...prev, god: option?.value || "", page: 1 }));
 
-  // ✨ NEW: Handler for resetting the filter
-  const handleResetFilters = () => {
-    setFilters({ language: "" });
-    loadRingtones({ language: "" });
-  };
+  const handleReset = () => setFilters({ language: "", god: "", page: 1 });
 
-  const handleOpenModal = (ringtone = null) => {
-    if (ringtone) {
-      setEditingRingtone(ringtone);
-      setFormData({
-        sort: ringtone.sort || 0,
-        isActive: ringtone.isActive,
-        isFree: ringtone.isFree,
-        god: ringtone.god?._id || ringtone.god || "",
-        language: ringtone.language || "",
-        description: ringtone.description || "",
-        file: null,
-      });
-    } else {
-      setEditingRingtone(null);
-      setFormData(initialFormState);
-    }
-    setIsModalOpen(true);
-  };
-
-  const getLanguageNameById = (langId) => {
-    const language = staticLanguages.find((lang) => lang._id === langId);
-    return language ? language.nativeName : "N/A";
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingRingtone(null);
-    setFormData(initialFormState);
-  };
-
-  const handleFormChange = (e) => {
-    const { name, value, type, checked, files } = e.target;
-    if (type === "file") {
-      setFormData((prev) => ({ ...prev, [name]: files[0] }));
-    } else {
-      const val = type === "checkbox" ? checked : value;
-      setFormData((prev) => ({
-        ...prev,
-        [name]: val,
-        ...(name === "language" && { god: "" }),
-      }));
-    }
-  };
-  const handleSaveRingtone = async (e) => {
-    e.preventDefault();
-
-    console.log("Form Data Before Submit:", formData);
-
-    // ✅ Validate required fields
-    if (!formData.god || !formData.language) {
-      toast.warn("Please select a Language and a God.");
-      return;
-    }
-
-    // If adding new ringtone, file is required
-    if (!editingRingtone && !formData.file) {
-      toast.warn("Please select a ringtone file to upload.");
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      const dataToSubmit = new FormData();
-
-      // Append all form fields
-      for (const key in formData) {
-        // For file, only append if available
-        if (key === "file") {
-          if (formData.file) {
-            console.log("Appending file:", formData.file);
-            dataToSubmit.append(key, formData.file);
-          }
-        } else {
-          console.log(`Appending ${key}:`, formData[key]);
-          dataToSubmit.append(key, formData[key]);
-        }
-      }
-
-      // 🔄 If editing, and file is not replaced, backend should handle existing file
-      const isEditing = !!editingRingtone;
-
-      console.log("Submitting FormData to backend...");
-      const action = isEditing
-        ? updateRingtone({ id: editingRingtone._id, data: dataToSubmit })
-        : addRingtone(dataToSubmit);
-
-      await dispatch(action).unwrap();
-
-      toast.success(
-        isEditing
-          ? "Ringtone updated successfully! 🎵"
-          : "Ringtone added successfully! 🎶"
-      );
-
-      // Refresh the list with current filters
-      loadRingtones(filters);
-
-      // Close modal
-      handleCloseModal();
-    } catch (err) {
-      console.error("Error saving ringtone:", err);
-      // Catch backend validation errors
-      if (err?.response?.data?.message) {
-        toast.error(err.response.data.message);
-      } else {
-        toast.error(err?.message || "Failed to save the ringtone.");
-      }
-    } finally {
-      setIsSaving(false);
-    }
+  const handlePageChange = (page) => {
+    if (page !== filters.page) setFilters((prev) => ({ ...prev, page }));
   };
 
   const confirmDelete = async () => {
     if (!ringtoneToDelete) return;
-    setIsSaving(true);
+    setIsDeleting(true);
     try {
       await dispatch(deleteRingtone(ringtoneToDelete._id)).unwrap();
       toast.success("Ringtone deleted successfully.");
+      if (ringtones.length === 1 && filters.page > 1) {
+        setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
+      } else {
+        loadRingtones();
+      }
       setRingtoneToDelete(null);
-      loadRingtones(filters); // Refresh the list with current filters
     } catch (err) {
-      toast.error(err?.message || "Failed to delete the ringtone.");
+      toast.error(err || "Failed to delete ringtone.");
     } finally {
-      setIsSaving(false);
+      setIsDeleting(false);
     }
   };
 
-  const selectedLanguage = languageOptions.find(
-    (opt) => opt.value === filters.language
-  );
+  const languageOptions = [
+    { value: "", label: "All Languages" },
+    ...staticLanguages.map((l) => ({
+      value: l._id,
+      label: `${l.language} (${l.nativeName})`,
+    })),
+  ];
+  const godOptions = [
+    { value: "", label: "All Gods" },
+    ...allGods.map((g) => ({ value: g._id, label: g.name })),
+  ];
 
   return (
-    <>
-      <div className="card shadow-sm">
-        <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-          <h4 className="mb-0 text-primary-emphasis">🎵 Ringtone Management</h4>
-          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-            <em className="fas fa-plus me-2"></em> Add New Ringtone
+    <div className="card shadow-sm">
+      <div className="card-header d-flex justify-content-between">
+        <h4 className="mb-0">🎵 Ringtone Management</h4>
+        <button
+          className="btn btn-success"
+          onClick={() => navigate("/ringtones/new")}
+        >
+          <i className="fas fa-plus me-2"></i> Add New Ringtone
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="card-body border-bottom d-flex gap-3">
+        <div style={{ minWidth: "250px", marginRight: "30px" }}>
+          <label className="form-label small fw-bold">Language</label>
+          <Select
+            options={languageOptions}
+            value={languageOptions.find((l) => l.value === filters.language)}
+            onChange={handleLanguageChange}
+            isClearable
+          />
+        </div>
+        <div style={{ minWidth: "250px" }}>
+          <label className="form-label small fw-bold">God</label>
+          <Select
+            options={godOptions}
+            value={godOptions.find((g) => g.value === filters.god)}
+            onChange={handleGodChange}
+            isLoading={godStatus === "loading"}
+            isDisabled={godStatus !== "succeeded"}
+            isClearable
+          />
+        </div>
+        <div className="mt-md-auto ms-md-auto">
+          <button
+            className="btn btn-outline-secondary w-100 p-2 ml-4"
+            onClick={handleReset}
+          >
+            <i className="fas fa-undo mr-1"></i>Reset
           </button>
-        </div>
-
-        {/* ✨ --- NEW FILTERS SECTION --- ✨ */}
-        <div className="card-body border-bottom">
-          <div className="d-flex flex-column flex-md-row align-items-md-center gap-3">
-            <div style={{ minWidth: "300px" }}>
-              <label className="form-label fw-bold small mb-1">
-                Filter by Language
-              </label>
-              <Select
-                placeholder="Select..."
-                options={languageOptions}
-                value={selectedLanguage}
-                onChange={handleLanguageChange}
-                isClearable={true}
-                classNamePrefix="react-select"
-              />
-            </div>
-            <div className="mt-md-auto">
-              <button
-                className="btn btn-outline-secondary w-100 ml-4"
-                onClick={handleResetFilters}
-              >
-                <i className="fas fa-undo mr-1"></i>
-                Reset
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="card-body">
-          <div className="table-responsive">
-            <table className="table table-hover align-middle">
-              <thead className="table-light">
-                <tr>
-                  <th>Preview</th>
-                  <th>Description</th>
-                  <th>Language</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <TableStatus
-                  status={status}
-                  error={error}
-                  dataLength={ringtones.length}
-                  colSpan={7}
-                  loadingText="Loading ringtones..."
-                  emptyText="No ringtones Found."
-                />
-                {status === "succeeded" &&
-                  ringtones.map((ringtone) => (
-                    <tr key={ringtone._id}>
-                      <td>
-                        <audio
-                          controls
-                          src={ringtone.file}
-                          style={{ height: "40px", width: "250px" }}
-                        >
-                          Your browser does not support the audio element.
-                        </audio>
-                      </td>
-                      <td>{ringtone.description || "-"}</td>
-                      <td>{getLanguageNameById(ringtone.language)}</td>
-                      <td>
-                        <span
-                          className={`badge fs-6 ${
-                            ringtone.isFree ? "text-bg-info" : "text-bg-warning"
-                          }`}
-                        >
-                          {ringtone.isFree ? "Free" : "Premium"}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge fs-6 ${
-                            ringtone.isActive
-                              ? "text-bg-success"
-                              : "text-bg-secondary"
-                          }`}
-                        >
-                          {ringtone.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        <button
-                          className="btn btn-sm btn-outline-secondary mr-2"
-                          onClick={() => handleOpenModal(ringtone)}
-                          title="Edit"
-                        >
-                          <em className="fas fa-pencil-alt"></em>
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => setRingtoneToDelete(ringtone)}
-                          title="Delete"
-                        >
-                          <em className="fas fa-trash"></em>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
 
-      {/* --- Add/Edit Modal --- */}
-      {isModalOpen && (
-        <>
-          <div className="modal-backdrop fade show"></div>
-          <div
-            className="modal fade show"
-            style={{ display: "block" }}
-            tabIndex="-1"
-          >
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow-lg">
-                <form onSubmit={handleSaveRingtone}>
-                  <div className="modal-header bg-primary text-white">
-                    <h5 className="modal-title">
-                      <em className="fas fa-music me-2"></em>
-                      {editingRingtone ? "Edit Ringtone" : "Add New Ringtone"}
-                    </h5>
+      {/* Table */}
+      <div className="card-body">
+        <table className="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Description</th>
+              <th>God</th>
+              <th>Language</th>
+              <th>Sort</th>
+              <th>Free</th>
+              <th>Status</th>
+              <th className="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <TableStatus
+              status={status}
+              error={error}
+              dataLength={ringtones.length}
+              colSpan={8}
+              loadingText="Loading ringtones..."
+              emptyText="No ringtones found."
+            />
+            {status === "succeeded" &&
+              ringtones.map((r) => (
+                <tr key={r._id}>
+                  <td>
+                    <audio controls src={r.file} style={{ width: "150px" }} />
+                  </td>
+                  <td>{r.description}</td>
+                  <td>{r.god?.name || "N/A"}</td>
+                  <td>
+                    {staticLanguages.find((l) => l._id === r.language)
+                      ?.language || "N/A"}
+                  </td>
+                  <td>{r.sort}</td>
+                  <td>
+                    {r.isFree ? (
+                      <span className="badge bg-info">Free</span>
+                    ) : (
+                      <span className="badge bg-warning">Paid</span>
+                    )}
+                  </td>
+                  <td>
+                    {r.isActive ? (
+                      <span className="badge bg-success">Active</span>
+                    ) : (
+                      <span className="badge bg-secondary">Inactive</span>
+                    )}
+                  </td>
+                  <td className="text-center">
                     <button
-                      type="button"
-                      className="btn-close btn-close-white"
-                      onClick={handleCloseModal}
-                    ></button>
-                  </div>
-                  <div className="modal-body">
-                    <div className="mb-3">
-                      <label htmlFor="file" className="form-label fw-semibold">
-                        Ringtone File
-                      </label>
-                      <input
-                        type="file"
-                        className="form-control"
-                        id="file"
-                        name="file"
-                        onChange={handleFormChange}
-                        accept="audio/*"
-                        required={!editingRingtone}
-                      />
-                      {editingRingtone && (
-                        <small className="form-text text-muted">
-                          Current file:{" "}
-                          <a
-                            href={editingRingtone.file}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Play
-                          </a>
-                          . Upload a new file to replace it.
-                        </small>
-                      )}
-                    </div>
-
-                    <div className="mb-3">
-                      <label
-                        htmlFor="description"
-                        className="form-label fw-semibold"
-                      >
-                        Description
-                      </label>
-                      <textarea
-                        className="form-control"
-                        id="description"
-                        name="description"
-                        rows="3"
-                        value={formData.description}
-                        onChange={handleFormChange}
-                      ></textarea>
-                    </div>
-
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label
-                          htmlFor="language"
-                          className="form-label fw-semibold"
-                        >
-                          Language
-                        </label>
-                        <select
-                          id="language"
-                          name="language"
-                          className="form-select"
-                          value={formData.language}
-                          onChange={handleFormChange}
-                          required
-                        >
-                          <option value="" disabled>
-                            -- Select a Language --
-                          </option>
-                          {staticLanguages.map((lang) => (
-                            <option key={lang._id} value={lang._id}>
-                              {lang.nativeName}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="god" className="form-label fw-semibold">
-                          God
-                        </label>
-                        <select
-                          id="god"
-                          name="god"
-                          className="form-select"
-                          value={formData.god}
-                          onChange={handleFormChange}
-                          required
-                          disabled={!formData.language}
-                        >
-                          <option value="" disabled>
-                            {formData.language
-                              ? "-- Select a God --"
-                              : "-- Select Language First --"}
-                          </option>
-                          {filteredGods.map((god) => (
-                            <option key={god._id} value={god._id}>
-                              {god.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <label htmlFor="sort" className="form-label fw-semibold">
-                        Sort Order
-                      </label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        id="sort"
-                        name="sort"
-                        value={formData.sort}
-                        onChange={handleFormChange}
-                        required
-                      />
-                    </div>
-
-                    <div className="d-flex justify-content-around mb-3">
-                      <div className="form-check form-switch">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id="isActive"
-                          name="isActive"
-                          checked={formData.isActive}
-                          onChange={handleFormChange}
-                        />
-                        <label className="form-check-label" htmlFor="isActive">
-                          Active
-                        </label>
-                      </div>
-                      <div className="form-check form-switch">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id="isFree"
-                          name="isFree"
-                          checked={formData.isFree}
-                          onChange={handleFormChange}
-                        />
-                        <label className="form-check-label" htmlFor="isFree">
-                          Free
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={handleCloseModal}
-                      disabled={isSaving}
+                      className="btn btn-sm btn-outline-primary mr-2"
+                      onClick={() => navigate(`/ringtones/edit/${r._id}`)}
                     >
-                      Close
+                      <i className="fas fa-pencil-alt"></i>
                     </button>
                     <button
-                      type="submit"
-                      className="btn btn-primary"
-                      disabled={isSaving}
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => setRingtoneToDelete(r)}
                     >
-                      {isSaving ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2"></span>
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <em className="fas fa-save me-2"></em> Save Changes
-                        </>
-                      )}
+                      <i className="fas fa-trash"></i>
                     </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {pagination?.totalPages > 1 && (
+        <div className="card-footer">
+          <CustomPagination
+            currentPage={filters.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+            totalItems={pagination.totalRecords}
+            itemsPerPage={itemsPerPage}
+          />
+        </div>
       )}
 
-      {/* --- Delete Confirmation Modal --- */}
+      {/* Delete Confirmation */}
       <ConfirmationModal
-        show={ringtoneToDelete !== null}
+        show={!!ringtoneToDelete}
         onClose={() => setRingtoneToDelete(null)}
         onConfirm={confirmDelete}
-        title="Confirm Deletion"
+        title="Delete Ringtone?"
         confirmText="Delete"
-        isLoading={isSaving}
         confirmButtonVariant="danger"
+        isLoading={isDeleting}
       >
-        <p className="fs-5 text-center">
-          Are you sure you want to delete <br />
-          <strong className="text-danger">
-            {ringtoneToDelete?.description || "this ringtone"}
-          </strong>
-          ?
+        <p className="text-center">
+          Are you sure you want to delete{" "}
+          <strong>{ringtoneToDelete?.description}</strong>?
         </p>
-        <p className="text-muted text-center">This action cannot be undone.</p>
       </ConfirmationModal>
-    </>
+    </div>
   );
 }

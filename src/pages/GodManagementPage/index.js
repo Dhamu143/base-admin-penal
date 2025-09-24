@@ -9,7 +9,7 @@ import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 
 import { staticLanguages } from "../../constants/languages";
-import { fetchGods, fetchAllGods, deleteGod } from "../../store/god/index";
+import { fetchGods, deleteGod } from "../../store/god/index";
 import { TableStatus } from "../../components/TableStatus";
 
 export default function GodTablePage() {
@@ -44,11 +44,13 @@ export default function GodTablePage() {
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
+  const getLanguageNameById = (langId) =>
+    staticLanguages.find((l) => l._id === langId)?.nativeName || "N/A";
 
   // --- Fetch master list of gods for dropdowns
-  useEffect(() => {
-    if (masterStatus === "idle") dispatch(fetchAllGods());
-  }, [dispatch, masterStatus]);
+  // useEffect(() => {
+  //   if (masterStatus === "idle") dispatch(fetchAllGods());
+  // }, [dispatch, masterStatus]);
 
   // --- Function to fetch paginated gods
   const loadGods = useCallback(
@@ -146,6 +148,7 @@ export default function GodTablePage() {
               <tr>
                 <th>Image</th>
                 <th>Name</th>
+                <th>Language</th>
                 <th>Master</th>
                 <th>Sort Order</th>
                 <th className="text-center">Actions</th>
@@ -176,6 +179,7 @@ export default function GodTablePage() {
                       />
                     </td>
                     <td>{god.name}</td>
+                    <td>{getLanguageNameById(god.language)}</td>
                     <td>{god.master?.name || "None"}</td>
                     <td>{god.sort}</td>
                     <td className="text-center">

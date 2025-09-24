@@ -3,7 +3,6 @@ import httpService from "../../common/http.service";
 
 // --- THUNKS ---
 
-// ✨ REFINED: Thunk now cleans params to avoid sending empty queries like 'language='
 export const fetchGods = createAsyncThunk(
   "god/fetchPaginated",
   async (params = {}, { rejectWithValue }) => {
@@ -32,7 +31,6 @@ export const fetchGods = createAsyncThunk(
     }
   }
 );
-
 export const fetchAllGods = createAsyncThunk(
   "god/fetchAll",
   async (_, { rejectWithValue }) => {
@@ -49,7 +47,8 @@ export const addGod = createAsyncThunk(
   "god/add",
   async (godData, { rejectWithValue }) => {
     try {
-      const response = await httpService.post("/god/create", godData);
+      // Pass an empty object for `params` to force godData into `payload`
+      const response = await httpService.post("/god/create", {}, godData); // 👈 The change
       return response.data.data;
     } catch (err) {
       return rejectWithValue(err.message || "Could not add god.");
@@ -61,7 +60,8 @@ export const updateGod = createAsyncThunk(
   "god/update",
   async ({ id, ...godData }, { rejectWithValue }) => {
     try {
-      const response = await httpService.put(`/god/${id}`, godData);
+      // Same change for the 'put' method
+      const response = await httpService.put(`/god/${id}`, {}, godData); // 👈 The change
       return response.data.data;
     } catch (err) {
       return rejectWithValue(err.message || "Could not update god.");
@@ -74,7 +74,7 @@ export const deleteGod = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       await httpService.delete(`/god/${id}`);
-      return id;
+      return id; // Return the ID for removal from state
     } catch (err) {
       return rejectWithValue(err.message || "Could not delete god.");
     }
@@ -82,6 +82,10 @@ export const deleteGod = createAsyncThunk(
 );
 
 // --- SLICE DEFINITION ---
+
+// A list of our mutation thunks
+const mutationThunks = [addGod, updateGod, deleteGod];
+
 const godSlice = createSlice({
   name: "god",
   initialState: {
@@ -89,15 +93,16 @@ const godSlice = createSlice({
     currentPage: 1,
     totalPages: 1,
     totalItems: 0,
-    status: "idle",
+    status: "idle", // For fetching the paginated list
     masterList: [],
-    masterStatus: "idle",
+    masterStatus: "idle", // For fetching the master list
+    mutatingStatus: "idle", // ✨ NEW: For CUD (Create, Update, Delete) operations
     error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // --- Cases for PAGINATED list ---
+      // --- Cases for PAGINATED list (fetchGods) ---
       .addCase(fetchGods.pending, (state) => {
         state.status = "loading";
       })
@@ -112,7 +117,8 @@ const godSlice = createSlice({
         state.status = "failed";
         state.error = action.payload;
       })
-      // --- Cases for MASTER list ---
+
+      // --- Cases for MASTER list (fetchAllGods) ---
       .addCase(fetchAllGods.pending, (state) => {
         state.masterStatus = "loading";
       })
@@ -125,34 +131,50 @@ const godSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ✨ FIX: Handle ADD action to keep masterList and list in sync
+      // --- Cases for MUTATION results (add, update, delete) ---
       .addCase(addGod.fulfilled, (state, action) => {
-        const newGod = action.payload;
-        // Add to master list for the dropdown
-        state.masterList.unshift(newGod);
-        // We don't need to add to the `list` here because the component
-        // will refetch the current page after adding.
+        state.masterList.unshift(action.payload);
       })
-
-      // ✨ FIX: Handle UPDATE action to keep masterList and list in sync
       .addCase(updateGod.fulfilled, (state, action) => {
         const updatedGod = action.payload;
-        // Update the item in the master list
+        // Update both lists to maintain UI consistency
         state.masterList = state.masterList.map((god) =>
           god._id === updatedGod._id ? updatedGod : god
         );
-        // Also update the item if it exists in the current paginated list
         state.list = state.list.map((god) =>
           god._id === updatedGod._id ? updatedGod : god
         );
       })
-
       .addCase(deleteGod.fulfilled, (state, action) => {
         const deletedId = action.payload;
         state.list = state.list.filter((g) => g._id !== deletedId);
         state.masterList = state.masterList.filter((g) => g._id !== deletedId);
-        state.totalItems -= 1; // Decrement total count
-      });
+        state.totalItems -= 1;
+      })
+
+      // ✨ UPDATE: Use `addMatcher` for shared logic across mutation thunks
+      .addMatcher(
+        (action) => mutationThunks.some((thunk) => thunk.pending.match(action)),
+        (state) => {
+          state.mutatingStatus = "loading";
+          state.error = null; // Clear previous errors on a new attempt
+        }
+      )
+      .addMatcher(
+        (action) =>
+          mutationThunks.some((thunk) => thunk.fulfilled.match(action)),
+        (state) => {
+          state.mutatingStatus = "succeeded";
+        }
+      )
+      .addMatcher(
+        (action) =>
+          mutationThunks.some((thunk) => thunk.rejected.match(action)),
+        (state, action) => {
+          state.mutatingStatus = "failed";
+          state.error = action.payload;
+        }
+      );
   },
 });
 

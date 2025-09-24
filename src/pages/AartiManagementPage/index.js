@@ -199,15 +199,11 @@ export default function AartiListPage() {
                     </td>
                     <td>{aarti.sort}</td>
                     <td>
-                      <span
-                        className={`badge fs-6 ${
-                          aarti.isActive
-                            ? "text-bg-success"
-                            : "text-bg-secondary"
-                        }`}
-                      >
-                        {aarti.isActive ? "Active" : "Inactive"}
-                      </span>
+                       {aarti.isActive ? (
+                          <span className="badge bg-success">Active</span>
+                        ) : (
+                          <span className="badge bg-secondary">Inactive</span>
+                        )}
                     </td>
                     <td className="text-center">
                       <button

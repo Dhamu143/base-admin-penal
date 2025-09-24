@@ -1,11 +1,7 @@
 // store/ringtone/index.js (ringtoneSlice.js)
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: "https://setu.apnamandal.com/api",
-});
+import HttpService from "../../common/http.service";
 
 // --- Async Thunks ---
 
@@ -14,21 +10,14 @@ export const fetchRingtones = createAsyncThunk(
   "ringtones/fetchRingtones",
   async (params = {}, { rejectWithValue }) => {
     try {
-      // Build query string (skip empty values)
-      const queryString = new URLSearchParams(
-        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
-      ).toString();
-
-      const url = queryString ? `/ringtone?${queryString}` : "/ringtone";
-
-      const response = await api.get(url);
+      const response = await HttpService.get("/ringtone", params);
 
       return {
         data: response.data?.data?.data || [],
         pagination: response.data?.data?.pagination || {},
       };
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(err.message || "Failed to fetch ringtones");
     }
   }
 );
@@ -38,12 +27,15 @@ export const addRingtone = createAsyncThunk(
   "ringtones/addRingtone",
   async (ringtoneFormData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/ringtone/create", ringtoneFormData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await HttpService.post(
+        "/ringtone/create",
+        {},
+        ringtoneFormData,
+        { "Content-Type": "multipart/form-data" }
+      );
       return response.data?.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(err.message || "Failed to add ringtone");
     }
   }
 );
@@ -53,12 +45,12 @@ export const updateRingtone = createAsyncThunk(
   "ringtones/updateRingtone",
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/ringtone/${id}`, data, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const response = await HttpService.put(`/ringtone/${id}`, {}, data, {
+        "Content-Type": "multipart/form-data",
       });
       return response.data?.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(err.message || "Failed to update ringtone");
     }
   }
 );
@@ -68,10 +60,10 @@ export const deleteRingtone = createAsyncThunk(
   "ringtones/deleteRingtone",
   async (ringtoneId, { rejectWithValue }) => {
     try {
-      await api.delete(`/ringtone/${ringtoneId}`);
+      await HttpService.delete(`/ringtone/${ringtoneId}`);
       return ringtoneId;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+      return rejectWithValue(err.message || "Failed to delete ringtone");
     }
   }
 );

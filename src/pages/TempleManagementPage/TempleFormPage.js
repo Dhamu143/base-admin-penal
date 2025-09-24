@@ -70,8 +70,8 @@ export default function TempleFormPage() {
           files: temple.files || "",
           openTime: temple.openTime || "",
           closeTime: temple.closeTime || "",
-          latitude: temple.location?.coordinates?.[1] || formData.latitude,
-          longitude: temple.location?.coordinates?.[0] || formData.longitude,
+          latitude: temple.location?.coordinates?.[1] || "",
+          longitude: temple.location?.coordinates?.[0] || "",
           rating: temple.rating || "0",
         });
       }
