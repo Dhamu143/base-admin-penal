@@ -1,9 +1,9 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import httpService from "../../common/http.service"; // 🔄 MODIFIED: Using consistent httpService
+import httpService from "../../common/http.service";
 
 // --- ASYNC THUNKS ---
 
-// 🔄 MODIFIED: Thunk now accepts params for pagination and filtering
+//  Thunk now accepts params for pagination and filtering
 export const fetchFestivals = createAsyncThunk(
   "festivals/fetchAll",
   async (params = {}, { rejectWithValue }) => {
@@ -14,11 +14,13 @@ export const fetchFestivals = createAsyncThunk(
 
       const url = queryString ? `/festival?${queryString}` : "/festival";
       const response = await httpService.get(url);
-      
+
       // 🔄 MODIFIED: Return the whole payload for the reducer
-      return response.data?.data; // Expects { data: [...], pagination: {...} }
+      return response.data?.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to fetch festivals.");
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to fetch festivals."
+      );
     }
   }
 );
@@ -27,10 +29,16 @@ export const addFestival = createAsyncThunk(
   "festivals/add",
   async (festivalData, { rejectWithValue }) => {
     try {
-      const response = await httpService.post("/festival/create", {}, festivalData);
+      const response = await httpService.post(
+        "/festival/create",
+        {},
+        festivalData
+      );
       return response.data?.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to add festival.");
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to add festival."
+      );
     }
   }
 );
@@ -39,10 +47,16 @@ export const updateFestival = createAsyncThunk(
   "festivals/update",
   async ({ id, ...festivalData }, { rejectWithValue }) => {
     try {
-      const response = await httpService.put(`/festival/${id}`, {}, festivalData);
+      const response = await httpService.put(
+        `/festival/${id}`,
+        {},
+        festivalData
+      );
       return response.data?.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to update festival.");
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to update festival."
+      );
     }
   }
 );
@@ -54,7 +68,9 @@ export const deleteFestival = createAsyncThunk(
       await httpService.delete(`/festival/${id}`);
       return id;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || "Failed to delete festival.");
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to delete festival."
+      );
     }
   }
 );
@@ -63,7 +79,7 @@ const festivalSlice = createSlice({
   name: "festivals",
   initialState: {
     list: [],
-    pagination: null, // ✨ NEW: Add pagination to state
+    pagination: null,
     status: "idle",
     error: null,
   },
@@ -77,7 +93,9 @@ const festivalSlice = createSlice({
       .addCase(fetchFestivals.fulfilled, (state, action) => {
         state.status = "succeeded";
         // 🔄 MODIFIED: Correctly handle paginated response
-        state.list = Array.isArray(action.payload?.data) ? action.payload.data : [];
+        state.list = Array.isArray(action.payload?.data)
+          ? action.payload.data
+          : [];
         state.pagination = action.payload?.pagination || null;
       })
       .addCase(fetchFestivals.rejected, (state, action) => {

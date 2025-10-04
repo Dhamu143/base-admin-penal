@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
-import { toast } from "react-toastify"; // Added for better user feedback
+import { toast } from "react-toastify";
+import { uploadImage } from "../../services/uploadService"; // <<< 1. ADDED: Image upload service
 
 // --- Store Imports ---
 import { fetchNews, addNews, updateNews } from "../../store/news/index";
@@ -17,8 +18,6 @@ export default function NewsFormPage() {
 
   // --- Redux State ---
   const { list: newsList = [] } = useSelector((state) => state.news || {});
-
-  // CORRECTED: Select from state.God and use consistent naming
   const {
     masterList: allGods = [],
     masterStatus: godStatus = "idle",
@@ -32,23 +31,22 @@ export default function NewsFormPage() {
     language: "",
     god: "",
     description: "",
+    link: "",
+    files: "", // <<< 2. ADDED: 'files' field for the image URL
   });
-  const [filteredGods, setFilteredGods] = useState([]); // CHANGED: from 'filteredMasters'
+  const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
   // --- Effects ---
 
-  // Fetch initial data if not already loaded
   useEffect(() => {
-    // Re-fetch news list in case it's not populated (e.g., direct navigation)
     dispatch(fetchNews());
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
     }
   }, [godStatus, dispatch]);
 
-  // Populate form when editing an existing item
   useEffect(() => {
     if (id && newsList.length > 0) {
       const newsItem = newsList.find((n) => n._id === id);
@@ -58,14 +56,15 @@ export default function NewsFormPage() {
           sort: newsItem.sort || "",
           isActive: newsItem.isActive ?? true,
           language: newsItem.language || "",
-          god: newsItem.god?._id || newsItem.god || "", // CHANGED: from 'master'
+          god: newsItem.god?._id || newsItem.god || "",
           description: newsItem.description || "",
+          link: newsItem.link || "",
+          files: newsItem.files || "", // <<< 3. ADDED: Populate image on edit
         });
       }
     }
   }, [id, newsList]);
 
-  // Filter gods whenever the selected language or the list of all gods changes
   useEffect(() => {
     if (formData.language && Array.isArray(allGods)) {
       setFilteredGods(allGods.filter((g) => g.language === formData.language));
@@ -84,6 +83,24 @@ export default function NewsFormPage() {
     }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
+    }
+  };
+
+  // <<< 4. ADDED: Handler for image uploads
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsSaving(true);
+    try {
+      const uploadedUrl = await uploadImage(file);
+      setFormData((prev) => ({ ...prev, files: uploadedUrl }));
+      toast.success("Image uploaded successfully!");
+    } catch (err) {
+      toast.error("Failed to upload image.");
+      console.error("Image upload error:", err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -106,24 +123,28 @@ export default function NewsFormPage() {
   };
 
   // --- Validation ---
-
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "News title is required.";
     if (!formData.language) newErrors.language = "Please select a language.";
-    if (!formData.god) newErrors.god = "Please select a God."; // CHANGED: from 'master'
+    if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.description.trim())
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(formData.sort))
       newErrors.sort = "Sort order must be a valid number.";
+    if (formData.link && !/^(ftp|http|https):\/\/[^ "]+$/.test(formData.link)) {
+      newErrors.link = "Please enter a valid URL (e.g., https://example.com).";
+    }
+    // <<< 5. ADDED: Validation for the image field
+    if (!formData.files) {
+      newErrors.files = "A news image is required.";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   // --- Helpers ---
-
-  // Helper for react-select to find the selected option object
   const getSelectedOption = (list = [], id) => {
     if (!id || !Array.isArray(list)) return null;
     const selected = list.find((item) => item._id === id);
@@ -136,7 +157,6 @@ export default function NewsFormPage() {
     <div className="content-wrapper p-4">
       {/* Header */}
       <div className="mb-4 d-flex align-items-center justify-content-between">
-        {/* Breadcrumb */}
         <div>
           <span
             style={{ cursor: "pointer", color: "#0d6efd" }}
@@ -146,7 +166,6 @@ export default function NewsFormPage() {
           </span>{" "}
           / <span>{id ? "Edit News" : "New News"}</span>
         </div>
-        {/* Back Button */}
         <button
           type="button"
           className="btn btn-outline-primary btn-sm"
@@ -182,6 +201,22 @@ export default function NewsFormPage() {
                 )}
               </div>
 
+              {/* Link */}
+              <div className="mb-3">
+                <label className="form-label fw-bold">Link (Optional)</label>
+                <input
+                  type="url"
+                  name="link"
+                  className={`form-control ${errors.link ? "is-invalid" : ""}`}
+                  value={formData.link}
+                  onChange={handleFormChange}
+                  placeholder="https://example.com/news-article"
+                />
+                {errors.link && (
+                  <div className="invalid-feedback">{errors.link}</div>
+                )}
+              </div>
+
               {/* Language */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
@@ -197,7 +232,7 @@ export default function NewsFormPage() {
                     setFormData((prev) => ({
                       ...prev,
                       language: option?.value || "",
-                      god: "", // Reset god when language changes
+                      god: "",
                     }))
                   }
                   placeholder="Select Language..."
@@ -238,6 +273,36 @@ export default function NewsFormPage() {
                 )}
               </div>
 
+              {/* <<< 6. ADDED: Image Upload Field >>> */}
+              <div className="mb-3">
+                <label className="form-label fw-bold">
+                  News Image <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="file"
+                  className="form-control"
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  disabled={isSaving}
+                />
+                {errors.files && (
+                  <div className="text-danger small mt-1">{errors.files}</div>
+                )}
+                {formData.files && (
+                  <div className="mt-2">
+                    <img
+                      src={formData.files}
+                      alt="News Preview"
+                      className="img-thumbnail"
+                      style={{ maxWidth: "200px", maxHeight: "150px" }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="col-md-6">
               {/* Sort Order & Active Status */}
               <div className="row">
                 <div className="col-md-6 mb-3">
@@ -269,10 +334,6 @@ export default function NewsFormPage() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="col-md-6">
               <h5 className="mb-3 text-primary">News Content</h5>
               <RichTextEditor
                 value={formData.description}

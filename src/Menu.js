@@ -1,382 +1,119 @@
+import {
+  FiGrid,
+  FiUsers,
+  FiUser,
+  FiMusic,
+  FiBook,
+  FiBookOpen,
+  FiHome,
+  FiFileText,
+  FiCalendar,
+  FiBell,
+  FiAward,
+  FiLayers,
+  FiGlobe,
+} from "react-icons/fi";
+
 const Menu = [
   {
     heading: "Main Navigation",
-    translate: "sidebar.heading.HEADER",
   },
   {
     name: "Dashboard",
-    translate: "sidebar.nav.SUBMENU",
     path: "/dashboard",
-    icon: "icon-grid",
+    icon: FiGrid,
     permissions: ["admin"],
   },
-  // {
-  //   name: "Community Management",
-  //   path: "/hub-management",
-  //   icon: "icon-cup",
-  //   permissions: ["admin", "community"],
-  //   submenu: [
-  //     {
-  //       name: "Religion",
-  //       path: "/religion",
-  //     },
-  //     {
-  //       name: "Native Place(state)",
-  //       path: "/native-place",
-  //     },
-  //     {
-  //       name: "Mother Tounge(Language)",
-  //       path: "/language",
-  //     },
-  //     {
-  //       name: "Caste",
-  //       path: "/caste",
-  //     },
-  //     {
-  //       name: "Community Setup",
-  //       path: "/community-setup",
-  //       permissions: ["community"],
-  //     },
-  //     {
-  //       name: "Community & Caste Requested",
-  //       path: "/hub-requested",
-  //     },
-  //   ],
-  // },
   {
     name: "God-Master",
-    translate: "sidebar.nav.SUBMENU",
     path: "/godmaster",
-    icon: "icon-people",
+    icon: FiUsers,
     permissions: ["admin", "users"],
   },
   {
     name: "God",
-    translate: "sidebar.nav.SUBMENU",
     path: "/god",
-    icon: "icon-people",
+    icon: FiUser,
     permissions: ["admin", "users"],
   },
   {
     name: "Users",
-    translate: "sidebar.nav.SUBMENU",
     path: "/users",
-    icon: "icon-people",
+    icon: FiUsers,
     permissions: ["admin", "users"],
   },
   {
     name: "Aarti",
-    translate: "sidebar.nav.SUBMENU",
     path: "/aarti",
-    icon: "icon-people",
+    icon: FiMusic,
     permissions: ["admin", "users"],
   },
-
   {
     name: "Mantra",
-    translate: "sidebar.nav.SUBMENU",
     path: "/mantra",
-    icon: "icon-people",
+    icon: FiBook,
     permissions: ["admin", "users"],
   },
   {
     name: "Bhajan",
-    translate: "sidebar.nav.SUBMENU",
     path: "/bhajan",
-    icon: "icon-people",
+    icon: FiMusic,
     permissions: ["admin", "users"],
   },
-
   {
     name: "Sloka",
-    translate: "sidebar.nav.SUBMENU",
     path: "/sloka",
-    icon: "icon-people",
+    icon: FiBookOpen,
     permissions: ["admin", "users"],
   },
   {
     name: "Temple",
-    translate: "sidebar.nav.SUBMENU",
     path: "/temple",
-    icon: "icon-people",
+    icon: FiHome,
     permissions: ["admin", "users"],
   },
   {
     name: "Stuti",
-    translate: "sidebar.nav.SUBMENU",
     path: "/stuti",
-    icon: "icon-people",
+    icon: FiBookOpen,
     permissions: ["admin", "users"],
   },
   {
     name: "Articles",
-    translate: "sidebar.nav.SUBMENU",
     path: "/articles",
-    icon: "icon-people",
+    icon: FiFileText,
     permissions: ["admin", "users"],
   },
   {
     name: "Festival",
-    translate: "sidebar.nav.SUBMENU",
     path: "/festival",
-    icon: "icon-people",
+    icon: FiCalendar,
     permissions: ["admin", "users"],
   },
   {
     name: "Ringtones",
-    translate: "sidebar.nav.SUBMENU",
     path: "/ringtones",
-    icon: "icon-people",
+    icon: FiBell,
     permissions: ["admin", "users"],
   },
   {
     name: "Quiz",
-    translate: "sidebar.nav.SUBMENU",
     path: "/quiz",
-    icon: "icon-people",
+    icon: FiAward,
     permissions: ["admin", "users"],
   },
-
   {
     name: "Story",
-    translate: "sidebar.nav.SUBMENU",
     path: "/story",
-    icon: "icon-people",
+    icon: FiLayers,
     permissions: ["admin", "users"],
   },
   {
     name: "News",
-    translate: "sidebar.nav.SUBMENU",
     path: "/news",
-    icon: "icon-people",
+    icon: FiGlobe,
     permissions: ["admin", "users"],
   },
-
-  // {
-  //   name: "Sanstha",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/sanstha",
-  //   icon: "icon-list",
-  //   permissions: ["admin", "sanstha"]
-  // },
-  // {
-  //   name: "Sponsors and Advertisements",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/sponsor",
-  //   icon: "icon-layers",
-  //   permissions: ["admin", "sponsor"]
-  // },
-  // {
-  //   name: "Posts",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/post",
-  //   icon: "icon-list",
-  //   permissions: ["admin", "post"],
-  // },
-  //  {
-  //   name: "Social Project",
-  //   path: "",
-  //   icon: "icon-list",
-  //   permissions: ["admin", "Social Project"],
-  //   submenu: [
-  //     {
-  //       name: "Social project category",
-  //       path: "/project-category",
-  //     },
-  //     {
-  //       name: "Social project",
-  //       path: "/social-project",
-  //     },
-  //   ],
-  // },
-  // {
-  //   name: "Events",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/event",
-  //   icon: "icon-layers",
-  //   permissions: ["admin", "Events"],
-  // },
-  // {
-  //   name: "Fundraising (Donation)",
-  //   path: "/fundraising",
-  //   icon: "icon-cup",
-  //   permissions: ["admin", "Fundraising (Donation)"],
-  //   submenu: [
-  //     {
-  //       name: "Facility Booking",
-  //       path: "/facility-booking",
-  //     },
-  //     {
-  //       name: "Contribution",
-  //       path: "/contribution",
-  //     },
-  //     {
-  //       name: "Members Waiting for Approval",
-  //       path: "/requsteduser",
-  //     },
-  //     {
-  //       name: "Social Project Donation",
-  //       path: "/socialproject-donation",
-  //     },
-  //       {
-  //       name: "Boli Booking",
-  //       path: "/boli-booking",
-  //     },
-  //   ],
-  // },
-  // {
-  //   name: "Payment History",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/payment-history",
-  //   icon: "icon-cup",
-  //   permissions: ["admin", "Payment History"],
-  // },
-  // {
-  //   name: "Teams",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/teams",
-  //   icon: "icon-speedometer",
-  //   permissions: ["admin", "teams"],
-  // },
-  // {
-  //   name: "Payment Settings",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/payment-settings",
-  //   icon: "icon-layers",
-  //   permissions: ["admin", "payment"],
-  // },
-  // {
-  //   name: "Compliance Date",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/compliance",
-  //   icon: "icon-layers",
-  //   permissions: ["admin", "compliance"]
-  // },
-  // {
-  //   name: "Faq",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/faq",
-  //   icon: "icon-grid",
-  //   permissions: ["admin", "faq"],
-  // },
-  // {
-  //   name: "Support",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/support",
-  //   icon: "icon-cup",
-  //   permissions: ["admin", "support"],
-  // },
-  // {
-  //   name: "Announcement",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/announcement",
-  //   icon: "icon-people",
-  //   permissions: ["admin", "announcement"],
-  // },
-  // {
-  //   name: "Payment Gateways",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/payment",
-  //   icon: "icon-grid",
-  //   permissions: ["admin", "payment"]
-  // },
-  // {
-  //   name: "Plans & Offers",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/offer",
-  //   icon: "icon-speedometer",
-  //   permissions: ["admin", "offer"]
-  // },
-  // {
-  //   name: "Products",
-  //   path: "/admin/products",
-  //   icon: "icon-grid",
-  //   translate: "sidebar.nav.SINGLEVIEW",
-  //   submenu: [
-  //     {
-  //       name: "Categories",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/categories/1",
-  //     },
-  //     {
-  //       name: "Sub Categories",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/subcategories",
-  //     },
-  //     {
-  //       name: "Products",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/products/1",
-  //     },
-  //     {
-  //       name: "Choices & Addons",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/option-group",
-  //     },
-  //   ],
-  // },
-  // {
-  //   name: "Users",
-  //   translate: "sidebar.nav.MENU",
-  //   path: "/admin/users/1",
-  //   icon: "icon-people",
-  //   submenu: [
-  //     {
-  //       name: "Customer",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/users/1",
-  //     },
-  //     {
-  //       name: "Kitchen Staff",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/restaurant-user/1",
-  //     },
-  //   ],
-  // },
-  // {
-  //   name: "Orders",
-  //   translate: "sidebar.nav.SUBMENU",
-  //   path: "/admin/orders/1",
-  //   icon: "icon-list",
-  // },
-  // {
-  //   name: "Configurations",
-  //   path: "/admin/configuration",
-  //   icon: "icon-speedometer",
-  //   translate: "sidebar.nav.MENU",
-  //   submenu: [
-  //     {
-  //       name: "Coupons",
-  //       translate: "sidebar.nav.MENU",
-  //       path: "/admin/coupons",
-  //     },
-  //     {
-  //       name: "Delivery Time Selector",
-  //       translate: "sidebar.nav.MENU",
-  //       path: "/admin/delivery-time-selector",
-  //     },
-  //     {
-  //       name: "General Settings",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/general-settings",
-  //     },
-  //     {
-  //       name: "Taxes",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/taxes",
-  //     },
-  //     {
-  //       name: "Pickup Address",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/pickup",
-  //     },
-  //     {
-  //       name: "Delivery Estimate",
-  //       translate: "sidebar.nav.SUBMENU",
-  //       path: "/admin/delivery_estimate/1",
-  //     },
-  //   ],
-  // },
 ];
 
 export default Menu;

@@ -32,7 +32,6 @@ function Sidebar() {
     );
   };
 
-  /** Normal items for the sidebar */
   const SidebarItem = ({ item, isActive }) => {
     return (
       <li className={isActive ? "active" : ""}>
@@ -42,8 +41,8 @@ function Sidebar() {
               {item.label.value}
             </Badge>
           )}
-          {item.icon && <em className={item.icon}></em>}
-          <span>{item.name}</span>
+          {item.icon && <item.icon className="mr-3" size={18} />}
+          <span className="align-middle">{item.name}</span>
         </Link>
       </li>
     );
@@ -59,18 +58,11 @@ function Sidebar() {
               {item.label.value}
             </Badge>
           )}
-          {item.icon && <em className={item.icon}></em>}
+          {item.icon && <item.icon className="me-2" />}
           <span>{item.name}</span>
         </div>
 
-        {/* <Collapse>
-          <ul
-            id={item.path}
-            className={sidebar-nav sidebar-subnav ${isOpen ? "show" : ""}}
-          >
-            {children}
-          </ul>
-        </Collapse> */}
+        {/* collapse submenu logic stays same */}
       </li>
     );
   };

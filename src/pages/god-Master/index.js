@@ -251,15 +251,11 @@ export default function FeatureManagementPage() {
                       <td>{god.percentage ?? 0}%</td>
                       <td>{god.sort}</td>
                       <td>
-                        <span
-                          className={`badge fs-6 ${
-                            god.isActive
-                              ? "text-bg-success"
-                              : "text-bg-secondary"
-                          }`}
-                        >
-                          {god.isActive ? "Active" : "Inactive"}
-                        </span>
+                        {god.isActive ? (
+                          <span className="badge bg-success">Active</span>
+                        ) : (
+                          <span className="badge bg-secondary">Inactive</span>
+                        )}
                       </td>
                       <td className="text-center">
                         <button
@@ -408,7 +404,7 @@ export default function FeatureManagementPage() {
                         onChange={handleFormChange}
                       />
                       <label className="form-check-label" htmlFor="isActive">
-                        Active Status
+                        is Active
                       </label>
                     </div>
                   </div>

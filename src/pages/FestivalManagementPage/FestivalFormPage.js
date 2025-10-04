@@ -4,6 +4,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { uploadImage } from "../../services/uploadService";
 
 // --- Actions ---
 import {
@@ -11,8 +14,53 @@ import {
   addFestival,
   updateFestival,
 } from "../../store/festival/index";
-import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
+
+// ADDED: Data for the new State dropdown
+const indianStates = [
+  { value: "Andhra Pradesh", label: "Andhra Pradesh" },
+  { value: "Arunachal Pradesh", label: "Arunachal Pradesh" },
+  { value: "Assam", label: "Assam" },
+  { value: "Bihar", label: "Bihar" },
+  { value: "Chhattisgarh", label: "Chhattisgarh" },
+  { value: "Goa", label: "Goa" },
+  { value: "Gujarat", label: "Gujarat" },
+  { value: "Haryana", label: "Haryana" },
+  { value: "Himachal Pradesh", label: "Himachal Pradesh" },
+  { value: "Jharkhand", label: "Jharkhand" },
+  { value: "Karnataka", label: "Karnataka" },
+  { value: "Kerala", label: "Kerala" },
+  { value: "Madhya Pradesh", label: "Madhya Pradesh" },
+  { value: "Maharashtra", label: "Maharashtra" },
+  { value: "Manipur", label: "Manipur" },
+  { value: "Meghalaya", label: "Meghalaya" },
+  { value: "Mizoram", label: "Mizoram" },
+  { value: "Nagaland", label: "Nagaland" },
+  { value: "Odisha", label: "Odisha" },
+  { value: "Punjab", label: "Punjab" },
+  { value: "Rajasthan", label: "Rajasthan" },
+  { value: "Sikkim", label: "Sikkim" },
+  { value: "Tamil Nadu", label: "Tamil Nadu" },
+  { value: "Telangana", label: "Telangana" },
+  { value: "Tripura", label: "Tripura" },
+  { value: "Uttar Pradesh", label: "Uttar Pradesh" },
+  { value: "Uttarakhand", label: "Uttarakhand" },
+  { value: "West Bengal", label: "West Bengal" },
+  {
+    value: "Andaman and Nicobar Islands",
+    label: "Andaman and Nicobar Islands",
+  },
+  { value: "Chandigarh", label: "Chandigarh" },
+  {
+    value: "Dadra and Nagar Haveli and Daman and Diu",
+    label: "Dadra and Nagar Haveli and Daman and Diu",
+  },
+  { value: "Delhi", label: "Delhi" },
+  { value: "Jammu and Kashmir", label: "Jammu and Kashmir" },
+  { value: "Ladakh", label: "Ladakh" },
+  { value: "Lakshadweep", label: "Lakshadweep" },
+  { value: "Puducherry", label: "Puducherry" },
+];
 
 export default function FestivalFormPage() {
   const dispatch = useDispatch();
@@ -23,28 +71,26 @@ export default function FestivalFormPage() {
   const { list: festivals, status: festivalStatus } = useSelector(
     (state) => state.festivals
   );
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
 
   // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
     isActive: true,
-    god: "",
     description: "",
     language: "",
+    date: null,
+    image: "",
+    state: "", // ADDED: State for the selected Indian state
   });
-  const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // --- Fetch Data ---
   useEffect(() => {
     if (festivalStatus === "idle") dispatch(fetchFestivals());
-    if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [festivalStatus, godStatus, dispatch]);
+  }, [festivalStatus, dispatch]);
 
   // --- Initialize Form for Edit ---
   useEffect(() => {
@@ -55,25 +101,15 @@ export default function FestivalFormPage() {
           name: festival.name || "",
           sort: festival.sort || "",
           isActive: festival.isActive,
-          god: festival.god?._id || festival.god || "",
           description: festival.description || "",
           language: festival.language?._id || festival.language || "",
+          date: festival.date ? new Date(festival.date) : null,
+          image: festival.image || "",
+          state: festival.state || "", // MODIFIED: Populate state field
         });
       }
     }
   }, [id, festivals]);
-
-  // --- Filter Gods by Language ---
-  useEffect(() => {
-    if (formData.language && allGods.length > 0) {
-      const godsByLang = allGods.filter(
-        (g) => g.language === formData.language
-      );
-      setFilteredGods(godsByLang);
-    } else {
-      setFilteredGods([]);
-    }
-  }, [formData.language, allGods]);
 
   // --- Handlers ---
   const handleFormChange = (e) => {
@@ -82,27 +118,50 @@ export default function FestivalFormPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
+    }
   };
 
-  const getSelectedOption = (list, value) => {
-    if (!value || !list) return null;
-    const selected = list.find(
-      (item) => item._id === value || item.language === value
-    );
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const uploadedUrl = await uploadImage(file);
+      setFormData((prev) => ({ ...prev, image: uploadedUrl }));
+      setErrors((prev) => ({ ...prev, image: null }));
+      toast.success("Image uploaded successfully!");
+    } catch (err) {
+      toast.error("Image upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const getSelectedOption = (list, id) => {
+    if (!id || !Array.isArray(list)) return null;
+    const selected = list.find((item) => item._id === id);
     return selected
-      ? { value: selected._id, label: selected.name || selected.nativeName }
+      ? {
+          value: selected._id,
+          label: `${selected.nativeName} (${selected.language})`,
+        }
       : null;
   };
 
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Festival name is required.";
-    if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.language) newErrors.language = "Please select a language.";
+    if (!formData.state) newErrors.state = "Please select a state."; // ADDED: Validation for state
     if (!formData.description.trim())
       newErrors.description = "Description is required.";
-    if (formData.sort === "" || isNaN(formData.sort))
+    if (!formData.sort || isNaN(formData.sort))
       newErrors.sort = "Sort order must be a valid number.";
+    if (!formData.date) newErrors.date = "Please select a festival date.";
+    if (!formData.image) newErrors.image = "Festival image is required.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -113,9 +172,14 @@ export default function FestivalFormPage() {
 
     setIsSaving(true);
     try {
+      const payload = {
+        ...formData,
+        date: formData.date ? formData.date.toISOString() : null,
+      };
+      // formData now includes the 'state' field, so it's sent automatically
       const action = id
-        ? updateFestival({ id, ...formData })
-        : addFestival(formData);
+        ? updateFestival({ id, ...payload })
+        : addFestival(payload);
       await dispatch(action).unwrap();
       toast.success(
         id ? "Festival updated successfully!" : "Festival added successfully!"
@@ -177,6 +241,27 @@ export default function FestivalFormPage() {
                   )}
                 </div>
 
+                {/* Festival Date */}
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Festival Date <span className="text-danger">*</span>
+                  </label>
+                  <DatePicker
+                    selected={formData.date}
+                    onChange={(date) =>
+                      setFormData((prev) => ({ ...prev, date }))
+                    }
+                    dateFormat="yyyy-MM-dd"
+                    className={`form-control ${
+                      errors.date ? "is-invalid" : ""
+                    }`}
+                    placeholderText="Select festival date..."
+                  />
+                  {errors.date && (
+                    <div className="invalid-feedback">{errors.date}</div>
+                  )}
+                </div>
+
                 {/* Language */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
@@ -195,7 +280,6 @@ export default function FestivalFormPage() {
                       setFormData((prev) => ({
                         ...prev,
                         language: option?.value || "",
-                        god: "", // reset God on language change
                       }))
                     }
                     placeholder="Select Language..."
@@ -207,38 +291,64 @@ export default function FestivalFormPage() {
                   )}
                 </div>
 
-                {/* God */}
+                {/* ADDED: State Dropdown */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
-                    God <span className="text-danger">*</span>
+                    State <span className="text-danger">*</span>
                   </label>
                   <Select
-                    options={filteredGods.map((g) => ({
-                      value: g._id,
-                      label: g.name,
-                    }))}
-                    value={getSelectedOption(filteredGods, formData.god)}
+                    options={indianStates}
+                    value={indianStates.find((s) => s.value === formData.state)}
                     onChange={(option) =>
                       setFormData((prev) => ({
                         ...prev,
-                        god: option?.value || "",
+                        state: option?.value || "",
                       }))
                     }
-                    placeholder={
-                      formData.language
-                        ? "Select God..."
-                        : "Select Language first..."
-                    }
-                    isDisabled={!formData.language || filteredGods.length === 0}
+                    placeholder="Select State..."
                   />
-                  {errors.god && (
-                    <div className="text-danger small mt-1">{errors.god}</div>
+                  {errors.state && (
+                    <div className="text-danger small mt-1">{errors.state}</div>
+                  )}
+                </div>
+
+                {/* Image Upload Section */}
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Festival Image <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="file"
+                    className={`form-control ${
+                      errors.image ? "is-invalid" : ""
+                    }`}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    disabled={isUploading}
+                  />
+                  {isUploading && (
+                    <div className="text-primary small mt-1">Uploading...</div>
+                  )}
+                  {errors.image && (
+                    <div className="invalid-feedback d-block">
+                      {errors.image}
+                    </div>
+                  )}
+                  {formData.image && !isUploading && (
+                    <div className="mt-2">
+                      <img
+                        src={formData.image}
+                        alt="Festival Preview"
+                        className="img-fluid rounded"
+                        style={{ maxHeight: "150px" }}
+                      />
+                    </div>
                   )}
                 </div>
 
                 {/* Sort Order & Active */}
                 <div className="row">
-                  <div className="col-md-12 mb-3">
+                  <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
                       Sort Order <span className="text-danger">*</span>
                     </label>
@@ -255,7 +365,7 @@ export default function FestivalFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-                  <div className="col-md-6 d-flex align-items-center justify-content-start pt-3">
+                  <div className="col-md-6 d-flex align-items-center">
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -273,15 +383,15 @@ export default function FestivalFormPage() {
 
               {/* Right Column */}
               <div className="col-md-6">
-                <h5 className="mb-4 text-primary">Description & Settings</h5>
+                <h5 className="mb-4 text-primary">Description</h5>
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Description <span className="text-danger">*</span>
                   </label>
                   <RichTextEditor
                     value={formData.description}
-                    minHeight={300}
-                    maxHeight={300}
+                    minHeight={400}
+                    maxHeight={400}
                     onChange={(html) =>
                       setFormData((prev) => ({ ...prev, description: html }))
                     }
@@ -295,24 +405,24 @@ export default function FestivalFormPage() {
               </div>
             </div>
 
-            <div className="d-flex justify-content-end gap-2 mt-4">
+            <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-3"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/festival")}
-                disabled={isSaving}
+                disabled={isSaving || isUploading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSaving}
+                disabled={isSaving || isUploading}
               >
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save mr-2"></i>
+                  <i className="fas fa-save me-2"></i>
                 )}
                 {id ? "Update Festival" : "Create Festival"}
               </button>

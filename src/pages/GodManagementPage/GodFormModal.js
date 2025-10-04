@@ -1,16 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 
-// CRUD from /store/god
 import { addGod, updateGod, fetchAllGods } from "../../store/god";
-
-// Master gods from /store/godmaster
 import { fetchGods as fetchMasterGods } from "../../store/godmaster";
-
 import { staticLanguages } from "../../constants/languages";
 
 export default function GodFormPage() {
@@ -18,12 +14,9 @@ export default function GodFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // god slice
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
-
-  // godmaster slice
   const { list: masterGods, status: masterStatus } = useSelector(
     (state) => state.gods
   );
@@ -32,7 +25,7 @@ export default function GodFormPage() {
     name: "",
     description: "",
     sort: "",
-    master: "",
+    master: null,
     language: "",
     isActive: true,
   });
@@ -40,14 +33,14 @@ export default function GodFormPage() {
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- Fetch initial data ---
+  // Fetch initial data
   useEffect(() => {
     if (godStatus === "idle") dispatch(fetchAllGods());
     if (masterStatus === "idle")
       dispatch(fetchMasterGods({ page: 1, limit: 1000 }));
   }, [godStatus, masterStatus, dispatch]);
 
-  // --- Populate form when editing ---
+  // Populate form for edit
   useEffect(() => {
     if (id && allGods.length > 0) {
       const god = allGods.find((g) => g._id === id);
@@ -56,15 +49,21 @@ export default function GodFormPage() {
           name: god.name || "",
           description: god.description || "",
           sort: god.sort || "",
-          master: god.master?._id || "",
-          language: god.language?._id || god.language || "",
+          master:
+            typeof god.master === "object"
+              ? god.master._id
+              : god.master || null,
+          language:
+            typeof god.language === "object"
+              ? god.language._id
+              : god.language || "",
           isActive: god.isActive !== undefined ? god.isActive : true,
         });
       }
     }
   }, [id, allGods]);
 
-  // --- Validation ---
+  // Validation
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "God name is required.";
@@ -86,30 +85,50 @@ export default function GodFormPage() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
-  const getSelectedOption = (list, value) => {
-    if (!value || !list) return null;
-    const selected = list.find((item) => item._id === value);
-    return selected ? { value: selected._id, label: selected.name } : null;
-  };
+  // Master God options
+  const masterGodOptions = useMemo(() => {
+    if (!masterGods) return [];
+    let options = masterGods.map((g) => ({ value: g._id, label: g.name }));
 
+    if (formData.master && !options.find((o) => o.value === formData.master)) {
+      const currentMaster = masterGods.find((g) => g._id === formData.master);
+      if (currentMaster) {
+        options = [
+          { value: currentMaster._id, label: currentMaster.name },
+          ...options,
+        ];
+      }
+    }
+    return options;
+  }, [masterGods, formData.master]);
+
+  // Selected option for Master God
+  const selectedMasterOption = useMemo(() => {
+    return masterGodOptions.find((o) => o.value === formData.master) || null;
+  }, [masterGodOptions, formData.master]);
+
+  // Language select option
   const getLanguageOption = (value) => {
-    return staticLanguages.find((l) => l._id === value)
-      ? {
-          value: value,
-          label: `${staticLanguages.find((l) => l._id === value).nativeName} (${
-            staticLanguages.find((l) => l._id === value).language
-          })`,
-        }
+    const lang = staticLanguages.find((l) => l._id === value);
+    return lang
+      ? { value: lang._id, label: `${lang.nativeName} (${lang.language})` }
       : null;
   };
 
+  // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSaving(true);
     try {
-      const action = id ? updateGod({ id, ...formData }) : addGod(formData);
+      const payload = {
+        ...formData,
+        sort: Number(formData.sort),
+        master: formData.master || null,
+      };
+
+      const action = id ? updateGod({ id, ...payload }) : addGod(payload);
       await dispatch(action).unwrap();
       toast.success(
         id ? "God updated successfully!" : "God added successfully!"
@@ -198,19 +217,16 @@ export default function GodFormPage() {
                   )}
                 </div>
 
-                {/* Master God (Independent) */}
+                {/* Master God */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">Master God</label>
                   <Select
-                    options={masterGods.map((g) => ({
-                      value: g._id,
-                      label: g.name,
-                    }))}
-                    value={getSelectedOption(masterGods, formData.master)}
+                    options={masterGodOptions}
+                    value={selectedMasterOption}
                     onChange={(option) =>
                       setFormData((prev) => ({
                         ...prev,
-                        master: option?.value || "",
+                        master: option?.value || null,
                       }))
                     }
                     placeholder="Select Master God..."

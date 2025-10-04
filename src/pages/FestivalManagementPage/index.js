@@ -6,7 +6,7 @@ import Select from "react-select";
 
 // --- Redux Actions ---
 import { fetchFestivals, deleteFestival } from "../../store/festival/index";
-// ✨ NEW: Added import to fetch the list of Gods for the filter
+
 import { fetchAllGods } from "../../store/god";
 
 // --- Reusable Components & Data ---
@@ -42,31 +42,27 @@ export default function FestivalListPage() {
   const { list: festivals, pagination, status, error } = useSelector(
     (state) => state.festivals
   );
-  // ✨ NEW: Selecting God list and status for the new filter
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
+
+  const { masterList: allGods = [], masterStatus: godStatus } = useSelector(
+    (state) => state.God || {}
   );
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [festivalToDelete, setFestivalToDelete] = useState(null);
 
-  // 🔄 MODIFIED: Centralized filters state now includes 'god' and 'page'.
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
-  const itemsPerPage = 10; // You can adjust this value
+  const itemsPerPage = 10;
 
-  // 🔄 MODIFIED: loadFestivals now reads from the unified 'filters' state.
   const loadFestivals = useCallback(() => {
     dispatch(fetchFestivals({ ...filters, limit: itemsPerPage }))
       .unwrap()
       .catch((err) => toast.error(err?.message || "Failed to load festivals."));
   }, [dispatch, filters, itemsPerPage]);
 
-  // 🔄 MODIFIED: This useEffect now handles all data loading based on filter changes.
   useEffect(() => {
     loadFestivals();
   }, [loadFestivals]);
 
-  // ✨ NEW: This useEffect fetches the master list of gods, but only once.
   useEffect(() => {
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
@@ -76,17 +72,9 @@ export default function FestivalListPage() {
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
 
-
-  // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect handles fetching.
   const handleLanguageChange = (option) => {
     const value = option?.value || "";
     setFilters((prev) => ({ ...prev, language: value, page: 1 }));
-  };
-
-  // ✨ NEW: Handler for the new God filter.
-  const handleGodChange = (option) => {
-    const value = option?.value || "";
-    setFilters((prev) => ({ ...prev, god: value, page: 1 }));
   };
 
   const handleResetFilters = () => {
@@ -99,7 +87,6 @@ export default function FestivalListPage() {
     }
   };
 
-  // 🔄 MODIFIED: Deletion logic now correctly reloads or navigates pages.
   const confirmDelete = async () => {
     if (!festivalToDelete) return;
     setIsDeleting(true);
@@ -125,7 +112,7 @@ export default function FestivalListPage() {
   // ✨ NEW: Options for the God filter dropdown.
   const godOptions = [
     { value: "", label: "All Gods" },
-    ...allGods.map((god) => ({ value: god._id, label: god.name })),
+    ...(allGods || []).map((god) => ({ value: god._id, label: god.name })),
   ];
 
   const selectedLanguage = languageOptions.find(
@@ -170,23 +157,6 @@ export default function FestivalListPage() {
               />
             </div>
 
-            {/* ✨ NEW: God Filter Select component */}
-            <div className="ml-4" style={{ minWidth: "250px" }}>
-              <label className="form-label fw-bold small mb-1">
-                Filter by God
-              </label>
-              <Select
-                placeholder="Select God..."
-                options={godOptions}
-                value={selectedGod}
-                onChange={handleGodChange}
-                isClearable
-                isLoading={godStatus === "loading"}
-                isDisabled={godStatus !== "succeeded"}
-                classNamePrefix="react-select"
-              />
-            </div>
-
             <div className="mt-md-auto ms-md-auto">
               <button
                 className="btn btn-outline-secondary w-100 p-2 ml-4"
@@ -204,7 +174,7 @@ export default function FestivalListPage() {
               <thead className="table-light">
                 <tr>
                   <th>Name</th>
-                  <th>God</th>
+                  <th>Date</th>
                   <th>Language</th>
                   <th>Description</th>
                   <th>Sort Order</th>
@@ -225,16 +195,11 @@ export default function FestivalListPage() {
                   festivals.map((festival) => (
                     <tr key={festival._id}>
                       <td className="fw-bold">{festival.name}</td>
-                      {/* 🔄 MODIFIED: Using helper function for consistency */}
-                      <td>{festival.god.name}</td>
+                      {/* Safe access to god */}
+                      <td>{festival.date}</td>
                       <td>{getLanguageNameById(festival.language)}</td>
                       <td>
-                        <span
-                          className="truncate-text"
-                          title={festival.description.replace(/<[^>]+>/g, "")}
-                        >
-                          {festival.description.replace(/<[^>]+>/g, "")}
-                        </span>
+                        {(festival.description || "").replace(/<[^>]+>/g, "")}
                       </td>
                       <td>{festival.sort}</td>
                       <td>
@@ -269,7 +234,6 @@ export default function FestivalListPage() {
           </div>
         </div>
 
-        {/* 🔄 MODIFIED: Pagination now reads from the unified filters state */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination

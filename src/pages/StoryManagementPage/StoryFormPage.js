@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
-import { toast } from "react-toastify"; // Added for better user feedback
+import { toast } from "react-toastify";
+import { uploadImage } from "../../services/uploadService"; // ADDED: Image upload service
 
 // --- Store Imports ---
 import { fetchStories, addStory, updateStory } from "../../store/story/index";
@@ -17,8 +18,6 @@ export default function StoryFormPage() {
 
   // --- Redux State ---
   const { list: stories = [] } = useSelector((state) => state.story || {});
-
-  // CORRECTED: Select from state.God and use consistent variable names
   const {
     masterList: allGods = [],
     masterStatus: godStatus = "idle",
@@ -30,19 +29,21 @@ export default function StoryFormPage() {
     sort: "",
     isActive: true,
     language: "",
-    god: "", // CHANGED: from 'master' to 'god' for consistency
+    god: "",
     description: "",
+    image: "", // ADDED: State for story image URL
   });
 
-  const [filteredGods, setFilteredGods] = useState([]); // CHANGED: from 'filteredMasters'
+  const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); // ADDED: Specific state for image upload
 
   // --- Effects ---
 
   // Fetch initial data if not already loaded
   useEffect(() => {
-    dispatch(fetchStories()); // Always fetch list for consistency
+    dispatch(fetchStories());
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
     }
@@ -58,8 +59,9 @@ export default function StoryFormPage() {
           sort: storyItem.sort || "",
           isActive: storyItem.isActive ?? true,
           language: storyItem.language || "",
-          god: storyItem.god?._id || storyItem.god || "", // CHANGED: Populating 'god' field
+          god: storyItem.god?._id || storyItem.god || "",
           description: storyItem.description || "",
+          image: storyItem.image || "", // MODIFIED: Populate image field
         });
       }
     }
@@ -87,12 +89,32 @@ export default function StoryFormPage() {
     }
   };
 
+  // ADDED: Handler for image upload
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const uploadedUrl = await uploadImage(file);
+      setFormData((prev) => ({ ...prev, image: uploadedUrl }));
+      setErrors((prev) => ({ ...prev, image: null })); // Clear image error on successful upload
+      toast.success("Image uploaded successfully!");
+    } catch (err) {
+      toast.error("Image upload failed. Please try again.");
+      console.error("Image upload error:", err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSaving(true);
     try {
+      // The formData already contains the 'image' field, so it will be sent automatically
       const action = id ? updateStory({ id, ...formData }) : addStory(formData);
       await dispatch(action).unwrap();
       toast.success(`Story ${id ? "updated" : "created"} successfully!`);
@@ -111,11 +133,12 @@ export default function StoryFormPage() {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Story title is required.";
     if (!formData.language) newErrors.language = "Please select a language.";
-    if (!formData.god) newErrors.god = "Please select a God."; // CHANGED: Validating 'god'
+    if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.description.trim())
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(formData.sort))
       newErrors.sort = "Sort order must be a valid number.";
+    if (!formData.image) newErrors.image = "Story image is required."; // ADDED: Validation for image
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -123,7 +146,6 @@ export default function StoryFormPage() {
 
   // --- Helpers ---
 
-  // Helper for react-select to find the selected option object
   const getSelectedOption = (list = [], id) => {
     if (!id || !Array.isArray(list)) return null;
     const selected = list.find((item) => item._id === id);
@@ -206,7 +228,6 @@ export default function StoryFormPage() {
                 )}
               </div>
 
-              {/* God Dropdown */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   God <span className="text-danger">*</span>
@@ -232,6 +253,36 @@ export default function StoryFormPage() {
                 />
                 {errors.god && (
                   <div className="text-danger small mt-1">{errors.god}</div>
+                )}
+              </div>
+
+              {/* ADDED: Image Upload Section */}
+              <div className="mb-3">
+                <label className="form-label fw-bold">
+                  Story Image <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="file"
+                  className={`form-control ${errors.image ? "is-invalid" : ""}`}
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  disabled={isUploading}
+                />
+                {isUploading && (
+                  <div className="text-primary small mt-1">Uploading...</div>
+                )}
+                {errors.image && (
+                  <div className="invalid-feedback d-block">{errors.image}</div>
+                )}
+                {formData.image && !isUploading && (
+                  <div className="mt-2">
+                    <img
+                      src={formData.image}
+                      alt="Story Preview"
+                      className="img-fluid rounded"
+                      style={{ maxHeight: "150px" }}
+                    />
+                  </div>
                 )}
               </div>
 
@@ -293,14 +344,14 @@ export default function StoryFormPage() {
               type="button"
               className="btn btn-outline-secondary"
               onClick={() => navigate("/story")}
-              disabled={isSaving}
+              disabled={isSaving || isUploading}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="btn btn-success"
-              disabled={isSaving}
+              disabled={isSaving || isUploading}
             >
               {isSaving ? (
                 <span className="spinner-border spinner-border-sm me-2"></span>

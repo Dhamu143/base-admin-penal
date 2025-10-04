@@ -73,6 +73,7 @@ import StutiManagementPage from "./pages/StutiManagementPage/index.js";
 import StutiFormPage from "./pages/StutiManagementPage/StutiFormPage.js";
 import GodFormPage from "./pages/GodManagementPage/GodFormModal.js";
 import RingtoneFormPage from "./pages/RingtoneManagementPage/RingtoneForm.js";
+import ErrorBoundary from "./common/ErrorBoundary.js";
 
 function App() {
   const navigate = useNavigate();
@@ -104,69 +105,70 @@ function App() {
 
   return (
     <>
-      <GlobalLoader />
-      <Routes>
-        <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<Dashboard />} />
+      <ErrorBoundary>
+        <GlobalLoader />
+        <Routes>
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<Dashboard />} />
 
-          <Route path="/aarti" element={<AartiManagementPage />} />
-          {/* Create New Aarti */}
-          <Route path="/aartis/new" element={<AartiFormPage />} />
-          {/* Edit Existing Aarti */}
-          <Route path="/aartis/edit/:id" element={<AartiFormPage />} />
-          <Route path="/bhajan" element={<BhajanManagementPage />} />
-          <Route path="/bhajans/new" element={<BhajanFormPage />} />
-          <Route path="/bhajans/edit/:id" element={<BhajanFormPage />} />
-          <Route path="/festival" element={<FestivalManagementPage />} />
-          <Route path="/festivals/new" element={<FestivalFormPage />} />
-          <Route path="/festivals/edit/:id" element={<FestivalFormPage />} />
-          <Route path="/mantra" element={<MantraManagementPage />} />
-          <Route path="/mantras/new" element={<MantraFormPage />} />
-          <Route path="/mantras/edit/:id" element={<MantraFormPage />} />
+            <Route path="/aarti" element={<AartiManagementPage />} />
+            {/* Create New Aarti */}
+            <Route path="/aartis/new" element={<AartiFormPage />} />
+            {/* Edit Existing Aarti */}
+            <Route path="/aartis/edit/:id" element={<AartiFormPage />} />
+            <Route path="/bhajan" element={<BhajanManagementPage />} />
+            <Route path="/bhajans/new" element={<BhajanFormPage />} />
+            <Route path="/bhajans/edit/:id" element={<BhajanFormPage />} />
+            <Route path="/festival" element={<FestivalManagementPage />} />
+            <Route path="/festivals/new" element={<FestivalFormPage />} />
+            <Route path="/festivals/edit/:id" element={<FestivalFormPage />} />
+            <Route path="/mantra" element={<MantraManagementPage />} />
+            <Route path="/mantras/new" element={<MantraFormPage />} />
+            <Route path="/mantras/edit/:id" element={<MantraFormPage />} />
 
-          <Route path="/godMaster" element={<GodMaster />} />
+            <Route path="/godMaster" element={<GodMaster />} />
 
-          <Route path="/god" element={<GodManagementPage />} />
-          <Route path="/god-form" element={<GodFormPage />} />
-          <Route path="/god-form/:id" element={<GodFormPage />} />
+            <Route path="/god" element={<GodManagementPage />} />
+            <Route path="/god-form" element={<GodFormPage />} />
+            <Route path="/god-form/:id" element={<GodFormPage />} />
 
-          <Route path="/sloka" element={<SlokManagementPage />} />
-          <Route path="/sloks/new" element={<SlokFormPage />} />
-          <Route path="/sloks/edit/:id" element={<SlokFormPage />} />
-          <Route path="/ringtones" element={<RingtoneManagementPage />} />
-          <Route path="/ringtones/new" element={<RingtoneFormPage />} />
-          <Route path="/ringtones/edit/:id" element={<RingtoneFormPage />} />
+            <Route path="/sloka" element={<SlokManagementPage />} />
+            <Route path="/sloks/new" element={<SlokFormPage />} />
+            <Route path="/sloks/edit/:id" element={<SlokFormPage />} />
+            <Route path="/ringtones" element={<RingtoneManagementPage />} />
+            <Route path="/ringtones/new" element={<RingtoneFormPage />} />
+            <Route path="/ringtones/edit/:id" element={<RingtoneFormPage />} />
 
-          <Route path="/articles" element={<ArticleManagementPage />} />
-          <Route path="/articles/new" element={<ArticleFormPage />} />
-          <Route path="/articles/edit/:id" element={<ArticleFormPage />} />
-          <Route path="/users" element={<UserManagementPage />} />
-          <Route path="/temple" element={<TempleManagementPage />} />
-          <Route path="/temples/new" element={<TempleFormPage />} />
-          <Route path="/temples/edit/:id" element={<TempleFormPage />} />
+            <Route path="/articles" element={<ArticleManagementPage />} />
+            <Route path="/articles/new" element={<ArticleFormPage />} />
+            <Route path="/articles/edit/:id" element={<ArticleFormPage />} />
+            <Route path="/users" element={<UserManagementPage />} />
+            <Route path="/temple" element={<TempleManagementPage />} />
+            <Route path="/temples/new" element={<TempleFormPage />} />
+            <Route path="/temples/edit/:id" element={<TempleFormPage />} />
 
-          <Route path="/news" element={<NewsManagementPage />} />
-          <Route path="/news/new" element={<NewsFormPage />} />
-          <Route path="/news/:id/edit" element={<NewsFormPage />} />
+            <Route path="/news" element={<NewsManagementPage />} />
+            <Route path="/news/new" element={<NewsFormPage />} />
+            <Route path="/news/:id/edit" element={<NewsFormPage />} />
 
-          <Route path="/story" element={<StoryManagementPage />} />
-          <Route path="/story/new" element={<StoryFormPage />} />
-          <Route path="/story/:id/edit" element={<StoryFormPage />} />
+            <Route path="/story" element={<StoryManagementPage />} />
+            <Route path="/story/new" element={<StoryFormPage />} />
+            <Route path="/story/:id/edit" element={<StoryFormPage />} />
 
-          <Route path="/stuti" element={<StutiManagementPage />} />
-          <Route path="/stuti/new" element={<StutiFormPage />} />
-          <Route path="/stuti/:id/edit" element={<StutiFormPage />} />
+            <Route path="/stuti" element={<StutiManagementPage />} />
+            <Route path="/stuti/new" element={<StutiFormPage />} />
+            <Route path="/stuti/:id/edit" element={<StutiFormPage />} />
 
-          <Route path="/quiz" element={<QuizManagement />} />
-          <Route path="/quizzes/new" element={<QuizFormPage />} />
-          <Route path="/quizzes/edit/:id" element={<QuizFormPage />} />
-          {/* 
+            <Route path="/quiz" element={<QuizManagement />} />
+            <Route path="/quizzes/new" element={<QuizFormPage />} />
+            <Route path="/quizzes/edit/:id" element={<QuizFormPage />} />
+            {/* 
           <Route path="/user" element={<User />} />
           <Route path="/user/:page" element={<User />} />
           <Route path="/user/new" element={<NewUser />} />
           <Route path="/user/edit/:id" element={<NewUser />} />
           <Route path="/user/details/:id" element={<UserDetails />} /> */}
-          {/*        
+            {/*        
           <Route path="/payment" element={<Paymentsetting />} />
           <Route path="/payment/:page" element={<Paymentsetting />} />
 
@@ -204,19 +206,22 @@ function App() {
           <Route path="/payment-settings/:page" element={<Paymentsetting />} />
           <Route path="/offer" element={<Offer />} />
           */}
-        </Route>
-        {/* <Route element={<PrivateRoute />}>
+          </Route>
+          {/* <Route element={<PrivateRoute />}>
           <Route path="/teamsform" element={<TeamsForm />} />          
           </Route> */}
-        <Route element={<PrivateRoute />}>
-          <Route path="/" element={<Login />} />
-        </Route>
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/access" element={<TeamsForm />} />
-        <Route path="/access/:userId" element={<TeamsForm />} />
-      </Routes>
-      <ToastContainer />
-      <audio ref={audioRef} id="order-sound" src="/assets/sound/sound.mp3" />
+
+          
+          <Route element={<PrivateRoute />}>
+            <Route path="/" element={<Login />} />
+          </Route>
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/access" element={<TeamsForm />} />
+          <Route path="/access/:userId" element={<TeamsForm />} />
+        </Routes>
+        <ToastContainer />
+        <audio ref={audioRef} id="order-sound" src="/assets/sound/sound.mp3" />
+      </ErrorBoundary>
     </>
   );
 }

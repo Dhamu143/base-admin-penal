@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
+import { uploadImage } from "../../services/uploadService";
 
 import {
   addAarti,
@@ -35,10 +36,12 @@ export default function AartiFormPage() {
     language: "",
     god: "",
     description: "",
+    image: "", // ADDED: State for aarti image URL
   });
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); // ADDED: Specific state for image upload
 
   // Fetch gods once
   useEffect(() => {
@@ -47,7 +50,10 @@ export default function AartiFormPage() {
 
   // Initialize form for edit
   useEffect(() => {
-    if (!id) return; // Only for edit
+    if (!id) {
+      dispatch(clearCurrentAarti());
+      return;
+    }
 
     const aarti = currentAarti || list.find((a) => a._id === id);
     if (aarti) {
@@ -58,13 +64,16 @@ export default function AartiFormPage() {
         language: aarti.language || "",
         god: aarti.god?._id || aarti.god || "",
         description: aarti.description || "",
+        image: aarti.image || "", // MODIFIED: Populate image field
       });
-    } else {
+    } else if (detailsStatus !== "loading") {
       dispatch(fetchAartiById(id));
     }
 
-    return () => dispatch(clearCurrentAarti());
-  }, [id, currentAarti, list, dispatch]);
+    return () => {
+      dispatch(clearCurrentAarti());
+    };
+  }, [id, currentAarti, list, dispatch, detailsStatus]);
 
   // Filter gods by selected language
   useEffect(() => {
@@ -84,6 +93,28 @@ export default function AartiFormPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
+    }
+  };
+
+  // ADDED: Handler for image upload
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const uploadedUrl = await uploadImage(file);
+      setFormData((prev) => ({ ...prev, image: uploadedUrl }));
+      setErrors((prev) => ({ ...prev, image: null })); // Clear image error
+      toast.success("Image uploaded successfully!");
+    } catch (err) {
+      toast.error("Image upload failed. Please try again.");
+      console.error("Image upload error:", err);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const getSelectedOption = (list, selectedId) => {
@@ -103,6 +134,7 @@ export default function AartiFormPage() {
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(formData.sort))
       newErrors.sort = "Sort order must be a valid number.";
+    if (!formData.image) newErrors.image = "Aarti image is required."; // ADDED: Validation for image
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -113,12 +145,15 @@ export default function AartiFormPage() {
 
     setIsSaving(true);
     try {
+      // The formData now includes the 'image' field automatically
       const action = id ? updateAarti({ id, ...formData }) : addAarti(formData);
       await dispatch(action).unwrap();
       toast.success(`Aarti ${id ? "updated" : "created"} successfully!`);
       navigate("/aarti");
     } catch (err) {
-      toast.error(err || `Failed to ${id ? "update" : "create"} aarti.`);
+      toast.error(
+        err?.message || `Failed to ${id ? "update" : "create"} aarti.`
+      );
     } finally {
       setIsSaving(false);
     }
@@ -137,7 +172,7 @@ export default function AartiFormPage() {
     );
   }
 
-  if (id && detailsStatus === "failed") {
+  if (id && detailsStatus === "failed" && !currentAarti) {
     return (
       <div className="alert alert-danger text-center m-4">
         <h4>Error</h4>
@@ -257,7 +292,41 @@ export default function AartiFormPage() {
                   )}
                 </div>
 
-                {/* Sort & Active */}
+                {/* ADDED: Image Upload Section */}
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Aarti Image <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="file"
+                    className={`form-control ${
+                      errors.image ? "is-invalid" : ""
+                    }`}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    disabled={isUploading}
+                  />
+                  {isUploading && (
+                    <div className="text-primary small mt-1">Uploading...</div>
+                  )}
+                  {errors.image && (
+                    <div className="invalid-feedback d-block">
+                      {errors.image}
+                    </div>
+                  )}
+                  {formData.image && !isUploading && (
+                    <div className="mt-2">
+                      <img
+                        src={formData.image}
+                        alt="Aarti Preview"
+                        className="img-fluid rounded"
+                        style={{ maxHeight: "150px" }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* MODIFIED: Corrected layout by wrapping row */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -276,7 +345,7 @@ export default function AartiFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-                  <div className="col-md-6 d-flex align-items-center justify-content-start pt-3">
+                  <div className="col-md-6 d-flex align-items-center">
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -286,7 +355,7 @@ export default function AartiFormPage() {
                         checked={formData.isActive}
                         onChange={handleFormChange}
                       />
-                      <label className="form-check-label">Active</label>
+                      <label className="form-check-label">is Active</label>
                     </div>
                   </div>
                 </div>
@@ -309,24 +378,24 @@ export default function AartiFormPage() {
               </div>
             </div>
 
-            <div className="d-flex justify-content-end gap-2 mt-4">
+            <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-3"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/aarti")}
-                disabled={isSaving}
+                disabled={isSaving || isUploading} // MODIFIED
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-success"
-                disabled={isSaving}
+                disabled={isSaving || isUploading} // MODIFIED
               >
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save mr-2"></i>
+                  <i className="fas fa-save me-2"></i>
                 )}
                 {id ? "Update Aarti" : "Create Aarti"}
               </button>

@@ -81,6 +81,7 @@ export default function UserTablePage() {
                 <th>Location</th>
                 <th className="text-center">Status</th>
                 <th>Joined On</th>
+                <th>deviceid</th>
                 <th className="text-center">Actions</th>
               </tr>
             </thead>
@@ -99,7 +100,7 @@ export default function UserTablePage() {
                     <td>
                       <DynamicImage
                         src={user.featureimage || "/img/user.jpg"}
-                        alt={`${user.firstName} ${user.lastName}`}
+                        alt={user.firstName}
                         style={{
                           width: 50,
                           height: 50,
@@ -108,7 +109,13 @@ export default function UserTablePage() {
                         }}
                       />
                     </td>
-                    <td>{`${user.firstName} ${user.lastName}`}</td>
+                    <td>
+                      {user.firstName} {user.lastName}
+                      {user.firstName && user.lastName ? null : (
+                        <span className="text-muted">(No Name)</span>
+                      )}
+                    </td>
+
                     <td>
                       <div>{user.email}</div>
                       <div className="small text-muted">{user.mobile}</div>
@@ -130,19 +137,34 @@ export default function UserTablePage() {
                         "N/A"
                       )}
                     </td>
-
                     <td className="text-center">
                       {user.premium ? (
-                        <span className="badge bg-success-subtle text-success-emphasis">
+                        <span
+                          className="badge"
+                          style={{
+                            backgroundColor: "#FFD700",
+                            color: "#000",
+                            fontWeight: "600",
+                          }}
+                        >
                           Premium
                         </span>
                       ) : (
-                        <span className="badge bg-secondary-subtle text-secondary-emphasis">
-                          Standard
+                        <span
+                          className="badge"
+                          style={{
+                            backgroundColor: "#6c757d",
+                            color: "#fff",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Basic
                         </span>
                       )}
                     </td>
+
                     <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                    <td>{user.deviceid}</td>
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-danger"

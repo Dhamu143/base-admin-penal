@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 import { toast } from "react-toastify";
+import { uploadImage } from "../../services/uploadService"; // ADDED: Image upload service
 
 // --- Actions ---
 import { fetchStutis, addStuti, updateStuti } from "../../store/stuti/index";
@@ -31,11 +32,13 @@ export default function StutiFormPage() {
     god: "",
     description: "",
     language: "",
+    image: "", // ADDED: State for stuti image URL
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); // ADDED: Specific state for image upload
 
   // --- Effects ---
 
@@ -57,6 +60,7 @@ export default function StutiFormPage() {
           god: stuti.god?._id || stuti.god,
           description: stuti.description || "",
           language: stuti.language,
+          image: stuti.image || "", // MODIFIED: Populate image field
         });
       }
     }
@@ -84,18 +88,38 @@ export default function StutiFormPage() {
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(formData.sort))
       newErrors.sort = "Sort order must be a valid number.";
+    if (!formData.image) newErrors.image = "Stuti image is required."; // ADDED: Validation for image
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   // --- Event Handlers ---
+
+  // ADDED: Handler for image upload
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const uploadedUrl = await uploadImage(file);
+      setFormData((prev) => ({ ...prev, image: uploadedUrl }));
+      setErrors((prev) => ({ ...prev, image: null })); // Clear image error
+      toast.success("Image uploaded successfully!");
+    } catch (err) {
+      toast.error("Image upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSaving(true);
     try {
-      const payload = { ...formData };
+      const payload = { ...formData }; // formData now includes the image URL
       const action = id ? updateStuti({ id, ...payload }) : addStuti(payload);
 
       await dispatch(action).unwrap();
@@ -234,27 +258,42 @@ export default function StutiFormPage() {
                     <div className="text-danger small mt-1">{errors.god}</div>
                   )}
                 </div>
-              </div>
 
-              {/* Right Column */}
-              <div className="col-md-6">
-                <h5 className="mb-4 text-primary">Content & Settings</h5>
+                {/* ADDED: Image Upload Section */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
-                    Description / Content <span className="text-danger">*</span>
+                    Stuti Image <span className="text-danger">*</span>
                   </label>
-                  <RichTextEditor
-                    value={formData.description}
-                    onChange={(html) =>
-                      setFormData((prev) => ({ ...prev, description: html }))
-                    }
+                  <input
+                    type="file"
+                    className={`form-control ${
+                      errors.image ? "is-invalid" : ""
+                    }`}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    disabled={isUploading}
                   />
-                  {errors.description && (
-                    <div className="invalid-feedback d-block mt-1">
-                      {errors.description}
+                  {isUploading && (
+                    <div className="text-primary small mt-1">Uploading...</div>
+                  )}
+                  {errors.image && (
+                    <div className="invalid-feedback d-block">
+                      {errors.image}
+                    </div>
+                  )}
+                  {formData.image && !isUploading && (
+                    <div className="mt-2">
+                      <img
+                        src={formData.image}
+                        alt="Stuti Preview"
+                        className="img-fluid rounded"
+                        style={{ maxHeight: "150px" }}
+                      />
                     </div>
                   )}
                 </div>
+
+                {/* MOVED & MODIFIED: For layout consistency */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -273,7 +312,7 @@ export default function StutiFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-                  <div className="col-md-6 d-flex align-items-center justify-content-start pt-3">
+                  <div className="col-md-6 d-flex align-items-center">
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -288,21 +327,42 @@ export default function StutiFormPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Right Column */}
+              <div className="col-md-6">
+                <h5 className="mb-4 text-primary">Content</h5>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Description / Content <span className="text-danger">*</span>
+                  </label>
+                  <RichTextEditor
+                    value={formData.description}
+                    onChange={(html) =>
+                      setFormData((prev) => ({ ...prev, description: html }))
+                    }
+                  />
+                  {errors.description && (
+                    <div className="invalid-feedback d-block mt-1">
+                      {errors.description}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="d-flex justify-content-end gap-2 mt-4">
+            <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
                 className="btn btn-outline-secondary"
                 onClick={() => navigate("/stuti")}
-                disabled={isSaving}
+                disabled={isSaving || isUploading} // MODIFIED
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSaving}
+                disabled={isSaving || isUploading} // MODIFIED
               >
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>

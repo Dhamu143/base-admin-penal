@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
+import { uploadImage } from "../../services/uploadService"; // ADDED: Image upload service
 
 // --- Actions ---
 import {
@@ -23,7 +24,6 @@ export default function BhajanFormPage() {
   const { list: bhajans, status: bhajanStatus } = useSelector(
     (state) => state.bhajans
   );
-  // ✨ CORRECTED: Simplified to only use the main God slice
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -36,12 +36,13 @@ export default function BhajanFormPage() {
     god: "",
     description: "",
     language: "",
+    image: "", // ADDED: State for bhajan image URL
   });
 
-  // ✨ CORRECTED: Simplified to only have one filtered list for Gods
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); // ADDED: Specific state for image upload
 
   // --- Effects ---
 
@@ -49,7 +50,7 @@ export default function BhajanFormPage() {
   useEffect(() => {
     if (bhajanStatus === "idle") dispatch(fetchBhajans());
     if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [bhajanStatus, godStatus, dispatch]); // ✨ CORRECTED dependencies
+  }, [bhajanStatus, godStatus, dispatch]);
 
   // Effect for populating form data when editing
   useEffect(() => {
@@ -63,12 +64,13 @@ export default function BhajanFormPage() {
           god: bhajan.god?._id || bhajan.god,
           description: bhajan.description || "",
           language: bhajan.language,
+          image: bhajan.image || "", // MODIFIED: Populate image field
         });
       }
     }
   }, [id, bhajans]);
 
-  // ✨ REVISED LOGIC: Filters only the God list based on selected language
+  // Filters God list based on selected language
   useEffect(() => {
     if (formData.language && Array.isArray(allGods)) {
       const godsByLang = allGods.filter(
@@ -84,24 +86,44 @@ export default function BhajanFormPage() {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Bhajan name is required.";
-    // ✨ CORRECTED: Removed validation for 'master'
     if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.language) newErrors.language = "Please select a language.";
     if (!formData.description.trim())
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(Number(formData.sort)))
       newErrors.sort = "Sort order must be a valid number.";
+    if (!formData.image) newErrors.image = "Bhajan image is required."; // ADDED: Validation for image
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   // --- Event Handlers ---
+
+  // ADDED: Handler for image upload
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const uploadedUrl = await uploadImage(file);
+      setFormData((prev) => ({ ...prev, image: uploadedUrl }));
+      setErrors((prev) => ({ ...prev, image: null })); // Clear image error
+      toast.success("Image uploaded successfully!");
+    } catch (err) {
+      toast.error("Image upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSaving(true);
     try {
+      // formData now includes the image URL automatically
       const action = id
         ? updateBhajan({ id, ...formData })
         : addBhajan(formData);
@@ -198,7 +220,6 @@ export default function BhajanFormPage() {
                       formData.language
                     )}
                     onChange={(option) =>
-                      // ✨ When language changes, reset god
                       setFormData((prev) => ({
                         ...prev,
                         language: option?.value || "",
@@ -242,6 +263,74 @@ export default function BhajanFormPage() {
                     <div className="text-danger small mt-1">{errors.god}</div>
                   )}
                 </div>
+
+                {/* ADDED: Image Upload Section */}
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    Bhajan Image <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="file"
+                    className={`form-control ${
+                      errors.image ? "is-invalid" : ""
+                    }`}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    disabled={isUploading}
+                  />
+                  {isUploading && (
+                    <div className="text-primary small mt-1">Uploading...</div>
+                  )}
+                  {errors.image && (
+                    <div className="invalid-feedback d-block">
+                      {errors.image}
+                    </div>
+                  )}
+                  {formData.image && !isUploading && (
+                    <div className="mt-2">
+                      <img
+                        src={formData.image}
+                        alt="Bhajan Preview"
+                        className="img-fluid rounded"
+                        style={{ maxHeight: "150px" }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* MODIFIED: Wrapped in a row for proper alignment */}
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">
+                      Sort Order <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="sort"
+                      className={`form-control ${
+                        errors.sort ? "is-invalid" : ""
+                      }`}
+                      value={formData.sort}
+                      onChange={handleFormChange}
+                    />
+                    {errors.sort && (
+                      <div className="invalid-feedback">{errors.sort}</div>
+                    )}
+                  </div>
+                  <div className="col-md-6 d-flex align-items-center">
+                    <div className="form-check form-switch fs-5">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        name="isActive"
+                        checked={formData.isActive}
+                        onChange={handleFormChange}
+                      />
+                      <label className="form-check-label">is Active</label>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Right Column */}
@@ -263,59 +352,27 @@ export default function BhajanFormPage() {
                     </div>
                   )}
                 </div>
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label fw-bold">
-                      Sort Order <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="sort"
-                      className={`form-control ${
-                        errors.sort ? "is-invalid" : ""
-                      }`}
-                      value={formData.sort}
-                      onChange={handleFormChange}
-                    />
-                    {errors.sort && (
-                      <div className="invalid-feedback">{errors.sort}</div>
-                    )}
-                  </div>
-                  <div className="col-md-6 d-flex align-items-center justify-content-start pt-3">
-                    <div className="form-check form-switch fs-5">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        role="switch"
-                        name="isActive"
-                        checked={formData.isActive}
-                        onChange={handleFormChange}
-                      />
-                      <label className="form-check-label">Active</label>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 
-            <div className="d-flex justify-content-end gap-2 mt-4">
+            <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-3"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/bhajan")}
-                disabled={isSaving}
+                disabled={isSaving || isUploading} // MODIFIED
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSaving}
+                disabled={isSaving || isUploading} // MODIFIED
               >
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save mr-2"></i>
+                  <i className="fas fa-save me-2"></i>
                 )}
                 {id ? "Update Bhajan" : "Create Bhajan"}
               </button>
