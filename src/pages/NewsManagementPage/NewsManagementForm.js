@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 import { toast } from "react-toastify";
-import { uploadImage } from "../../services/uploadService"; // <<< 1. ADDED: Image upload service
+import { uploadImage } from "../../services/uploadService";
 
 // --- Store Imports ---
 import { fetchNews, addNews, updateNews } from "../../store/news/index";
@@ -32,7 +32,10 @@ export default function NewsFormPage() {
     god: "",
     description: "",
     link: "",
-    files: "", // <<< 2. ADDED: 'files' field for the image URL
+    files: "",
+    views: "",
+    share: "", // ADDED: State for share
+    like: "", // ADDED: State for like
   });
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
@@ -59,7 +62,10 @@ export default function NewsFormPage() {
           god: newsItem.god?._id || newsItem.god || "",
           description: newsItem.description || "",
           link: newsItem.link || "",
-          files: newsItem.files || "", // <<< 3. ADDED: Populate image on edit
+          files: newsItem.files || "",
+          views: newsItem.views || "",
+          share: newsItem.share || "", // MODIFIED: Populate share
+          like: newsItem.like || "", // MODIFIED: Populate like
         });
       }
     }
@@ -86,7 +92,6 @@ export default function NewsFormPage() {
     }
   };
 
-  // <<< 4. ADDED: Handler for image uploads
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -110,6 +115,7 @@ export default function NewsFormPage() {
 
     setIsSaving(true);
     try {
+      // formData now includes 'views', 'share', and 'like'
       const action = id ? updateNews({ id, ...formData }) : addNews(formData);
       await dispatch(action).unwrap();
       toast.success(`News ${id ? "updated" : "created"} successfully!`);
@@ -135,9 +141,18 @@ export default function NewsFormPage() {
     if (formData.link && !/^(ftp|http|https):\/\/[^ "]+$/.test(formData.link)) {
       newErrors.link = "Please enter a valid URL (e.g., https://example.com).";
     }
-    // <<< 5. ADDED: Validation for the image field
     if (!formData.files) {
       newErrors.files = "A news image is required.";
+    }
+    if (formData.views !== "" && isNaN(Number(formData.views))) {
+      newErrors.views = "Views must be a valid number.";
+    }
+    // ADDED: Validation for share and like
+    if (formData.share !== "" && isNaN(Number(formData.share))) {
+      newErrors.share = "Share count must be a valid number.";
+    }
+    if (formData.like !== "" && isNaN(Number(formData.like))) {
+      newErrors.like = "Like count must be a valid number.";
     }
 
     setErrors(newErrors);
@@ -273,7 +288,7 @@ export default function NewsFormPage() {
                 )}
               </div>
 
-              {/* <<< 6. ADDED: Image Upload Field >>> */}
+              {/* Image Upload Field */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   News Image <span className="text-danger">*</span>
@@ -303,10 +318,14 @@ export default function NewsFormPage() {
 
             {/* Right Column */}
             <div className="col-md-6">
-              {/* Sort Order & Active Status */}
+              <h5 className="mb-3 text-primary">Settings & Content</h5>
+              
+              {/* MODIFIED: Row for Sort, Views, Share, Like */}
               <div className="row">
                 <div className="col-md-6 mb-3">
-                  <label className="form-label fw-bold">Sort Order *</label>
+                  <label className="form-label fw-bold">
+                    Sort Order <span className="text-danger">*</span>
+                  </label>
                   <input
                     type="number"
                     name="sort"
@@ -320,8 +339,65 @@ export default function NewsFormPage() {
                     <div className="invalid-feedback">{errors.sort}</div>
                   )}
                 </div>
-                <div className="col-md-6 d-flex align-items-center mb-3">
-                  <div className="form-check form-switch mt-3">
+
+                <div className="col-md-6 mb-3">
+                  <label className="form-label fw-bold">Views</label>
+                  <input
+                    type="number"
+                    name="views"
+                    className={`form-control ${
+                      errors.views ? "is-invalid" : ""
+                    }`}
+                    value={formData.views}
+                    onChange={handleFormChange}
+                    placeholder="e.g., 100"
+                  />
+                  {errors.views && (
+                    <div className="invalid-feedback">{errors.views}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* ADDED: New row for Share and Like */}
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <label className="form-label fw-bold">Share</label>
+                  <input
+                    type="number"
+                    name="share"
+                    className={`form-control ${
+                      errors.share ? "is-invalid" : ""
+                    }`}
+                    value={formData.share}
+                    onChange={handleFormChange}
+                    placeholder="e.g., 50"
+                  />
+                  {errors.share && (
+                    <div className="invalid-feedback">{errors.share}</div>
+                  )}
+                </div>
+
+                <div className="col-md-6 mb-3">
+                  <label className="form-label fw-bold">Like</label>
+                  <input
+                    type="number"
+                    name="like"
+                    className={`form-control ${
+                      errors.like ? "is-invalid" : ""
+                    }`}
+                    value={formData.like}
+                    onChange={handleFormChange}
+                    placeholder="e.g., 200"
+                  />
+                  {errors.like && (
+                    <div className="invalid-feedback">{errors.like}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="row">
+                <div className="col-md-12 mb-3">
+                  <div className="form-check form-switch fs-5">
                     <input
                       type="checkbox"
                       className="form-check-input"
@@ -330,11 +406,12 @@ export default function NewsFormPage() {
                       onChange={handleFormChange}
                       role="switch"
                     />
-                    <label className="form-check-label">Active Status</label>
+                    <label className="form-check-label">Active</label>
                   </div>
                 </div>
               </div>
-              <h5 className="mb-3 text-primary">News Content</h5>
+              
+              <h5 className="mb-3 text-primary mt-3">News Content</h5>
               <RichTextEditor
                 value={formData.description}
                 minHeight={350}
@@ -353,10 +430,10 @@ export default function NewsFormPage() {
           </div>
 
           {/* Actions */}
-          <div className="d-flex justify-content-end gap-2 mt-4">
+          <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
             <button
               type="button"
-              className="btn btn-outline-secondary mr-3"
+              className="btn btn-outline-secondary"
               onClick={() => navigate("/news")}
               disabled={isSaving}
             >
@@ -374,7 +451,7 @@ export default function NewsFormPage() {
                   aria-hidden="true"
                 ></span>
               ) : (
-                <i className="fas fa-save mr-2"></i>
+                <i className="fas fa-save me-2"></i>
               )}
               {id ? "Update News" : "Create News"}
             </button>

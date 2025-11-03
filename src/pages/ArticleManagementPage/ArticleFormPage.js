@@ -35,6 +35,9 @@ export default function ArticleFormPage() {
     god: "",
     language: "",
     featureimage: "",
+    views: "",
+    share: "", // ADDED: State for share
+    like: "", // ADDED: State for like
   });
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
@@ -70,6 +73,9 @@ export default function ArticleFormPage() {
           god: article.god?._id || article.god || "",
           language: article.language?._id || article.language || "",
           featureimage: article.featureimage || "",
+          views: article.views || "",
+          share: article.share || "", // MODIFIED: Populate share
+          like: article.like || "", // MODIFIED: Populate like
         });
       }
     }
@@ -104,6 +110,13 @@ export default function ArticleFormPage() {
       newErrors.longdesc = "Full article content is required.";
     if (formData.sort === "" || isNaN(Number(formData.sort)))
       newErrors.sort = "Sort order must be a valid number.";
+    if (formData.views !== "" && isNaN(Number(formData.views)))
+      newErrors.views = "Views must be a valid number.";
+    // ADDED: Validation for share and like
+    if (formData.share !== "" && isNaN(Number(formData.share)))
+      newErrors.share = "Share count must be a valid number.";
+    if (formData.like !== "" && isNaN(Number(formData.like)))
+      newErrors.like = "Like count must be a valid number.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -128,6 +141,7 @@ export default function ArticleFormPage() {
     if (!validateForm()) return;
     setIsSaving(true);
     try {
+      // formData now includes share and like
       const action = id
         ? updateArticle({ id, ...formData })
         : addArticle(formData);
@@ -243,6 +257,7 @@ export default function ArticleFormPage() {
                     className="form-control"
                     onChange={handleImageUpload}
                     disabled={isSaving}
+                    accept="image/*"
                   />
                   {formData.featureimage && (
                     <img
@@ -254,9 +269,12 @@ export default function ArticleFormPage() {
                   )}
                 </div>
 
+                {/* MODIFIED: Row layout for Sort, Views, Share, Like */}
                 <div className="row">
-                  <div className="col-md-12 mb-3">
-                    <label className="form-label fw-bold">Sort Order</label>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">
+                      Sort Order <span className="text-danger">*</span>
+                    </label>
                     <input
                       type="number"
                       name="sort"
@@ -270,8 +288,66 @@ export default function ArticleFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-                  <div className="col-md-6 d-flex align-items-center pt-3">
-                    <div className="form-check form-switch">
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Views</label>
+                    <input
+                      type="number"
+                      name="views"
+                      className={`form-control ${
+                        errors.views ? "is-invalid" : ""
+                      }`}
+                      value={formData.views}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 100"
+                    />
+                    {errors.views && (
+                      <div className="invalid-feedback">{errors.views}</div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* ADDED: New row for Share and Like */}
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Share</label>
+                    <input
+                      type="number"
+                      name="share"
+                      className={`form-control ${
+                        errors.share ? "is-invalid" : ""
+                      }`}
+                      value={formData.share}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 50"
+                    />
+                    {errors.share && (
+                      <div className="invalid-feedback">{errors.share}</div>
+                    )}
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Like</label>
+                    <input
+                      type="number"
+                      name="like"
+                      className={`form-control ${
+                        errors.like ? "is-invalid" : ""
+                      }`}
+                      value={formData.like}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 200"
+                    />
+                    {errors.like && (
+                      <div className="invalid-feedback">{errors.like}</div>
+                    )}
+                  </div>
+                </div>
+
+
+                <div className="row">
+                  <div className="col-md-6 d-flex align-items-center">
+                    <div className="form-check form-switch fs-5">
                       <input
                         type="checkbox"
                         name="isActive"
@@ -280,6 +356,19 @@ export default function ArticleFormPage() {
                         onChange={handleInputChange}
                       />
                       <label className="form-check-label">is Active</label>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6 d-flex align-items-center">
+                    <div className="form-check form-switch fs-5">
+                      <input
+                        type="checkbox"
+                        name="isFree"
+                        className="form-check-input"
+                        checked={formData.isFree}
+                        onChange={handleInputChange}
+                      />
+                      <label className="form-check-label">is Free</label>
                     </div>
                   </div>
                 </div>
@@ -326,10 +415,10 @@ export default function ArticleFormPage() {
             </div>
 
             {/* --- Buttons --- */}
-            <div className="d-flex justify-content-end gap-2 mt-4">
+            <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-3"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/articles")}
                 disabled={isSaving}
               >
@@ -337,13 +426,13 @@ export default function ArticleFormPage() {
               </button>
               <button
                 type="submit"
-                className="btn btn-primary"
+                className="btn btn-success"
                 disabled={isSaving}
               >
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save mr-2"></i>
+                  <i className="fas fa-save me-2"></i>
                 )}
                 {id ? "Update Article" : "Create Article"}
               </button>

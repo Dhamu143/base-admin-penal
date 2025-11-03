@@ -56,7 +56,7 @@ const dashboardCards = [
     icon: "icon-people",
     valueKey: "slokaCount",
     description: "Sloka",
-    bgClass: "bg-secondary-light",
+    bgClass: "bg-pink-light",
   },
   {
     name: "Temple",
@@ -104,7 +104,7 @@ const dashboardCards = [
     icon: "icon-people",
     valueKey: "quizCount",
     description: "Quiz",
-    bgClass: "bg-secondary-light",
+    bgClass: "bg-pink-light",
   },
   {
     name: "Story",

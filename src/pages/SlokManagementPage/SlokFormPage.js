@@ -33,13 +33,16 @@ export default function SlokFormPage() {
     god: "",
     description: "",
     language: "",
-    image: "", // ADDED: State for sloka image URL
+    image: "",
+    views: "",
+    share: "", // ADDED: State for share
+    like: "", // ADDED: State for like
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // ADDED: Specific state for image upload
+  const [isUploading, setIsUploading] = useState(false);
 
   // --- Effects ---
   useEffect(() => {
@@ -59,7 +62,10 @@ export default function SlokFormPage() {
           god: slok.god?._id || slok.god,
           description: slok.description || "",
           language: slok.language || "",
-          image: slok.image || "", // MODIFIED: Populate image field
+          image: slok.image || "",
+          views: slok.views || "",
+          share: slok.share || "", // MODIFIED: Populate share
+          like: slok.like || "", // MODIFIED: Populate like
         });
       }
     }
@@ -87,14 +93,20 @@ export default function SlokFormPage() {
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(Number(formData.sort)))
       newErrors.sort = "Sort order must be a valid number.";
-    if (!formData.image) newErrors.image = "Sloka image is required."; // ADDED: Validation for image
+    if (!formData.image) newErrors.image = "Sloka image is required.";
+    if (formData.views !== "" && isNaN(Number(formData.views)))
+      newErrors.views = "Views must be a valid number.";
+    // ADDED: Validation for share and like
+    if (formData.share !== "" && isNaN(Number(formData.share)))
+      newErrors.share = "Share count must be a valid number.";
+    if (formData.like !== "" && isNaN(Number(formData.like)))
+      newErrors.like = "Like count must be a valid number.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   // --- Handlers ---
 
-  // ADDED: Handler for image upload
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -118,7 +130,7 @@ export default function SlokFormPage() {
 
     setIsSaving(true);
     try {
-      // The formData now includes the 'image' field automatically
+      // The formData now includes 'image', 'views', 'share', 'like'
       const action = id ? updateSlok({ id, ...formData }) : addSlok(formData);
       await dispatch(action).unwrap();
       toast.success(
@@ -258,7 +270,7 @@ export default function SlokFormPage() {
                   )}
                 </div>
 
-                {/* ADDED: Image Upload Section */}
+                {/* Image Upload Section */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Sloka Image <span className="text-danger">*</span>
@@ -292,9 +304,9 @@ export default function SlokFormPage() {
                   )}
                 </div>
 
-                {/* MOVED & MODIFIED: For layout consistency */}
+                {/* MODIFIED: Row for Sort, Views, Share, Like */}
                 <div className="row">
-                  <div className="col-md-4 mb-3">
+                  <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
                       Sort Order <span className="text-danger">*</span>
                     </label>
@@ -311,7 +323,64 @@ export default function SlokFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-                  <div className="col-md-4 d-flex align-items-center justify-content-start pt-3">
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Views</label>
+                    <input
+                      type="number"
+                      name="views"
+                      className={`form-control ${
+                        errors.views ? "is-invalid" : ""
+                      }`}
+                      value={formData.views}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 100"
+                    />
+                    {errors.views && (
+                      <div className="invalid-feedback">{errors.views}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ADDED: New row for Share and Like */}
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Share</label>
+                    <input
+                      type="number"
+                      name="share"
+                      className={`form-control ${
+                        errors.share ? "is-invalid" : ""
+                      }`}
+                      value={formData.share}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 50"
+                    />
+                    {errors.share && (
+                      <div className="invalid-feedback">{errors.share}</div>
+                    )}
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Like</label>
+                    <input
+                      type="number"
+                      name="like"
+                      className={`form-control ${
+                        errors.like ? "is-invalid" : ""
+                      }`}
+                      value={formData.like}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 200"
+                    />
+                    {errors.like && (
+                      <div className="invalid-feedback">{errors.like}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6 d-flex align-items-center">
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -321,10 +390,10 @@ export default function SlokFormPage() {
                         checked={formData.isFree}
                         onChange={handleFormChange}
                       />
-                      <label className="form-check-label">Free</label>
+                      <label className="form-check-label">is Free</label>
                     </div>
                   </div>
-                  <div className="col-md-4 d-flex align-items-center justify-content-start pt-3">
+                  <div className="col-md-6 d-flex align-items-center">
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -334,7 +403,7 @@ export default function SlokFormPage() {
                         checked={formData.isActive}
                         onChange={handleFormChange}
                       />
-                      <label className="form-check-label">Active</label>
+                      <label className="form-check-label">is Active</label>
                     </div>
                   </div>
                 </div>
@@ -367,14 +436,14 @@ export default function SlokFormPage() {
                 type="button"
                 className="btn btn-outline-secondary"
                 onClick={() => navigate("/sloka")}
-                disabled={isSaving || isUploading} // MODIFIED
+                disabled={isSaving || isUploading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSaving || isUploading} // MODIFIED
+                disabled={isSaving || isUploading}
               >
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>

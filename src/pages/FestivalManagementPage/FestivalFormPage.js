@@ -16,8 +16,9 @@ import {
 } from "../../store/festival/index";
 import { staticLanguages } from "../../constants/languages";
 
-// ADDED: Data for the new State dropdown
+// Data for the State dropdown
 const indianStates = [
+  { value: "All India", label: "All India" },
   { value: "Andhra Pradesh", label: "Andhra Pradesh" },
   { value: "Arunachal Pradesh", label: "Arunachal Pradesh" },
   { value: "Assam", label: "Assam" },
@@ -79,9 +80,9 @@ export default function FestivalFormPage() {
     isActive: true,
     description: "",
     language: "",
-    date: null,
+    date: null, // This will be a Date object or null
     image: "",
-    state: "", // ADDED: State for the selected Indian state
+    state: "",
   });
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -97,15 +98,22 @@ export default function FestivalFormPage() {
     if (id && festivals.length > 0) {
       const festival = festivals.find((f) => f._id === id);
       if (festival) {
+        // safely parse "dd-MM-yyyy" → valid Date
+        let parsedDate = null;
+        if (festival.date) {
+          const [day, month, year] = festival.date.split("-");
+          parsedDate = new Date(`${year}-${month}-${day}`); // ✅ valid
+        }
+
         setFormData({
           name: festival.name || "",
           sort: festival.sort || "",
           isActive: festival.isActive,
           description: festival.description || "",
           language: festival.language?._id || festival.language || "",
-          date: festival.date ? new Date(festival.date) : null,
+          date: parsedDate, // ✅ fixed
           image: festival.image || "",
-          state: festival.state || "", // MODIFIED: Populate state field
+          state: festival.state || "",
         });
       }
     }
@@ -155,7 +163,7 @@ export default function FestivalFormPage() {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Festival name is required.";
     if (!formData.language) newErrors.language = "Please select a language.";
-    if (!formData.state) newErrors.state = "Please select a state."; // ADDED: Validation for state
+    if (!formData.state) newErrors.state = "Please select a state.";
     if (!formData.description.trim())
       newErrors.description = "Description is required.";
     if (!formData.sort || isNaN(formData.sort))
@@ -170,17 +178,28 @@ export default function FestivalFormPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
+    // Helper function to format the date object into "yyyy-MM-dd" string
+    const formatDate = (dateObj) => {
+      if (!dateObj) return null;
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+      const day = String(dateObj.getDate()).padStart(2, "0");
+      return `${day}-${month}-${year}`;
+    };
+
     setIsSaving(true);
     try {
       const payload = {
         ...formData,
-        date: formData.date ? formData.date.toISOString() : null,
+        date: formatDate(formData.date), // Use the formatting function before sending
       };
-      // formData now includes the 'state' field, so it's sent automatically
+
       const action = id
         ? updateFestival({ id, ...payload })
         : addFestival(payload);
+
       await dispatch(action).unwrap();
+
       toast.success(
         id ? "Festival updated successfully!" : "Festival added successfully!"
       );
@@ -251,7 +270,7 @@ export default function FestivalFormPage() {
                     onChange={(date) =>
                       setFormData((prev) => ({ ...prev, date }))
                     }
-                    dateFormat="yyyy-MM-dd"
+                    dateFormat="dd-MM-yyyy"
                     className={`form-control ${
                       errors.date ? "is-invalid" : ""
                     }`}
@@ -291,7 +310,7 @@ export default function FestivalFormPage() {
                   )}
                 </div>
 
-                {/* ADDED: State Dropdown */}
+                {/* State Dropdown */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     State <span className="text-danger">*</span>

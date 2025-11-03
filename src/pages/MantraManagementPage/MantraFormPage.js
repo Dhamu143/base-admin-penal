@@ -36,13 +36,16 @@ export default function MantraFormPage() {
     god: "",
     description: "",
     language: "",
-    image: "", // ADDED: State for mantra image URL
+    image: "",
+    views: "",
+    share: "", // ADDED: State for share
+    like: "", // ADDED: State for like
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // ADDED: Specific state for image upload
+  const [isUploading, setIsUploading] = useState(false);
 
   // --- Effects ---
 
@@ -64,7 +67,10 @@ export default function MantraFormPage() {
           god: mantra.god?._id || mantra.god,
           description: mantra.description || "",
           language: mantra.language,
-          image: mantra.image || "", // MODIFIED: Populate image field
+          image: mantra.image || "",
+          views: mantra.views || "",
+          share: mantra.share || "", // MODIFIED: Populate share
+          like: mantra.like || "", // MODIFIED: Populate like
         });
       }
     }
@@ -92,14 +98,20 @@ export default function MantraFormPage() {
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(formData.sort))
       newErrors.sort = "Sort order must be a valid number.";
-    if (!formData.image) newErrors.image = "Mantra image is required."; // ADDED: Validation for image
+    if (!formData.image) newErrors.image = "Mantra image is required.";
+    if (formData.views !== "" && isNaN(Number(formData.views)))
+      newErrors.views = "Views must be a valid number.";
+    // ADDED: Validation for share and like
+    if (formData.share !== "" && isNaN(Number(formData.share)))
+      newErrors.share = "Share count must be a valid number.";
+    if (formData.like !== "" && isNaN(Number(formData.like)))
+      newErrors.like = "Like count must be a valid number.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   // --- Event Handlers ---
 
-  // ADDED: Handler for image upload
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -123,7 +135,7 @@ export default function MantraFormPage() {
 
     setIsSaving(true);
     try {
-      // The formData now includes the 'image' field automatically
+      // The formData now includes 'image', 'views', 'share', 'like'
       const payload = { ...formData };
       const action = id ? updateMantra({ id, ...payload }) : addMantra(payload);
 
@@ -264,7 +276,7 @@ export default function MantraFormPage() {
                   )}
                 </div>
 
-                {/* ADDED: Image Upload Section */}
+                {/* Image Upload Section */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Mantra Image <span className="text-danger">*</span>
@@ -298,7 +310,7 @@ export default function MantraFormPage() {
                   )}
                 </div>
 
-                {/* MODIFIED: Wrapped in a row for proper alignment */}
+                {/* MODIFIED: Row for Sort and Views */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -317,7 +329,64 @@ export default function MantraFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-                  <div className="col-md-6 d-flex align-items-center">
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Views</label>
+                    <input
+                      type="number"
+                      name="views"
+                      className={`form-control ${
+                        errors.views ? "is-invalid" : ""
+                      }`}
+                      value={formData.views}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 100"
+                    />
+                    {errors.views && (
+                      <div className="invalid-feedback">{errors.views}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ADDED: New row for Share and Like */}
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Share</label>
+                    <input
+                      type="number"
+                      name="share"
+                      className={`form-control ${
+                        errors.share ? "is-invalid" : ""
+                      }`}
+                      value={formData.share}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 50"
+                    />
+                    {errors.share && (
+                      <div className="invalid-feedback">{errors.share}</div>
+                    )}
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Like</label>
+                    <input
+                      type="number"
+                      name="like"
+                      className={`form-control ${
+                        errors.like ? "is-invalid" : ""
+                      }`}
+                      value={formData.like}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 200"
+                    />
+                    {errors.like && (
+                      <div className="invalid-feedback">{errors.like}</div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="row">
+                  <div className="col-md-12 mb-3">
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -360,14 +429,14 @@ export default function MantraFormPage() {
                 type="button"
                 className="btn btn-outline-secondary"
                 onClick={() => navigate("/mantra")}
-                disabled={isSaving || isUploading} // MODIFIED
+                disabled={isSaving || isUploading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSaving || isUploading} // MODIFIED
+                disabled={isSaving || isUploading}
               >
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>

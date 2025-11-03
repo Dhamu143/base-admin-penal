@@ -9,6 +9,9 @@ import { fetchQuizzes, addQuiz, updateQuiz } from "../../store/quiz";
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 
+// --- ADDED --- Import the upload service
+import { uploadImage } from "../../services/uploadService";
+
 export default function QuizFormPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -34,6 +37,7 @@ export default function QuizFormPage() {
     language: "",
     god: "",
     isActive: true,
+    files: "", // --- ADDED --- State for the image URL
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
@@ -48,7 +52,7 @@ export default function QuizFormPage() {
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [quizStatus, godStatus, dispatch]);
 
-  // Populates the form for editing and filters the god list simultaneously
+  // Populates the form for editing
   useEffect(() => {
     if (id && quizzes.length > 0 && allGods.length > 0) {
       const quiz = quizzes.find((q) => q._id === id);
@@ -64,6 +68,7 @@ export default function QuizFormPage() {
           language: quiz.language,
           god: quiz.god?._id || quiz.god,
           isActive: quiz.isActive !== undefined ? quiz.isActive : true,
+          files: quiz.files || "", // --- ADDED --- Populate existing image
         });
 
         const godsByLang = allGods.filter((g) => g.language === quiz.language);
@@ -79,8 +84,6 @@ export default function QuizFormPage() {
       question,
       option1,
       option2,
-      option3,
-      option4,
       correctanswer,
       language,
       god,
@@ -89,10 +92,6 @@ export default function QuizFormPage() {
     if (!question.trim()) newErrors.question = "Question is required.";
     if (!option1.trim()) newErrors.option1 = "Option 1 is required.";
     if (!option2.trim()) newErrors.option2 = "Option 2 is required.";
-    if (!option3.trim()) newErrors.option3 = "Option 3 is required.";
-    if (!option4.trim()) newErrors.option4 = "Option 4 is required.";
-
-    // Options 3 and 4 are now optional
     if (!correctanswer)
       newErrors.correctanswer = "Please select a correct answer.";
     if (!language) newErrors.language = "Language is required.";
@@ -102,6 +101,22 @@ export default function QuizFormPage() {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // --- ADDED --- Event Handler for Image Upload
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsSaving(true);
+    try {
+      const uploadedUrl = await uploadImage(file);
+      setFormData((prev) => ({ ...prev, files: uploadedUrl }));
+      toast.success("Image uploaded!");
+    } catch {
+      toast.error("Image upload failed.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // --- Form Submission ---
@@ -117,20 +132,17 @@ export default function QuizFormPage() {
         formData.option2,
         formData.option3,
         formData.option4,
-      ].filter((opt) => opt && opt.trim() !== ""), // Filter out empty strings
+      ].filter((opt) => opt && opt.trim() !== ""),
       correctanswer: formData.correctanswer,
       sort: Number(formData.sort),
       language: formData.language,
       god: formData.god,
       isActive: formData.isActive,
+      files: formData.files, // --- ADDED --- Include image URL in payload
     };
 
     try {
-      // ✨ THIS IS THE FIX ✨
-      // The updateQuiz action from your slice expects the payload to be inside a 'data' object.
-      const action = id
-        ? updateQuiz({ id, data: payload }) // Correctly wrap the payload in 'data' for updates
-        : addQuiz(payload); // addQuiz does not need the 'data' wrapper based on your slice
+      const action = id ? updateQuiz({ id, data: payload }) : addQuiz(payload);
 
       await dispatch(action).unwrap();
       toast.success(
@@ -143,6 +155,8 @@ export default function QuizFormPage() {
       setIsSaving(false);
     }
   };
+
+  // --- Other handlers (handleFormChange, handleSelectChange, etc.) remain the same ---
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -181,7 +195,6 @@ export default function QuizFormPage() {
     });
   };
 
-  // Helper function for react-select
   const getSelectedOption = (options, id) => {
     if (!id || !options) return null;
     return options.find((item) => item.value === id) || null;
@@ -244,6 +257,27 @@ export default function QuizFormPage() {
                 <div className="invalid-feedback">{errors.question}</div>
               )}
             </div>
+
+            {/* --- ADDED --- Image Upload Field */}
+            <div className="mb-3">
+              <label className="form-label fw-bold">Question Image</label>
+              <input
+                type="file"
+                className="form-control"
+                onChange={handleImageUpload}
+                accept="image/*"
+                disabled={isSaving}
+              />
+              {formData.files && (
+                <img
+                  src={formData.files}
+                  alt="Preview"
+                  className="img-fluid rounded mt-2"
+                  style={{ maxHeight: "150px" }}
+                />
+              )}
+            </div>
+
             <div className="row">
               <div className="col-md-6 mb-3">
                 <label className="form-label fw-bold">

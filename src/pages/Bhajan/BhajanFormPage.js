@@ -36,13 +36,16 @@ export default function BhajanFormPage() {
     god: "",
     description: "",
     language: "",
-    image: "", // ADDED: State for bhajan image URL
+    image: "",
+    views: "",
+    share: "", // ADDED: State for share
+    like: "", // ADDED: State for like
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // ADDED: Specific state for image upload
+  const [isUploading, setIsUploading] = useState(false);
 
   // --- Effects ---
 
@@ -64,7 +67,10 @@ export default function BhajanFormPage() {
           god: bhajan.god?._id || bhajan.god,
           description: bhajan.description || "",
           language: bhajan.language,
-          image: bhajan.image || "", // MODIFIED: Populate image field
+          image: bhajan.image || "",
+          views: bhajan.views || "",
+          share: bhajan.share || "", // MODIFIED: Populate share
+          like: bhajan.like || "", // MODIFIED: Populate like
         });
       }
     }
@@ -92,14 +98,20 @@ export default function BhajanFormPage() {
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(Number(formData.sort)))
       newErrors.sort = "Sort order must be a valid number.";
-    if (!formData.image) newErrors.image = "Bhajan image is required."; // ADDED: Validation for image
+    if (!formData.image) newErrors.image = "Bhajan image is required.";
+    if (formData.views !== "" && isNaN(Number(formData.views)))
+      newErrors.views = "Views must be a valid number.";
+    // ADDED: Validation for share and like
+    if (formData.share !== "" && isNaN(Number(formData.share)))
+      newErrors.share = "Share count must be a valid number.";
+    if (formData.like !== "" && isNaN(Number(formData.like)))
+      newErrors.like = "Like count must be a valid number.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   // --- Event Handlers ---
 
-  // ADDED: Handler for image upload
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -123,7 +135,7 @@ export default function BhajanFormPage() {
 
     setIsSaving(true);
     try {
-      // formData now includes the image URL automatically
+      // formData now includes image, views, share, and like
       const action = id
         ? updateBhajan({ id, ...formData })
         : addBhajan(formData);
@@ -264,7 +276,7 @@ export default function BhajanFormPage() {
                   )}
                 </div>
 
-                {/* ADDED: Image Upload Section */}
+                {/* Image Upload Section */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Bhajan Image <span className="text-danger">*</span>
@@ -298,7 +310,7 @@ export default function BhajanFormPage() {
                   )}
                 </div>
 
-                {/* MODIFIED: Wrapped in a row for proper alignment */}
+                {/* MODIFIED: Row for Sort and Views */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -317,7 +329,64 @@ export default function BhajanFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-                  <div className="col-md-6 d-flex align-items-center">
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Views</label>
+                    <input
+                      type="number"
+                      name="views"
+                      className={`form-control ${
+                        errors.views ? "is-invalid" : ""
+                      }`}
+                      value={formData.views}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 100"
+                    />
+                    {errors.views && (
+                      <div className="invalid-feedback">{errors.views}</div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* ADDED: New row for Share and Like */}
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Share</label>
+                    <input
+                      type="number"
+                      name="share"
+                      className={`form-control ${
+                        errors.share ? "is-invalid" : ""
+                      }`}
+                      value={formData.share}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 50"
+                    />
+                    {errors.share && (
+                      <div className="invalid-feedback">{errors.share}</div>
+                    )}
+                  </div>
+
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Like</label>
+                    <input
+                      type="number"
+                      name="like"
+                      className={`form-control ${
+                        errors.like ? "is-invalid" : ""
+                      }`}
+                      value={formData.like}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 200"
+                    />
+                    {errors.like && (
+                      <div className="invalid-feedback">{errors.like}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-12 mb-3">
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -360,14 +429,14 @@ export default function BhajanFormPage() {
                 type="button"
                 className="btn btn-outline-secondary"
                 onClick={() => navigate("/bhajan")}
-                disabled={isSaving || isUploading} // MODIFIED
+                disabled={isSaving || isUploading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isSaving || isUploading} // MODIFIED
+                disabled={isSaving || isUploading}
               >
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>

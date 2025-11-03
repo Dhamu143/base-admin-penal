@@ -36,12 +36,15 @@ export default function AartiFormPage() {
     language: "",
     god: "",
     description: "",
-    image: "", // ADDED: State for aarti image URL
+    image: "",
+    views: "",
+    share: "", // ADDED: State for share
+    like: "", // ADDED: State for like
   });
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // ADDED: Specific state for image upload
+  const [isUploading, setIsUploading] = useState(false);
 
   // Fetch gods once
   useEffect(() => {
@@ -64,7 +67,10 @@ export default function AartiFormPage() {
         language: aarti.language || "",
         god: aarti.god?._id || aarti.god || "",
         description: aarti.description || "",
-        image: aarti.image || "", // MODIFIED: Populate image field
+        image: aarti.image || "",
+        views: aarti.views || "",
+        share: aarti.share || "", // MODIFIED: Populate share
+        like: aarti.like || "", // MODIFIED: Populate like
       });
     } else if (detailsStatus !== "loading") {
       dispatch(fetchAartiById(id));
@@ -98,7 +104,6 @@ export default function AartiFormPage() {
     }
   };
 
-  // ADDED: Handler for image upload
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -134,7 +139,14 @@ export default function AartiFormPage() {
       newErrors.description = "Description / Content is required.";
     if (formData.sort === "" || isNaN(formData.sort))
       newErrors.sort = "Sort order must be a valid number.";
-    if (!formData.image) newErrors.image = "Aarti image is required."; // ADDED: Validation for image
+    if (formData.views !== "" && isNaN(formData.views))
+      newErrors.views = "Views must be a valid number.";
+    // ADDED: Validation for share and like
+    if (formData.share !== "" && isNaN(formData.share))
+      newErrors.share = "Share count must be a valid number.";
+    if (formData.like !== "" && isNaN(formData.like))
+      newErrors.like = "Like count must be a valid number.";
+    if (!formData.image) newErrors.image = "Aarti image is required.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -145,7 +157,7 @@ export default function AartiFormPage() {
 
     setIsSaving(true);
     try {
-      // The formData now includes the 'image' field automatically
+      // The formData now includes 'image', 'views', 'share', and 'like'
       const action = id ? updateAarti({ id, ...formData }) : addAarti(formData);
       await dispatch(action).unwrap();
       toast.success(`Aarti ${id ? "updated" : "created"} successfully!`);
@@ -292,7 +304,7 @@ export default function AartiFormPage() {
                   )}
                 </div>
 
-                {/* ADDED: Image Upload Section */}
+                {/* Image Upload Section */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Aarti Image <span className="text-danger">*</span>
@@ -326,8 +338,9 @@ export default function AartiFormPage() {
                   )}
                 </div>
 
-                {/* MODIFIED: Corrected layout by wrapping row */}
+                {/* MODIFIED: Row for Sort and Views */}
                 <div className="row">
+                  {/* Sort Order */}
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
                       Sort Order <span className="text-danger">*</span>
@@ -345,7 +358,68 @@ export default function AartiFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-                  <div className="col-md-6 d-flex align-items-center">
+
+                  {/* Views Field */}
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Views</label>
+                    <input
+                      type="number"
+                      name="views"
+                      className={`form-control ${
+                        errors.views ? "is-invalid" : ""
+                      }`}
+                      value={formData.views}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 100"
+                    />
+                    {errors.views && (
+                      <div className="invalid-feedback">{errors.views}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ADDED: New row for Share and Like */}
+                <div className="row">
+                  {/* Share Field */}
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Share</label>
+                    <input
+                      type="number"
+                      name="share"
+                      className={`form-control ${
+                        errors.share ? "is-invalid" : ""
+                      }`}
+                      value={formData.share}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 50"
+                    />
+                    {errors.share && (
+                      <div className="invalid-feedback">{errors.share}</div>
+                    )}
+                  </div>
+
+                  {/* Like Field */}
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Like</label>
+                    <input
+                      type="number"
+                      name="like"
+                      className={`form-control ${
+                        errors.like ? "is-invalid" : ""
+                      }`}
+                      value={formData.like}
+                      onChange={handleFormChange}
+                      placeholder="e.g., 200"
+                    />
+                    {errors.like && (
+                      <div className="invalid-feedback">{errors.like}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* is Active - Moved to its own row for clarity */}
+                <div className="row">
+                  <div className="col-md-12 mb-3">
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -383,14 +457,14 @@ export default function AartiFormPage() {
                 type="button"
                 className="btn btn-outline-secondary"
                 onClick={() => navigate("/aarti")}
-                disabled={isSaving || isUploading} // MODIFIED
+                disabled={isSaving || isUploading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-success"
-                disabled={isSaving || isUploading} // MODIFIED
+                disabled={isSaving || isUploading}
               >
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
