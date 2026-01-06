@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API_URL = process.env.REACT_APP_API_URL;
-
+// const API_URL = "http://192.168.1.200:3001/api";
 // Create a custom event for loading state
 const LOADING_EVENT = "api-loading-state";
 

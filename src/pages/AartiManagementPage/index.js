@@ -4,12 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-// --- Redux Actions ---
 import { fetchAartis, deleteAarti } from "../../store/aarti/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
-// --- Common Components ---
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";

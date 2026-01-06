@@ -4,9 +4,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
-import { uploadImage } from "../../services/uploadService"; // ADDED: Image upload service
+import { uploadImage } from "../../services/uploadService";
 
-// --- Actions ---
 import {
   fetchBhajans,
   addBhajan,
@@ -20,7 +19,6 @@ export default function BhajanFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // --- Redux State ---
   const { list: bhajans, status: bhajanStatus } = useSelector(
     (state) => state.bhajans
   );
@@ -28,7 +26,6 @@ export default function BhajanFormPage() {
     (state) => state.God
   );
 
-  // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
@@ -38,8 +35,8 @@ export default function BhajanFormPage() {
     language: "",
     image: "",
     views: "",
-    share: "", // ADDED: State for share
-    like: "", // ADDED: State for like
+    share: "",
+    like: "",
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
@@ -47,15 +44,11 @@ export default function BhajanFormPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // --- Effects ---
-
-  // Effect for fetching initial data
   useEffect(() => {
     if (bhajanStatus === "idle") dispatch(fetchBhajans());
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [bhajanStatus, godStatus, dispatch]);
 
-  // Effect for populating form data when editing
   useEffect(() => {
     if (id && bhajans.length > 0) {
       const bhajan = bhajans.find((b) => b._id === id);
@@ -69,14 +62,13 @@ export default function BhajanFormPage() {
           language: bhajan.language,
           image: bhajan.image || "",
           views: bhajan.views || "",
-          share: bhajan.share || "", // MODIFIED: Populate share
-          like: bhajan.like || "", // MODIFIED: Populate like
+          share: bhajan.share || "",
+          like: bhajan.like || "",
         });
       }
     }
   }, [id, bhajans]);
 
-  // Filters God list based on selected language
   useEffect(() => {
     if (formData.language && Array.isArray(allGods)) {
       const godsByLang = allGods.filter(
@@ -88,7 +80,6 @@ export default function BhajanFormPage() {
     }
   }, [formData.language, allGods]);
 
-  // --- Validation ---
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Bhajan name is required.";
@@ -101,7 +92,6 @@ export default function BhajanFormPage() {
     if (!formData.image) newErrors.image = "Bhajan image is required.";
     if (formData.views !== "" && isNaN(Number(formData.views)))
       newErrors.views = "Views must be a valid number.";
-    // ADDED: Validation for share and like
     if (formData.share !== "" && isNaN(Number(formData.share)))
       newErrors.share = "Share count must be a valid number.";
     if (formData.like !== "" && isNaN(Number(formData.like)))
@@ -109,8 +99,6 @@ export default function BhajanFormPage() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  // --- Event Handlers ---
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -120,7 +108,7 @@ export default function BhajanFormPage() {
     try {
       const uploadedUrl = await uploadImage(file);
       setFormData((prev) => ({ ...prev, image: uploadedUrl }));
-      setErrors((prev) => ({ ...prev, image: null })); // Clear image error
+      setErrors((prev) => ({ ...prev, image: null }));
       toast.success("Image uploaded successfully!");
     } catch (err) {
       toast.error("Image upload failed. Please try again.");
@@ -135,10 +123,16 @@ export default function BhajanFormPage() {
 
     setIsSaving(true);
     try {
-      // formData now includes image, views, share, and like
-      const action = id
-        ? updateBhajan({ id, ...formData })
-        : addBhajan(formData);
+      const payload = {
+        ...formData,
+        sort: Number(formData.sort) || 0,
+        views: Number(formData.views) || 0,
+        share: Number(formData.share) || 0,
+        like: Number(formData.like) || 0,
+      };
+
+      const action = id ? updateBhajan({ id, ...payload }) : addBhajan(payload);
+
       await dispatch(action).unwrap();
       toast.success(
         id ? "Bhajan updated successfully!" : "Bhajan added successfully!"
@@ -347,7 +341,7 @@ export default function BhajanFormPage() {
                     )}
                   </div>
                 </div>
-                
+
                 {/* ADDED: New row for Share and Like */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
@@ -427,7 +421,7 @@ export default function BhajanFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-2 "
                 onClick={() => navigate("/bhajan")}
                 disabled={isSaving || isUploading}
               >

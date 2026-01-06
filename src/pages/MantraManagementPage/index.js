@@ -4,12 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-// --- Redux Actions ---
 import { fetchMantras, deleteMantra } from "../../store/mantra/index";
-// ✨ NEW: Added import to fetch the list of Gods for the filter
 import { fetchAllGods } from "../../store/god";
 
-// --- Reusable Components & Data ---
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
@@ -41,7 +38,6 @@ export default function MantraListPage() {
   const { list: mantras, pagination, status, error } = useSelector(
     (state) => state.mantras
   );
-  // ✨ NEW: Selecting God list and status for the new filter
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -49,23 +45,19 @@ export default function MantraListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [mantraToDelete, setMantraToDelete] = useState(null);
 
-  // 🔄 MODIFIED: Centralized filters state now includes 'god' and 'page'.
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
-  const itemsPerPage = 10; // You can adjust this value
+  const itemsPerPage = 10; 
 
-  // 🔄 MODIFIED: loadMantras now reads from the unified 'filters' state.
   const loadMantras = useCallback(() => {
     dispatch(fetchMantras({ ...filters, limit: itemsPerPage }))
       .unwrap()
       .catch((err) => toast.error(err?.message || "Failed to load mantras."));
   }, [dispatch, filters, itemsPerPage]);
 
-  // 🔄 MODIFIED: This useEffect now handles all data loading based on filter changes.
   useEffect(() => {
     loadMantras();
   }, [loadMantras]);
 
-  // ✨ NEW: This useEffect fetches the master list of gods, but only once.
   useEffect(() => {
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
@@ -76,13 +68,11 @@ export default function MantraListPage() {
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
 
 
-  // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect handles fetching.
   const handleLanguageChange = (option) => {
     const value = option?.value || "";
     setFilters((prev) => ({ ...prev, language: value, page: 1 }));
   };
 
-  // ✨ NEW: Handler for the new God filter.
   const handleGodChange = (option) => {
     const value = option?.value || "";
     setFilters((prev) => ({ ...prev, god: value, page: 1 }));
@@ -98,7 +88,6 @@ export default function MantraListPage() {
     }
   };
 
-  // 🔄 MODIFIED: Deletion logic now correctly reloads or navigates pages.
   const confirmDelete = async () => {
     if (!mantraToDelete) return;
     setIsDeleting(true);
@@ -119,7 +108,6 @@ export default function MantraListPage() {
     }
   };
 
-  // ✨ NEW: Options for the God filter dropdown.
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
@@ -128,7 +116,6 @@ export default function MantraListPage() {
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
-  // ✨ NEW: Find the currently selected god option.
   const selectedGod = godOptions.find((opt) => opt.value === filters.god);
 
   return (
@@ -150,7 +137,6 @@ export default function MantraListPage() {
           </button>
         </div>
 
-        {/* 🔄 MODIFIED: Filter section with new God filter and consistent layout */}
         <div className="card-body border-bottom">
           <div className="d-flex flex-column flex-md-row align-items-md-center">
             <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
@@ -167,7 +153,6 @@ export default function MantraListPage() {
               />
             </div>
 
-            {/* ✨ NEW: God Filter Select component */}
             <div className="ml-4" style={{ minWidth: "250px" }}>
               <label className="form-label fw-bold small mb-1">
                 Filter by God
@@ -228,7 +213,6 @@ export default function MantraListPage() {
                       >
                         {mantra.name}
                       </td>
-                      {/* 🔄 MODIFIED: Using helper function to get God name */}
                       <td>{mantra.god.name}</td>
                       <td>{getLanguageNameById(mantra.language)}</td>
                       <td
@@ -275,7 +259,6 @@ export default function MantraListPage() {
           </div>
         </div>
 
-        {/* 🔄 MODIFIED: Pagination now reads from the unified filters state */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination

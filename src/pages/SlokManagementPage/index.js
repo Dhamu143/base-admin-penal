@@ -3,10 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-
-// --- Redux Actions & Components ---
 import { fetchSloks, deleteSlok } from "../../store/sloks/index";
-// ✨ NEW: Import action to fetch gods
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -28,7 +25,6 @@ export default function SlokListPage() {
   const { list: sloks, pagination, status, error } = useSelector(
     (state) => state.sloks
   );
-  // ✨ NEW: Selecting God list and status for the new filter
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -36,23 +32,19 @@ export default function SlokListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [slokToDelete, setSlokToDelete] = useState(null);
 
-  // 🔄 MODIFIED: Centralized filters state now includes 'god' and 'page'.
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
-  const itemsPerPage = 10; // You can adjust this value
+  const itemsPerPage = 10; 
 
-  // 🔄 MODIFIED: loadSloks now reads from the unified 'filters' state.
   const loadSloks = useCallback(() => {
     dispatch(fetchSloks({ ...filters, limit: itemsPerPage }))
       .unwrap()
       .catch((err) => toast.error(err?.message || "Failed to load slokas."));
   }, [dispatch, filters, itemsPerPage]);
 
-  // 🔄 MODIFIED: This useEffect now handles all data loading based on filter changes.
   useEffect(() => {
     loadSloks();
   }, [loadSloks]);
 
-  // ✨ NEW: This useEffect fetches the master list of gods, but only once.
   useEffect(() => {
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
@@ -62,13 +54,11 @@ export default function SlokListPage() {
   const getLanguageNameById = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.language || "N/A";
 
-  // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect handles fetching.
   const handleLanguageChange = (option) => {
     const value = option?.value || "";
     setFilters((prev) => ({ ...prev, language: value, page: 1 }));
   };
 
-  // ✨ NEW: Handler for the new God filter.
   const handleGodChange = (option) => {
     const value = option?.value || "";
     setFilters((prev) => ({ ...prev, god: value, page: 1 }));
@@ -84,7 +74,6 @@ export default function SlokListPage() {
     }
   };
 
-  // 🔄 MODIFIED: Deletion logic now correctly reloads or navigates pages.
   const confirmDelete = async () => {
     if (!slokToDelete) return;
     setIsDeleting(true);
@@ -105,7 +94,6 @@ export default function SlokListPage() {
     }
   };
 
-  // ✨ NEW: Options for the God filter dropdown.
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
@@ -114,7 +102,6 @@ export default function SlokListPage() {
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
-  // ✨ NEW: Find the currently selected god option.
   const selectedGod = godOptions.find((opt) => opt.value === filters.god);
 
   return (
@@ -138,7 +125,6 @@ export default function SlokListPage() {
           </button>
         </div>
 
-        {/* 🔄 MODIFIED: Filter section with new God filter and consistent layout */}
         <div className="card-body border-bottom">
           <div className="d-flex flex-column flex-md-row align-items-md-center">
             <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
@@ -155,7 +141,6 @@ export default function SlokListPage() {
               />
             </div>
 
-            {/* ✨ NEW: God Filter Select component */}
             <div className="ml-4" style={{ minWidth: "250px" }}>
               <label className="form-label fw-bold small mb-1">
                 Filter by God
@@ -256,7 +241,6 @@ export default function SlokListPage() {
           </div>
         </div>
 
-        {/* 🔄 MODIFIED: Pagination now reads from the unified filters state */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination

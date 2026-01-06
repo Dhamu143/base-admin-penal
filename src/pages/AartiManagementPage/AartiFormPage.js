@@ -20,7 +20,6 @@ export default function AartiFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // Redux state
   const { currentAarti, detailsStatus, error, list } = useSelector(
     (state) => state.aartis
   );
@@ -28,7 +27,6 @@ export default function AartiFormPage() {
     (state) => state.God
   );
 
-  // Component state
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
@@ -38,20 +36,18 @@ export default function AartiFormPage() {
     description: "",
     image: "",
     views: "",
-    share: "", // ADDED: State for share
-    like: "", // ADDED: State for like
+    share: "", 
+    like: "", 
   });
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Fetch gods once
   useEffect(() => {
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [godStatus, dispatch]);
 
-  // Initialize form for edit
   useEffect(() => {
     if (!id) {
       dispatch(clearCurrentAarti());
@@ -69,8 +65,8 @@ export default function AartiFormPage() {
         description: aarti.description || "",
         image: aarti.image || "",
         views: aarti.views || "",
-        share: aarti.share || "", // MODIFIED: Populate share
-        like: aarti.like || "", // MODIFIED: Populate like
+        share: aarti.share || "",
+        like: aarti.like || "",
       });
     } else if (detailsStatus !== "loading") {
       dispatch(fetchAartiById(id));
@@ -81,7 +77,6 @@ export default function AartiFormPage() {
     };
   }, [id, currentAarti, list, dispatch, detailsStatus]);
 
-  // Filter gods by selected language
   useEffect(() => {
     if (formData.language && allGods.length > 0) {
       setFilteredGods(
@@ -92,7 +87,6 @@ export default function AartiFormPage() {
     }
   }, [formData.language, allGods]);
 
-  // Handlers
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -112,7 +106,7 @@ export default function AartiFormPage() {
     try {
       const uploadedUrl = await uploadImage(file);
       setFormData((prev) => ({ ...prev, image: uploadedUrl }));
-      setErrors((prev) => ({ ...prev, image: null })); // Clear image error
+      setErrors((prev) => ({ ...prev, image: null }));
       toast.success("Image uploaded successfully!");
     } catch (err) {
       toast.error("Image upload failed. Please try again.");
@@ -141,7 +135,6 @@ export default function AartiFormPage() {
       newErrors.sort = "Sort order must be a valid number.";
     if (formData.views !== "" && isNaN(formData.views))
       newErrors.views = "Views must be a valid number.";
-    // ADDED: Validation for share and like
     if (formData.share !== "" && isNaN(formData.share))
       newErrors.share = "Share count must be a valid number.";
     if (formData.like !== "" && isNaN(formData.like))
@@ -151,14 +144,22 @@ export default function AartiFormPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSaving(true);
     try {
-      // The formData now includes 'image', 'views', 'share', and 'like'
-      const action = id ? updateAarti({ id, ...formData }) : addAarti(formData);
+      const payload = {
+        ...formData,
+        sort: Number(formData.sort) || 0,
+        views: Number(formData.views) || 0,
+        share: Number(formData.share) || 0,
+        like: Number(formData.like) || 0,
+      };
+
+      const action = id ? updateAarti({ id, ...payload }) : addAarti(payload);
       await dispatch(action).unwrap();
       toast.success(`Aarti ${id ? "updated" : "created"} successfully!`);
       navigate("/aarti");

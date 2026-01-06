@@ -47,12 +47,6 @@ export default function GodTablePage() {
   const getLanguageNameById = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.nativeName || "N/A";
 
-  // --- Fetch master list of gods for dropdowns
-  // useEffect(() => {
-  //   if (masterStatus === "idle") dispatch(fetchAllGods());
-  // }, [dispatch, masterStatus]);
-
-  // --- Function to fetch paginated gods
   const loadGods = useCallback(
     (page = 1) => {
       dispatch(
@@ -68,12 +62,10 @@ export default function GodTablePage() {
     [dispatch, filters.language]
   );
 
-  // --- Load first page or on filter change
   useEffect(() => {
     loadGods(1);
   }, [loadGods]);
 
-  // --- Filter handlers
   const handleLanguageChange = (option) => {
     setFilters({ language: option?.value || "" });
     loadGods(1);
@@ -84,7 +76,6 @@ export default function GodTablePage() {
     loadGods(1);
   };
 
-  // --- Delete handler
   const handleDelete = async () => {
     if (!godToDelete) return;
     setIsDeleting(true);
@@ -92,7 +83,6 @@ export default function GodTablePage() {
       await dispatch(deleteGod(godToDelete._id)).unwrap();
       toast.success("God deleted successfully.");
 
-      // Adjust page if last item on page deleted
       const pageToFetch =
         gods.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
       loadGods(pageToFetch);
@@ -107,7 +97,6 @@ export default function GodTablePage() {
 
   return (
     <div className="card shadow-sm">
-      {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">✨ God Management</h4>
         <button
@@ -118,7 +107,6 @@ export default function GodTablePage() {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="card-body border-bottom d-flex gap-3 align-items-center">
         <div style={{ minWidth: "300px" }}>
           <Select
@@ -140,7 +128,6 @@ export default function GodTablePage() {
         </button>
       </div>
 
-      {/* Table */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle">
@@ -203,7 +190,6 @@ export default function GodTablePage() {
         </div>
       </div>
 
-      {/* Pagination */}
       {totalItems > itemsPerPage && (
         <div className="card-footer">
           <CustomPagination
@@ -216,7 +202,6 @@ export default function GodTablePage() {
         </div>
       )}
 
-      {/* Delete Confirmation */}
       <ConfirmationModal
         show={godToDelete !== null}
         onClose={() => setGodToDelete(null)}

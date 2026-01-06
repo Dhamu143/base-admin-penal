@@ -4,9 +4,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 import { toast } from "react-toastify";
-import { uploadImage } from "../../services/uploadService"; // ADDED: Image upload service
+import { uploadImage } from "../../services/uploadService";
 
-// --- Actions ---
 import { fetchStutis, addStuti, updateStuti } from "../../store/stuti/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
@@ -16,7 +15,6 @@ export default function StutiFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // --- Redux State ---
   const { list: stutis, status: stutiStatus } = useSelector(
     (state) => state.stuti
   );
@@ -24,7 +22,6 @@ export default function StutiFormPage() {
     (state) => state.God
   );
 
-  // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
@@ -34,8 +31,8 @@ export default function StutiFormPage() {
     language: "",
     image: "",
     views: "",
-    share: "", // ADDED: State for share
-    like: "", // ADDED: State for like
+    share: "",
+    like: "",
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
@@ -43,15 +40,11 @@ export default function StutiFormPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // --- Effects ---
-
-  // Effect for fetching initial data
   useEffect(() => {
     if (stutiStatus === "idle") dispatch(fetchStutis());
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [stutiStatus, godStatus, dispatch]);
 
-  // Effect for populating form data when editing
   useEffect(() => {
     if (id && stutis.length > 0) {
       const stuti = stutis.find((s) => s._id === id);
@@ -65,14 +58,13 @@ export default function StutiFormPage() {
           language: stuti.language,
           image: stuti.image || "",
           views: stuti.views || "",
-          share: stuti.share || "", // MODIFIED: Populate share
-          like: stuti.like || "", // MODIFIED: Populate like
+          share: stuti.share || "",
+          like: stuti.like || "",
         });
       }
     }
   }, [id, stutis]);
 
-  // Effect to filter the God list based on selected language
   useEffect(() => {
     if (formData.language && allGods.length > 0) {
       const godsByLang = allGods.filter(
@@ -84,7 +76,6 @@ export default function StutiFormPage() {
     }
   }, [formData.language, allGods]);
 
-  // --- Validation ---
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Stuti name is required.";
@@ -97,7 +88,6 @@ export default function StutiFormPage() {
     if (!formData.image) newErrors.image = "Stuti image is required.";
     if (formData.views !== "" && isNaN(Number(formData.views)))
       newErrors.views = "Views must be a valid number.";
-    // ADDED: Validation for share and like
     if (formData.share !== "" && isNaN(Number(formData.share)))
       newErrors.share = "Share count must be a valid number.";
     if (formData.like !== "" && isNaN(Number(formData.like)))
@@ -105,8 +95,6 @@ export default function StutiFormPage() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  // --- Event Handlers ---
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -116,7 +104,7 @@ export default function StutiFormPage() {
     try {
       const uploadedUrl = await uploadImage(file);
       setFormData((prev) => ({ ...prev, image: uploadedUrl }));
-      setErrors((prev) => ({ ...prev, image: null })); // Clear image error
+      setErrors((prev) => ({ ...prev, image: null })); 
       toast.success("Image uploaded successfully!");
     } catch (err) {
       toast.error("Image upload failed. Please try again.");
@@ -131,7 +119,14 @@ export default function StutiFormPage() {
 
     setIsSaving(true);
     try {
-      const payload = { ...formData }; // formData now includes share and like
+      const payload = {
+        ...formData,
+        sort: Number(formData.sort) || 0,
+        views: Number(formData.views) || 0,
+        share: Number(formData.share) || 0,
+        like: Number(formData.like) || 0,
+      };
+
       const action = id ? updateStuti({ id, ...payload }) : addStuti(payload);
 
       await dispatch(action).unwrap();
@@ -156,7 +151,6 @@ export default function StutiFormPage() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
-  // Helper function for react-select value
   const getSelectedOption = (list, id) => {
     if (!id || !list) return null;
     const selected = list.find((item) => item._id === id);
@@ -193,7 +187,6 @@ export default function StutiFormPage() {
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
             <div className="row">
-              {/* Left Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Stuti Details</h5>
                 <div className="mb-3">
@@ -231,7 +224,7 @@ export default function StutiFormPage() {
                       setFormData((prev) => ({
                         ...prev,
                         language: option?.value || "",
-                        god: "", // Reset god selection when language changes
+                        god: "",
                       }))
                     }
                     placeholder="Select Language..."
@@ -271,7 +264,6 @@ export default function StutiFormPage() {
                   )}
                 </div>
 
-                {/* Image Upload Section */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Stuti Image <span className="text-danger">*</span>
@@ -305,7 +297,6 @@ export default function StutiFormPage() {
                   )}
                 </div>
 
-                {/* MODIFIED: Row for Sort and Views */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -343,7 +334,6 @@ export default function StutiFormPage() {
                   </div>
                 </div>
 
-                {/* ADDED: New row for Share and Like */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">Share</label>
@@ -397,7 +387,6 @@ export default function StutiFormPage() {
                 </div>
               </div>
 
-              {/* Right Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Content</h5>
                 <div className="mb-3">
@@ -422,7 +411,7 @@ export default function StutiFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-2"
                 onClick={() => navigate("/stuti")}
                 disabled={isSaving || isUploading}
               >
@@ -436,7 +425,7 @@ export default function StutiFormPage() {
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save me-2"></i>
+                  <i className="fas fa-save mr-2"></i>
                 )}
                 {id ? "Update Stuti" : "Create Stuti"}
               </button>

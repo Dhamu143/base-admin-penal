@@ -3,13 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-
-// --- Redux Actions ---
 import { fetchQuizzes, addQuiz, updateQuiz } from "../../store/quiz";
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
-
-// --- ADDED --- Import the upload service
 import { uploadImage } from "../../services/uploadService";
 
 export default function QuizFormPage() {
@@ -17,7 +13,6 @@ export default function QuizFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // --- Redux State ---
   const { list: quizzes, status: quizStatus } = useSelector(
     (state) => state.quizzes
   );
@@ -25,7 +20,6 @@ export default function QuizFormPage() {
     (state) => state.God
   );
 
-  // --- Component State ---
   const [formData, setFormData] = useState({
     question: "",
     option1: "",
@@ -37,22 +31,18 @@ export default function QuizFormPage() {
     language: "",
     god: "",
     isActive: true,
-    files: "", // --- ADDED --- State for the image URL
+    files: "",
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- Effects ---
-
-  // Fetches initial data reliably
   useEffect(() => {
     if (quizStatus === "idle") dispatch(fetchQuizzes());
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [quizStatus, godStatus, dispatch]);
 
-  // Populates the form for editing
   useEffect(() => {
     if (id && quizzes.length > 0 && allGods.length > 0) {
       const quiz = quizzes.find((q) => q._id === id);
@@ -68,7 +58,7 @@ export default function QuizFormPage() {
           language: quiz.language,
           god: quiz.god?._id || quiz.god,
           isActive: quiz.isActive !== undefined ? quiz.isActive : true,
-          files: quiz.files || "", // --- ADDED --- Populate existing image
+          files: quiz.files || "",
         });
 
         const godsByLang = allGods.filter((g) => g.language === quiz.language);
@@ -77,7 +67,6 @@ export default function QuizFormPage() {
     }
   }, [id, quizzes, allGods]);
 
-  // --- Validation ---
   const validateForm = () => {
     const newErrors = {};
     const {
@@ -103,7 +92,6 @@ export default function QuizFormPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- ADDED --- Event Handler for Image Upload
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -119,7 +107,6 @@ export default function QuizFormPage() {
     }
   };
 
-  // --- Form Submission ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -138,7 +125,7 @@ export default function QuizFormPage() {
       language: formData.language,
       god: formData.god,
       isActive: formData.isActive,
-      files: formData.files, // --- ADDED --- Include image URL in payload
+      files: formData.files,
     };
 
     try {
@@ -155,8 +142,6 @@ export default function QuizFormPage() {
       setIsSaving(false);
     }
   };
-
-  // --- Other handlers (handleFormChange, handleSelectChange, etc.) remain the same ---
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -185,7 +170,7 @@ export default function QuizFormPage() {
     setFormData((prev) => {
       const newState = { ...prev, [fieldName]: value };
       if (fieldName === "language") {
-        newState.god = ""; // Reset god selection
+        newState.god = "";
         if (Array.isArray(allGods)) {
           const godsByLang = allGods.filter((g) => g.language === value);
           setFilteredGods(godsByLang);
@@ -238,7 +223,6 @@ export default function QuizFormPage() {
       <div className="card shadow-sm">
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
-            {/* --- Section 1: Content --- */}
             <h5 className="mb-4 text-primary">Quiz Content</h5>
             <div className="mb-3">
               <label className="form-label fw-bold">
@@ -258,7 +242,6 @@ export default function QuizFormPage() {
               )}
             </div>
 
-            {/* --- ADDED --- Image Upload Field */}
             <div className="mb-3">
               <label className="form-label fw-bold">Question Image</label>
               <input
@@ -363,7 +346,6 @@ export default function QuizFormPage() {
             </div>
             <hr className="my-4" />
 
-            {/* --- Section 2: Settings --- */}
             <h5 className="mb-4 text-primary">Categorization & Settings</h5>
             <div className="row">
               <div className="col-md-6 mb-3">

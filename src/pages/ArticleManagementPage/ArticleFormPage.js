@@ -6,7 +6,6 @@ import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 import { uploadImage } from "../../services/uploadService";
 
-// --- Redux Actions ---
 import { fetchArticles, addArticle, updateArticle } from "../../store/Articles";
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
@@ -16,7 +15,6 @@ export default function ArticleFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // --- Redux State ---
   const { list: articles, status: articlesStatus } = useSelector(
     (state) => state.articles
   );
@@ -24,7 +22,6 @@ export default function ArticleFormPage() {
     (state) => state.God
   );
 
-  // --- Component State ---
   const [formData, setFormData] = useState({
     title: "",
     shortdesc: "",
@@ -36,20 +33,18 @@ export default function ArticleFormPage() {
     language: "",
     featureimage: "",
     views: "",
-    share: "", // ADDED: State for share
-    like: "", // ADDED: State for like
+    share: "",
+    like: "",
   });
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- Load initial data ---
   useEffect(() => {
     if (articlesStatus === "idle") dispatch(fetchArticles());
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [dispatch, articlesStatus, godStatus]);
 
-  // --- Filter gods by language ---
   useEffect(() => {
     if (formData.language && allGods.length > 0) {
       setFilteredGods(allGods.filter((g) => g.language === formData.language));
@@ -58,7 +53,6 @@ export default function ArticleFormPage() {
     }
   }, [formData.language, allGods]);
 
-  // --- Populate form when editing ---
   useEffect(() => {
     if (id && articles.length > 0) {
       const article = articles.find((a) => a._id === id);
@@ -74,14 +68,13 @@ export default function ArticleFormPage() {
           language: article.language?._id || article.language || "",
           featureimage: article.featureimage || "",
           views: article.views || "",
-          share: article.share || "", // MODIFIED: Populate share
-          like: article.like || "", // MODIFIED: Populate like
+          share: article.share || "",
+          like: article.like || "",
         });
       }
     }
   }, [id, articles]);
 
-  // --- Handlers ---
   const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -112,7 +105,6 @@ export default function ArticleFormPage() {
       newErrors.sort = "Sort order must be a valid number.";
     if (formData.views !== "" && isNaN(Number(formData.views)))
       newErrors.views = "Views must be a valid number.";
-    // ADDED: Validation for share and like
     if (formData.share !== "" && isNaN(Number(formData.share)))
       newErrors.share = "Share count must be a valid number.";
     if (formData.like !== "" && isNaN(Number(formData.like)))
@@ -141,10 +133,18 @@ export default function ArticleFormPage() {
     if (!validateForm()) return;
     setIsSaving(true);
     try {
-      // formData now includes share and like
+      const payload = {
+        ...formData,
+        sort: Number(formData.sort) || 0,
+        views: Number(formData.views) || 0,
+        share: Number(formData.share) || 0,
+        like: Number(formData.like) || 0,
+      };
+
       const action = id
-        ? updateArticle({ id, ...formData })
-        : addArticle(formData);
+        ? updateArticle({ id, ...payload })
+        : addArticle(payload);
+
       await dispatch(action).unwrap();
       toast.success(
         id ? "Article updated successfully!" : "Article added successfully!"
@@ -157,7 +157,6 @@ export default function ArticleFormPage() {
     }
   };
 
-  // --- Select options ---
   const languageOptions = staticLanguages.map((l) => ({
     value: l._id,
     label: l.nativeName,
@@ -166,7 +165,6 @@ export default function ArticleFormPage() {
 
   return (
     <div className="content-wrapper p-4">
-      {/* Breadcrumb + Back */}
       <div className="mb-4 d-flex align-items-center justify-content-between">
         <div>
           <span
@@ -186,12 +184,10 @@ export default function ArticleFormPage() {
         </button>
       </div>
 
-      {/* Form */}
       <div className="card shadow-sm">
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
             <div className="row">
-              {/* --- Left Column --- */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Core Details</h5>
                 <div className="mb-3">
@@ -269,7 +265,6 @@ export default function ArticleFormPage() {
                   )}
                 </div>
 
-                {/* MODIFIED: Row layout for Sort, Views, Share, Like */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -306,8 +301,7 @@ export default function ArticleFormPage() {
                     )}
                   </div>
                 </div>
-                
-                {/* ADDED: New row for Share and Like */}
+
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">Share</label>
@@ -344,7 +338,6 @@ export default function ArticleFormPage() {
                   </div>
                 </div>
 
-
                 <div className="row">
                   <div className="col-md-6 d-flex align-items-center">
                     <div className="form-check form-switch fs-5">
@@ -374,7 +367,6 @@ export default function ArticleFormPage() {
                 </div>
               </div>
 
-              {/* --- Right Column --- */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Content</h5>
 
@@ -414,11 +406,10 @@ export default function ArticleFormPage() {
               </div>
             </div>
 
-            {/* --- Buttons --- */}
             <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-2"
                 onClick={() => navigate("/articles")}
                 disabled={isSaving}
               >
@@ -432,7 +423,7 @@ export default function ArticleFormPage() {
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save me-2"></i>
+                  <i className="fas fa-save mr-2"></i>
                 )}
                 {id ? "Update Article" : "Create Article"}
               </button>

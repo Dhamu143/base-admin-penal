@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 import { toast } from "react-toastify";
-import { uploadImage } from "../../services/uploadService"; // ADDED: Image upload service
+import { uploadImage } from "../../services/uploadService";
 
 // --- Store Imports ---
 import { fetchStories, addStory, updateStory } from "../../store/story/index";
@@ -18,10 +18,8 @@ export default function StoryFormPage() {
 
   // --- Redux State ---
   const { list: stories = [] } = useSelector((state) => state.story || {});
-  const {
-    masterList: allGods = [],
-    masterStatus: godStatus = "idle",
-  } = useSelector((state) => state.God || {});
+  const { masterList: allGods = [], masterStatus: godStatus = "idle" } =
+    useSelector((state) => state.God || {});
 
   // --- Component State ---
   const [formData, setFormData] = useState({
@@ -33,8 +31,8 @@ export default function StoryFormPage() {
     description: "",
     image: "",
     views: "",
-    share: "", // ADDED: State for share
-    like: "", // ADDED: State for like
+    share: "",
+    like: "",
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
@@ -66,8 +64,8 @@ export default function StoryFormPage() {
           description: storyItem.description || "",
           image: storyItem.image || "",
           views: storyItem.views || "",
-          share: storyItem.share || "", // MODIFIED: Populate share
-          like: storyItem.like || "", // MODIFIED: Populate like
+          share: storyItem.share || "",
+          like: storyItem.like || "",
         });
       }
     }
@@ -119,8 +117,16 @@ export default function StoryFormPage() {
 
     setIsSaving(true);
     try {
-      // The formData now includes 'share' and 'like'
-      const action = id ? updateStory({ id, ...formData }) : addStory(formData);
+      // --- FIX: Convert numeric inputs (Strings) to Numbers explicitly ---
+      const payload = {
+        ...formData,
+        sort: Number(formData.sort) || 0,
+        views: Number(formData.views) || 0,
+        share: Number(formData.share) || 0,
+        like: Number(formData.like) || 0,
+      };
+
+      const action = id ? updateStory({ id, ...payload }) : addStory(payload);
       await dispatch(action).unwrap();
       toast.success(`Story ${id ? "updated" : "created"} successfully!`);
       navigate("/story");
@@ -146,7 +152,6 @@ export default function StoryFormPage() {
     if (!formData.image) newErrors.image = "Story image is required.";
     if (formData.views !== "" && isNaN(Number(formData.views)))
       newErrors.views = "Views must be a valid number.";
-    // ADDED: Validation for share and like
     if (formData.share !== "" && isNaN(Number(formData.share)))
       newErrors.share = "Share count must be a valid number.";
     if (formData.like !== "" && isNaN(Number(formData.like)))
@@ -261,7 +266,9 @@ export default function StoryFormPage() {
                       ? "Select God..."
                       : "Select Language first..."
                   }
-                  isDisabled={!formData.language || filteredGods.length === 0}
+                  isDisabled={
+                    !formData.language || filteredGods.length === 0
+                  }
                 />
                 {errors.god && (
                   <div className="text-danger small mt-1">{errors.god}</div>
@@ -275,7 +282,9 @@ export default function StoryFormPage() {
                 </label>
                 <input
                   type="file"
-                  className={`form-control ${errors.image ? "is-invalid" : ""}`}
+                  className={`form-control ${
+                    errors.image ? "is-invalid" : ""
+                  }`}
                   onChange={handleImageUpload}
                   accept="image/*"
                   disabled={isUploading}
@@ -390,7 +399,6 @@ export default function StoryFormPage() {
               </div>
             </div>
 
-            {/* Right Column */}
             <div className="col-md-6">
               <h5 className="mb-3 text-primary">Story Content</h5>
               <RichTextEditor
@@ -410,11 +418,10 @@ export default function StoryFormPage() {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
             <button
               type="button"
-              className="btn btn-outline-secondary"
+              className="btn btn-outline-secondary mr-2"
               onClick={() => navigate("/story")}
               disabled={isSaving || isUploading}
             >
@@ -428,7 +435,7 @@ export default function StoryFormPage() {
               {isSaving ? (
                 <span className="spinner-border spinner-border-sm me-2"></span>
               ) : (
-                <i className="fas fa-save me-2"></i>
+                <i className="fas fa-save mr-2"></i>
               )}
               {id ? "Update Story" : "Create Story"}
             </button>

@@ -8,79 +8,30 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { uploadImage } from "../../services/uploadService";
 
-// --- Actions ---
 import {
   fetchFestivals,
   addFestival,
   updateFestival,
 } from "../../store/festival/index";
 import { staticLanguages } from "../../constants/languages";
-
-// Data for the State dropdown
-const indianStates = [
-  { value: "All India", label: "All India" },
-  { value: "Andhra Pradesh", label: "Andhra Pradesh" },
-  { value: "Arunachal Pradesh", label: "Arunachal Pradesh" },
-  { value: "Assam", label: "Assam" },
-  { value: "Bihar", label: "Bihar" },
-  { value: "Chhattisgarh", label: "Chhattisgarh" },
-  { value: "Goa", label: "Goa" },
-  { value: "Gujarat", label: "Gujarat" },
-  { value: "Haryana", label: "Haryana" },
-  { value: "Himachal Pradesh", label: "Himachal Pradesh" },
-  { value: "Jharkhand", label: "Jharkhand" },
-  { value: "Karnataka", label: "Karnataka" },
-  { value: "Kerala", label: "Kerala" },
-  { value: "Madhya Pradesh", label: "Madhya Pradesh" },
-  { value: "Maharashtra", label: "Maharashtra" },
-  { value: "Manipur", label: "Manipur" },
-  { value: "Meghalaya", label: "Meghalaya" },
-  { value: "Mizoram", label: "Mizoram" },
-  { value: "Nagaland", label: "Nagaland" },
-  { value: "Odisha", label: "Odisha" },
-  { value: "Punjab", label: "Punjab" },
-  { value: "Rajasthan", label: "Rajasthan" },
-  { value: "Sikkim", label: "Sikkim" },
-  { value: "Tamil Nadu", label: "Tamil Nadu" },
-  { value: "Telangana", label: "Telangana" },
-  { value: "Tripura", label: "Tripura" },
-  { value: "Uttar Pradesh", label: "Uttar Pradesh" },
-  { value: "Uttarakhand", label: "Uttarakhand" },
-  { value: "West Bengal", label: "West Bengal" },
-  {
-    value: "Andaman and Nicobar Islands",
-    label: "Andaman and Nicobar Islands",
-  },
-  { value: "Chandigarh", label: "Chandigarh" },
-  {
-    value: "Dadra and Nagar Haveli and Daman and Diu",
-    label: "Dadra and Nagar Haveli and Daman and Diu",
-  },
-  { value: "Delhi", label: "Delhi" },
-  { value: "Jammu and Kashmir", label: "Jammu and Kashmir" },
-  { value: "Ladakh", label: "Ladakh" },
-  { value: "Lakshadweep", label: "Lakshadweep" },
-  { value: "Puducherry", label: "Puducherry" },
-];
+import { indianStates } from "../../common/indianStates";
 
 export default function FestivalFormPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // --- Redux State ---
   const { list: festivals, status: festivalStatus } = useSelector(
     (state) => state.festivals
   );
 
-  // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
     isActive: true,
     description: "",
     language: "",
-    date: null, // This will be a Date object or null
+    date: null,
     image: "",
     state: "",
   });
@@ -88,21 +39,18 @@ export default function FestivalFormPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // --- Fetch Data ---
   useEffect(() => {
     if (festivalStatus === "idle") dispatch(fetchFestivals());
   }, [festivalStatus, dispatch]);
 
-  // --- Initialize Form for Edit ---
   useEffect(() => {
     if (id && festivals.length > 0) {
       const festival = festivals.find((f) => f._id === id);
       if (festival) {
-        // safely parse "dd-MM-yyyy" → valid Date
         let parsedDate = null;
         if (festival.date) {
           const [day, month, year] = festival.date.split("-");
-          parsedDate = new Date(`${year}-${month}-${day}`); // ✅ valid
+          parsedDate = new Date(`${year}-${month}-${day}`);
         }
 
         setFormData({
@@ -111,7 +59,7 @@ export default function FestivalFormPage() {
           isActive: festival.isActive,
           description: festival.description || "",
           language: festival.language?._id || festival.language || "",
-          date: parsedDate, // ✅ fixed
+          date: parsedDate,
           image: festival.image || "",
           state: festival.state || "",
         });
@@ -119,7 +67,6 @@ export default function FestivalFormPage() {
     }
   }, [id, festivals]);
 
-  // --- Handlers ---
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -178,11 +125,10 @@ export default function FestivalFormPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    // Helper function to format the date object into "yyyy-MM-dd" string
     const formatDate = (dateObj) => {
       if (!dateObj) return null;
       const year = dateObj.getFullYear();
-      const month = String(dateObj.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
       const day = String(dateObj.getDate()).padStart(2, "0");
       return `${day}-${month}-${year}`;
     };
@@ -191,7 +137,7 @@ export default function FestivalFormPage() {
     try {
       const payload = {
         ...formData,
-        date: formatDate(formData.date), // Use the formatting function before sending
+        date: formatDate(formData.date),
       };
 
       const action = id
@@ -236,11 +182,9 @@ export default function FestivalFormPage() {
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
             <div className="row">
-              {/* Left Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Festival Details</h5>
 
-                {/* Festival Name */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Festival Name <span className="text-danger">*</span>
@@ -260,7 +204,6 @@ export default function FestivalFormPage() {
                   )}
                 </div>
 
-                {/* Festival Date */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Festival Date <span className="text-danger">*</span>
@@ -281,7 +224,6 @@ export default function FestivalFormPage() {
                   )}
                 </div>
 
-                {/* Language */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Language <span className="text-danger">*</span>
@@ -310,12 +252,12 @@ export default function FestivalFormPage() {
                   )}
                 </div>
 
-                {/* State Dropdown */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     State <span className="text-danger">*</span>
                   </label>
                   <Select
+                    // 2. Used the imported indianStates here
                     options={indianStates}
                     value={indianStates.find((s) => s.value === formData.state)}
                     onChange={(option) =>
@@ -331,7 +273,6 @@ export default function FestivalFormPage() {
                   )}
                 </div>
 
-                {/* Image Upload Section */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Festival Image <span className="text-danger">*</span>
@@ -365,7 +306,6 @@ export default function FestivalFormPage() {
                   )}
                 </div>
 
-                {/* Sort Order & Active */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -400,7 +340,6 @@ export default function FestivalFormPage() {
                 </div>
               </div>
 
-              {/* Right Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Description</h5>
                 <div className="mb-3">
@@ -427,7 +366,7 @@ export default function FestivalFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-2"
                 onClick={() => navigate("/festival")}
                 disabled={isSaving || isUploading}
               >
@@ -441,7 +380,7 @@ export default function FestivalFormPage() {
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save me-2"></i>
+                  <i className="fas fa-save mr-2"></i>
                 )}
                 {id ? "Update Festival" : "Create Festival"}
               </button>

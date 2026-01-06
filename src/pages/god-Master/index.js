@@ -1,23 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-
-// Redux Actions
 import {
   fetchGods,
   addGod,
   updateGod,
   deleteGod,
 } from "../../store/godmaster/index";
-
-// Upload Service
 import { uploadImage } from "../../services/uploadService";
-
-// UI Components
 import DynamicImage from "../../components/PostPreview/PostPreview";
 import ImageUpload from "../../components/ImageUpload";
 import ConfirmationModal from "../../common/ConfirmationModal";
-import CustomPagination from "../../common/Pagination"; // Import pagination
+import CustomPagination from "../../common/Pagination"; 
 import { TableStatus } from "../../components/TableStatus";
 
 export default function FeatureManagementPage() {
@@ -34,7 +28,6 @@ export default function FeatureManagementPage() {
   const [errors, setErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
 
-  // 🔄 MODIFIED: Page size is now 4
   const itemsPerPage = 10;
 
   const initialFormState = {
@@ -46,17 +39,14 @@ export default function FeatureManagementPage() {
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  // Centralized function to load data with pagination
   const loadGods = (page = 1) => {
     dispatch(fetchGods({ page, limit: itemsPerPage }));
   };
 
-  // Correctly fetches data on every page visit
   useEffect(() => {
-    loadGods(1); // Load the first page on component mount
+    loadGods(1); 
   }, [dispatch]);
 
-  // Handler for page changes
   const handlePageChange = (newPage) => {
     if (newPage !== pagination?.currentPage) {
       loadGods(newPage);
@@ -158,7 +148,7 @@ export default function FeatureManagementPage() {
       toast.success(
         editingGod ? "God updated successfully!" : "God added successfully!"
       );
-      loadGods(pagination?.currentPage || 1); // Refresh the current page
+      loadGods(pagination?.currentPage || 1); 
       handleCloseModal();
     } catch (err) {
       console.error("Failed to save the feature:", err);

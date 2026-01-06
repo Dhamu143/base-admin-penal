@@ -1,46 +1,44 @@
-import { createSlice, createAsyncThunk, isAllOf } from "@reduxjs/toolkit";
-
-// ** Axios Imports
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { toast } from "react-toastify";
 import httpService from "../../common/http.service";
 
-
 export const appGetAllDashboard = createAsyncThunk(
   "appDashboard/appGetAllDashboard",
-  async () => {
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await httpService.get(`/admin/getcounts`);
-      // console.log(response);
-      return await response.data.data;
+      const response = await httpService.get("/dashboard-stats");
+
+      return response.data.data;
     } catch (error) {
-      toast.error(error?.message);
+      const message = error.response?.data?.message || error.message;
+      toast.error(message);
+      return rejectWithValue(message);
     }
   }
 );
 
-
 export const appDashboardSlice = createSlice({
   name: "Dashboard",
   initialState: {
-    dashboard: [],
-    slugData: "",
-    paginate: "",
+    dashboard: null,
     isloder: false,
-    isdeleted: false,
+    error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
-    builder.addMatcher(isAllOf(appGetAllDashboard.pending), (state, action) => {
-      state.isloder = true;
-    });
-    builder.addMatcher(isAllOf(appGetAllDashboard.fulfilled), (state, action) => {
-      state.dashboard = action.payload;
-      // console.log(state.dashboard)
-      state.isloder = false;
-    });
-    builder.addMatcher(isAllOf(appGetAllDashboard.rejected), (state, action) => {
-      state.isloder = false;
-    });
+    builder
+      .addCase(appGetAllDashboard.pending, (state) => {
+        state.isloder = true;
+        state.error = null;
+      })
+      .addCase(appGetAllDashboard.fulfilled, (state, action) => {
+        state.isloder = false;
+        state.dashboard = action.payload;
+      })
+      .addCase(appGetAllDashboard.rejected, (state, action) => {
+        state.isloder = false;
+        state.error = action.payload;
+      });
   },
 });
 

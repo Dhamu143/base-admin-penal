@@ -3,19 +3,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-
-// --- Redux Actions ---
 import { fetchFestivals, deleteFestival } from "../../store/festival/index";
-
 import { fetchAllGods } from "../../store/god";
-
-// --- Reusable Components & Data ---
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 
-// --- Prepare options for react-select ---
 const languageOptions = [
   { value: "", label: "All Languages" },
   ...staticLanguages.map((lang) => ({
@@ -109,7 +103,6 @@ export default function FestivalListPage() {
     }
   };
 
-  // ✨ NEW: Options for the God filter dropdown.
   const godOptions = [
     { value: "", label: "All Gods" },
     ...(allGods || []).map((god) => ({ value: god._id, label: god.name })),
@@ -118,7 +111,6 @@ export default function FestivalListPage() {
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
-  // ✨ NEW: Find the currently selected god option.
   const selectedGod = godOptions.find((opt) => opt.value === filters.god);
 
   return (
@@ -140,7 +132,6 @@ export default function FestivalListPage() {
           </button>
         </div>
 
-        {/* 🔄 MODIFIED: Filter section with new God filter and consistent layout */}
         <div className="card-body border-bottom">
           <div className="d-flex flex-column flex-md-row align-items-md-center">
             <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
@@ -173,11 +164,11 @@ export default function FestivalListPage() {
             <table className="table table-hover align-middle">
               <thead className="table-light">
                 <tr>
+                  <th>Sort Order</th>
                   <th>Name</th>
                   <th>Date</th>
                   <th>Language</th>
                   <th>Description</th>
-                  <th>Sort Order</th>
                   <th>Status</th>
                   <th className="text-center">Actions</th>
                 </tr>
@@ -194,14 +185,22 @@ export default function FestivalListPage() {
                 {status === "succeeded" &&
                   festivals.map((festival) => (
                     <tr key={festival._id}>
+                      <td>{festival.sort}</td>
                       <td className="fw-bold">{festival.name}</td>
-                      {/* Safe access to god */}
                       <td>{festival.date}</td>
                       <td>{getLanguageNameById(festival.language)}</td>
-                      <td>
-                        {(festival.description || "").replace(/<[^>]+>/g, "")}
+                        <td
+                        style={{
+                          maxWidth: "400px",
+                        }}
+                      >
+                        <span
+                          title={festival.description.replace(/<[^>]+>/g, "")}
+                        >
+                          {festival.description.replace(/<[^>]+>/g, "")}
+                        </span>
                       </td>
-                      <td>{festival.sort}</td>
+
                       <td>
                         {festival.isActive ? (
                           <span className="badge bg-success">Active</span>

@@ -6,7 +6,6 @@ import RichTextEditor from "../../common/RichTextEditor";
 import { toast } from "react-toastify";
 import { uploadImage } from "../../services/uploadService";
 
-// --- Store Imports ---
 import { fetchNews, addNews, updateNews } from "../../store/news/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
@@ -16,14 +15,12 @@ export default function NewsFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // --- Redux State ---
   const { list: newsList = [] } = useSelector((state) => state.news || {});
   const {
     masterList: allGods = [],
     masterStatus: godStatus = "idle",
   } = useSelector((state) => state.God || {});
 
-  // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
@@ -34,14 +31,13 @@ export default function NewsFormPage() {
     link: "",
     files: "",
     views: "",
-    share: "", // ADDED: State for share
-    like: "", // ADDED: State for like
+    share: "",
+    like: "",
   });
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- Effects ---
 
   useEffect(() => {
     dispatch(fetchNews());
@@ -64,8 +60,8 @@ export default function NewsFormPage() {
           link: newsItem.link || "",
           files: newsItem.files || "",
           views: newsItem.views || "",
-          share: newsItem.share || "", // MODIFIED: Populate share
-          like: newsItem.like || "", // MODIFIED: Populate like
+          share: newsItem.share || "",
+          like: newsItem.like || "",
         });
       }
     }
@@ -78,8 +74,6 @@ export default function NewsFormPage() {
       setFilteredGods([]);
     }
   }, [formData.language, allGods]);
-
-  // --- Handlers ---
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -115,8 +109,15 @@ export default function NewsFormPage() {
 
     setIsSaving(true);
     try {
-      // formData now includes 'views', 'share', and 'like'
-      const action = id ? updateNews({ id, ...formData }) : addNews(formData);
+      const payload = {
+        ...formData,
+        sort: Number(formData.sort) || 0,
+        views: Number(formData.views) || 0,
+        share: Number(formData.share) || 0,
+        like: Number(formData.like) || 0,
+      };
+
+      const action = id ? updateNews({ id, ...payload }) : addNews(payload);
       await dispatch(action).unwrap();
       toast.success(`News ${id ? "updated" : "created"} successfully!`);
       navigate("/news");
@@ -128,7 +129,6 @@ export default function NewsFormPage() {
     }
   };
 
-  // --- Validation ---
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "News title is required.";
@@ -136,7 +136,7 @@ export default function NewsFormPage() {
     if (!formData.god) newErrors.god = "Please select a God.";
     if (!formData.description.trim())
       newErrors.description = "Description / Content is required.";
-    if (formData.sort === "" || isNaN(formData.sort))
+    if (formData.sort === "" || isNaN(Number(formData.sort)))
       newErrors.sort = "Sort order must be a valid number.";
     if (formData.link && !/^(ftp|http|https):\/\/[^ "]+$/.test(formData.link)) {
       newErrors.link = "Please enter a valid URL (e.g., https://example.com).";
@@ -147,7 +147,6 @@ export default function NewsFormPage() {
     if (formData.views !== "" && isNaN(Number(formData.views))) {
       newErrors.views = "Views must be a valid number.";
     }
-    // ADDED: Validation for share and like
     if (formData.share !== "" && isNaN(Number(formData.share))) {
       newErrors.share = "Share count must be a valid number.";
     }
@@ -159,7 +158,6 @@ export default function NewsFormPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- Helpers ---
   const getSelectedOption = (list = [], id) => {
     if (!id || !Array.isArray(list)) return null;
     const selected = list.find((item) => item._id === id);
@@ -170,7 +168,6 @@ export default function NewsFormPage() {
 
   return (
     <div className="content-wrapper p-4">
-      {/* Header */}
       <div className="mb-4 d-flex align-items-center justify-content-between">
         <div>
           <span
@@ -190,15 +187,12 @@ export default function NewsFormPage() {
         </button>
       </div>
 
-      {/* Form Card */}
       <div className="card shadow-sm p-4">
         <form onSubmit={handleSubmit} noValidate>
           <div className="row">
-            {/* Left Column */}
             <div className="col-md-6">
               <h5 className="mb-3 text-primary">News Details</h5>
 
-              {/* Title */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   News Title <span className="text-danger">*</span>
@@ -216,7 +210,6 @@ export default function NewsFormPage() {
                 )}
               </div>
 
-              {/* Link */}
               <div className="mb-3">
                 <label className="form-label fw-bold">Link (Optional)</label>
                 <input
@@ -232,7 +225,6 @@ export default function NewsFormPage() {
                 )}
               </div>
 
-              {/* Language */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   Language <span className="text-danger">*</span>
@@ -259,7 +251,6 @@ export default function NewsFormPage() {
                 )}
               </div>
 
-              {/* God Dropdown */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   God <span className="text-danger">*</span>
@@ -288,7 +279,6 @@ export default function NewsFormPage() {
                 )}
               </div>
 
-              {/* Image Upload Field */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   News Image <span className="text-danger">*</span>
@@ -316,11 +306,9 @@ export default function NewsFormPage() {
               </div>
             </div>
 
-            {/* Right Column */}
             <div className="col-md-6">
               <h5 className="mb-3 text-primary">Settings & Content</h5>
-              
-              {/* MODIFIED: Row for Sort, Views, Share, Like */}
+
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="form-label fw-bold">
@@ -358,7 +346,6 @@ export default function NewsFormPage() {
                 </div>
               </div>
 
-              {/* ADDED: New row for Share and Like */}
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="form-label fw-bold">Share</label>
@@ -410,7 +397,7 @@ export default function NewsFormPage() {
                   </div>
                 </div>
               </div>
-              
+
               <h5 className="mb-3 text-primary mt-3">News Content</h5>
               <RichTextEditor
                 value={formData.description}
@@ -429,11 +416,10 @@ export default function NewsFormPage() {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
             <button
               type="button"
-              className="btn btn-outline-secondary"
+              className="btn btn-outline-secondary mr-2"
               onClick={() => navigate("/news")}
               disabled={isSaving}
             >
@@ -451,7 +437,7 @@ export default function NewsFormPage() {
                   aria-hidden="true"
                 ></span>
               ) : (
-                <i className="fas fa-save me-2"></i>
+                <i className="fas fa-save mr-2"></i>
               )}
               {id ? "Update News" : "Create News"}
             </button>

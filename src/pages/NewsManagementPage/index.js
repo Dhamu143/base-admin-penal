@@ -4,12 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-// --- Redux Actions ---
 import { fetchNews, deleteNews } from "../../store/news/index";
-// ✨ NEW: Added import to fetch the list of Gods for the filter
 import { fetchAllGods } from "../../store/god";
 
-// --- Reusable Components & Data ---
 import ConfirmationModal from "../../common/ConfirmationModal";
 import { staticLanguages } from "../../constants/languages";
 import CustomPagination from "../../common/Pagination";
@@ -23,7 +20,6 @@ const languageOptions = [
   })),
 ];
 
-// ✨ NEW: Added styles for text truncation
 const styles = `
   .truncate-text {
     max-width: 250px;
@@ -42,7 +38,6 @@ export default function NewsManagementPage() {
   const { list: news, pagination, status, error } = useSelector(
     (state) => state.news
   );
-  // ✨ NEW: Selecting God list and status for the new filter
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -50,23 +45,19 @@ export default function NewsManagementPage() {
   const [newsToDelete, setNewsToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // 🔄 MODIFIED: Centralized filters state now includes 'god' and 'page'.
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
   const itemsPerPage = 10;
 
-  // 🔄 MODIFIED: loadNews now reads from the unified 'filters' state.
   const loadNews = useCallback(() => {
     dispatch(fetchNews({ ...filters, limit: itemsPerPage }))
       .unwrap()
       .catch((err) => toast.error(err?.message || "Failed to load news."));
   }, [dispatch, filters, itemsPerPage]);
 
-  // 🔄 MODIFIED: This useEffect now handles all data loading based on filter changes.
   useEffect(() => {
     loadNews();
   }, [loadNews]);
 
-  // ✨ NEW: This useEffect fetches the master list of gods, but only once.
   useEffect(() => {
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
@@ -78,13 +69,11 @@ export default function NewsManagementPage() {
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
 
-  // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect handles fetching.
   const handleLanguageChange = (option) => {
     const value = option?.value || "";
     setFilters((prev) => ({ ...prev, language: value, page: 1 }));
   };
 
-  // ✨ NEW: Handler for the new God filter.
   const handleGodChange = (option) => {
     const value = option?.value || "";
     setFilters((prev) => ({ ...prev, god: value, page: 1 }));
@@ -100,7 +89,6 @@ export default function NewsManagementPage() {
     }
   };
 
-  // 🔄 MODIFIED: Deletion logic now correctly reloads or navigates pages.
   const confirmDelete = async () => {
     if (!newsToDelete) return;
     setIsDeleting(true);
@@ -121,7 +109,6 @@ export default function NewsManagementPage() {
     }
   };
 
-  // ✨ NEW: Options for the God filter dropdown.
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
@@ -130,7 +117,6 @@ export default function NewsManagementPage() {
   const selectedLanguage = languageOptions.find(
     (opt) => opt.value === filters.language
   );
-  // ✨ NEW: Find the currently selected god option.
   const selectedGod = godOptions.find((opt) => opt.value === filters.god);
 
   return (
@@ -151,7 +137,6 @@ export default function NewsManagementPage() {
         </button>
       </div>
 
-      {/* 🔄 MODIFIED: Filter section with new God filter and consistent layout */}
       <div className="card-body border-bottom">
         <div className="d-flex flex-column flex-md-row align-items-md-center">
           <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
@@ -168,7 +153,6 @@ export default function NewsManagementPage() {
             />
           </div>
 
-          {/* ✨ NEW: God Filter Select component */}
           <div className="ml-4" style={{ minWidth: "250px" }}>
             <label className="form-label fw-bold small mb-1">
               Filter by God
@@ -202,7 +186,6 @@ export default function NewsManagementPage() {
             <thead className="table-light">
               <tr>
                 <th>Title</th>
-                {/* ✨ NEW: Added God column */}
                 <th>God</th>
                 <th>Language</th>
                 <th>Description</th>
@@ -224,7 +207,6 @@ export default function NewsManagementPage() {
                 news.map((newsItem) => (
                   <tr key={newsItem._id}>
                     <td className="fw-semibold">{newsItem.name}</td>
-                    {/* ✨ NEW: Displaying God's name */}
                     <td>{newsItem.god.name}</td>
                     <td>{getLanguageNameById(newsItem.language)}</td>
                     <td style={{ maxWidth: "150px" }}>
@@ -261,7 +243,6 @@ export default function NewsManagementPage() {
         </div>
       </div>
 
-      {/* 🔄 MODIFIED: Pagination now reads from the unified filters state */}
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination

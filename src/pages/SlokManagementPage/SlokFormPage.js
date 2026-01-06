@@ -4,9 +4,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 import { toast } from "react-toastify";
-import { uploadImage } from "../../services/uploadService"; // ADDED: Image upload service
+import { uploadImage } from "../../services/uploadService";
 
-// --- Actions ---
 import { fetchSloks, addSlok, updateSlok } from "../../store/sloks/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
@@ -16,7 +15,6 @@ export default function SlokFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // --- Redux State ---
   const { list: sloks, status: slokStatus } = useSelector(
     (state) => state.sloks
   );
@@ -24,7 +22,6 @@ export default function SlokFormPage() {
     (state) => state.God
   );
 
-  // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
@@ -35,8 +32,8 @@ export default function SlokFormPage() {
     language: "",
     image: "",
     views: "",
-    share: "", // ADDED: State for share
-    like: "", // ADDED: State for like
+    share: "",
+    like: "",
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
@@ -44,7 +41,6 @@ export default function SlokFormPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // --- Effects ---
   useEffect(() => {
     if (slokStatus === "idle") dispatch(fetchSloks());
     if (godStatus === "idle") dispatch(fetchAllGods());
@@ -64,14 +60,13 @@ export default function SlokFormPage() {
           language: slok.language || "",
           image: slok.image || "",
           views: slok.views || "",
-          share: slok.share || "", // MODIFIED: Populate share
-          like: slok.like || "", // MODIFIED: Populate like
+          share: slok.share || "",
+          like: slok.like || "",
         });
       }
     }
   }, [id, sloks]);
 
-  // filter gods by language
   useEffect(() => {
     if (formData.language && allGods.length > 0) {
       const godsByLang = allGods.filter(
@@ -83,7 +78,6 @@ export default function SlokFormPage() {
     }
   }, [formData.language, allGods]);
 
-  // --- Validation ---
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Sloka name is required.";
@@ -96,7 +90,6 @@ export default function SlokFormPage() {
     if (!formData.image) newErrors.image = "Sloka image is required.";
     if (formData.views !== "" && isNaN(Number(formData.views)))
       newErrors.views = "Views must be a valid number.";
-    // ADDED: Validation for share and like
     if (formData.share !== "" && isNaN(Number(formData.share)))
       newErrors.share = "Share count must be a valid number.";
     if (formData.like !== "" && isNaN(Number(formData.like)))
@@ -104,8 +97,6 @@ export default function SlokFormPage() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  // --- Handlers ---
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -115,7 +106,7 @@ export default function SlokFormPage() {
     try {
       const uploadedUrl = await uploadImage(file);
       setFormData((prev) => ({ ...prev, image: uploadedUrl }));
-      setErrors((prev) => ({ ...prev, image: null })); // Clear image error
+      setErrors((prev) => ({ ...prev, image: null })); 
       toast.success("Image uploaded successfully!");
     } catch (err) {
       toast.error("Image upload failed. Please try again.");
@@ -130,8 +121,15 @@ export default function SlokFormPage() {
 
     setIsSaving(true);
     try {
-      // The formData now includes 'image', 'views', 'share', 'like'
-      const action = id ? updateSlok({ id, ...formData }) : addSlok(formData);
+      const payload = {
+        ...formData,
+        sort: Number(formData.sort) || 0,
+        views: Number(formData.views) || 0,
+        share: Number(formData.share) || 0,
+        like: Number(formData.like) || 0,
+      };
+
+      const action = id ? updateSlok({ id, ...payload }) : addSlok(payload);
       await dispatch(action).unwrap();
       toast.success(
         id ? "Sloka updated successfully!" : "Sloka added successfully!"
@@ -190,7 +188,6 @@ export default function SlokFormPage() {
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
             <div className="row">
-              {/* Left Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Sloka Details</h5>
                 <div className="mb-3">
@@ -211,7 +208,6 @@ export default function SlokFormPage() {
                   )}
                 </div>
 
-                {/* Language */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Language <span className="text-danger">*</span>
@@ -229,7 +225,7 @@ export default function SlokFormPage() {
                       setFormData((prev) => ({
                         ...prev,
                         language: option?.value || "",
-                        god: "", // reset god on language change
+                        god: "",
                       }))
                     }
                     placeholder="Select Language..."
@@ -241,7 +237,6 @@ export default function SlokFormPage() {
                   )}
                 </div>
 
-                {/* God */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     God <span className="text-danger">*</span>
@@ -270,7 +265,6 @@ export default function SlokFormPage() {
                   )}
                 </div>
 
-                {/* Image Upload Section */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Sloka Image <span className="text-danger">*</span>
@@ -304,7 +298,6 @@ export default function SlokFormPage() {
                   )}
                 </div>
 
-                {/* MODIFIED: Row for Sort, Views, Share, Like */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -342,7 +335,6 @@ export default function SlokFormPage() {
                   </div>
                 </div>
 
-                {/* ADDED: New row for Share and Like */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">Share</label>
@@ -409,7 +401,6 @@ export default function SlokFormPage() {
                 </div>
               </div>
 
-              {/* Right Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Content</h5>
                 <div className="mb-3">
@@ -434,7 +425,7 @@ export default function SlokFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-2"
                 onClick={() => navigate("/sloka")}
                 disabled={isSaving || isUploading}
               >
@@ -448,7 +439,7 @@ export default function SlokFormPage() {
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save me-2"></i>
+                  <i className="fas fa-save mr-2"></i>
                 )}
                 {id ? "Update Sloka" : "Create Sloka"}
               </button>
