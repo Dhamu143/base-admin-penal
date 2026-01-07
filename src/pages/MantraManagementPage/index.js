@@ -211,24 +211,24 @@ export default function MantraListPage() {
                           maxWidth: "100px",
                         }}
                       >
-                        {mantra.name}
+                        {mantra?.name}
                       </td>
-                      <td>{mantra.god.name}</td>
-                      <td>{getLanguageNameById(mantra.language)}</td>
+                      <td>{mantra?.god?.name}</td>
+                      <td>{getLanguageNameById(mantra?.language)}</td>
                       <td
                         style={{
                           maxWidth: "400px",
                         }}
                       >
                         <span
-                          title={mantra.description.replace(/<[^>]+>/g, "")}
+                          title={mantra?.description.replace(/<[^>]+>/g, "")}
                         >
-                          {mantra.description.replace(/<[^>]+>/g, "")}
+                          {mantra?.description.replace(/<[^>]+>/g, "")}
                         </span>
                       </td>
-                      <td>{mantra.sort}</td>
+                      <td>{mantra?.sort}</td>
                       <td>
-                        {mantra.isActive ? (
+                        {mantra?.isActive ? (
                           <span className="badge bg-success">Active</span>
                         ) : (
                           <span className="badge bg-secondary">Inactive</span>

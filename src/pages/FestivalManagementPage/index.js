@@ -185,10 +185,10 @@ export default function FestivalListPage() {
                 {status === "succeeded" &&
                   festivals.map((festival) => (
                     <tr key={festival._id}>
-                      <td>{festival.sort}</td>
-                      <td className="fw-bold">{festival.name}</td>
-                      <td>{festival.date}</td>
-                      <td>{getLanguageNameById(festival.language)}</td>
+                      <td>{festival?.sort}</td>
+                      <td className="fw-bold">{festival?.name}</td>
+                      <td>{festival?.date}</td>
+                      <td>{getLanguageNameById(festival?.language)}</td>
                         <td
                         style={{
                           maxWidth: "400px",

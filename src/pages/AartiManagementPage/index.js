@@ -185,9 +185,9 @@ export default function AartiListPage() {
               {status === "succeeded" &&
                 aartis.map((aarti) => (
                   <tr key={aarti._id}>
-                    <td>{aarti.name}</td>
-                    <td>{aarti.god.name}</td>
-                    <td>{getLanguageNameById(aarti.language)}</td>
+                    <td>{aarti?.name || "N/A"}</td>
+                    <td>{aarti?.god?.name}</td>
+                    <td>{getLanguageNameById(aarti?.language)}</td>
                     <td
                       style={{
                         maxWidth: "200px",
@@ -195,7 +195,7 @@ export default function AartiListPage() {
                     >
                       {aarti.description.replace(/<[^>]+>/g, "")}
                     </td>
-                    <td>{aarti.sort}</td>
+                    <td>{aarti?.sort}</td>
                     <td>
                        {aarti.isActive ? (
                           <span className="badge bg-success">Active</span>

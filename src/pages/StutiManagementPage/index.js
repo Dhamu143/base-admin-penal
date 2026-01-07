@@ -190,10 +190,10 @@ export default function StutiManagementPage() {
               {status === "succeeded" &&
                 stutis.map((item) => (
                   <tr key={item._id}>
-                    <td className="fw-semibold">{item.name}</td>
-                    <td>{getLanguageNameById(item.language)}</td>
-                    <td>{item.god.name}</td>
-                    <td>{item.sort}</td>
+                    <td className="fw-semibold">{item?.name}</td>
+                    <td>{getLanguageNameById(item?.language)}</td>
+                    <td>{item?.god?.name}</td>
+                    <td>{item?.sort}</td>
                     <td>
                       {item.isActive ? (
                         <span className="badge bg-success">Active</span>

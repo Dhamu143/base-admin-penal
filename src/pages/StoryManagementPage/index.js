@@ -190,9 +190,9 @@ export default function StoryManagementPage() {
               {status === "succeeded" &&
                 stories.map((storyItem) => (
                   <tr key={storyItem._id}>
-                    <td className="fw-semibold">{storyItem.name}</td>
-                    <td>{storyItem.god.name}</td>
-                    <td>{getLanguageNameById(storyItem.language)}</td>
+                    <td className="fw-semibold">{storyItem?.name}</td>
+                    <td>{storyItem?.god?.name}</td>
+                    <td>{getLanguageNameById(storyItem?.language)}</td>
                     <td
                       style={{
                         maxWidth: "200px",
@@ -200,13 +200,13 @@ export default function StoryManagementPage() {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                       }}
-                      title={storyItem.description.replace(/<[^>]+>/g, "")}
+                      title={storyItem?.description.replace(/<[^>]+>/g, "")}
                     >
-                      {storyItem.description.replace(/<[^>]+>/g, "")}
+                      {storyItem?.description.replace(/<[^>]+>/g, "")}
                     </td>
-                    <td>{storyItem.sort}</td>
+                    <td>{storyItem?.sort}</td>
                     <td>
-                      {storyItem.isActive ? (
+                      {storyItem?.isActive ? (
                         <span className="badge bg-success">Active</span>
                       ) : (
                         <span className="badge bg-secondary">Inactive</span>

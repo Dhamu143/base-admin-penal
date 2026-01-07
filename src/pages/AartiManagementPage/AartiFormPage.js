@@ -456,7 +456,7 @@ export default function AartiFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-2"
                 onClick={() => navigate("/aarti")}
                 disabled={isSaving || isUploading}
               >
@@ -470,7 +470,7 @@ export default function AartiFormPage() {
                 {isSaving ? (
                   <span className="spinner-border spinner-border-sm me-2"></span>
                 ) : (
-                  <i className="fas fa-save me-2"></i>
+                  <i className="fas fa-save mr-2"></i>
                 )}
                 {id ? "Update Aarti" : "Create Aarti"}
               </button>

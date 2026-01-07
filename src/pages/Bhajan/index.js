@@ -199,11 +199,11 @@ export default function BhajanListPage() {
                         ?.nativeName || "N/A"}
                     </td>
                     <td style={{ maxWidth: "200px" }}>
-                      {b.description.replace(/<[^>]+>/g, "")}
+                      {b?.description?.replace(/<[^>]+>/g, "")}
                     </td>
-                    <td>{b.sort}</td>
+                    <td>{b?.sort}</td>
                     <td>
-                      {b.isActive ? (
+                      {b?.isActive ? (
                         <span className="badge bg-success">Active</span>
                       ) : (
                         <span className="badge bg-secondary">Inactive</span>

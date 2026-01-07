@@ -195,15 +195,15 @@ export default function SlokListPage() {
                 {status === "succeeded" &&
                   sloks.map((slok) => (
                     <tr key={slok._id}>
-                      <td style={{ maxWidth: "150px" }}>{slok.name}</td>
-                      <td>{slok.god.name}</td>
+                      <td style={{ maxWidth: "150px" }}>{slok?.name || "N/A"}</td>
+                      <td>{slok?.god?.name}</td>
                       <td>{getLanguageNameById(slok.language)}</td>
                       <td>
                         <p style={{ maxWidth: "270px" }}>
-                          {slok.description.replace(/<[^>]+>/g, "")}
+                          {slok?.description?.replace(/<[^>]+>/g, "")}
                         </p>
                       </td>{" "}
-                      <td>{slok.sort}</td>
+                      <td>{slok?.sort}</td>
                       <td>
                         {slok.isFree ? (
                           <span className="badge bg-info">Free</span>

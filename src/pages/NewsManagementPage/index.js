@@ -206,15 +206,15 @@ export default function NewsManagementPage() {
               {status === "succeeded" &&
                 news.map((newsItem) => (
                   <tr key={newsItem._id}>
-                    <td className="fw-semibold">{newsItem.name}</td>
-                    <td>{newsItem.god.name}</td>
-                    <td>{getLanguageNameById(newsItem.language)}</td>
+                    <td className="fw-semibold">{newsItem?.name}</td>
+                    <td>{newsItem?.god?.name}</td>
+                    <td>{getLanguageNameById(newsItem?.language)}</td>
                     <td style={{ maxWidth: "150px" }}>
-                      <p>{newsItem.description.replace(/<[^>]+>/g, "")}</p>
+                      <p>{newsItem?.description.replace(/<[^>]+>/g, "")}</p>
                     </td>
-                    <td>{newsItem.sort}</td>
+                    <td>{newsItem?.sort}</td>
                     <td>
-                      {newsItem.isActive ? (
+                      {newsItem?.isActive ? (
                         <span className="badge bg-success">Active</span>
                       ) : (
                         <span className="badge bg-secondary">Inactive</span>

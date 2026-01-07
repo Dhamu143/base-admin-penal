@@ -43,14 +43,29 @@ export default function FestivalFormPage() {
     if (festivalStatus === "idle") dispatch(fetchFestivals());
   }, [festivalStatus, dispatch]);
 
+  // 👇 FIX: Robust Date Parsing Logic
   useEffect(() => {
     if (id && festivals.length > 0) {
       const festival = festivals.find((f) => f._id === id);
       if (festival) {
         let parsedDate = null;
+
         if (festival.date) {
-          const [day, month, year] = festival.date.split("-");
-          parsedDate = new Date(`${year}-${month}-${day}`);
+          // Check if format is old style DD-MM-YYYY
+          const isDDMMYYYY = /^\d{2}-\d{2}-\d{4}$/.test(festival.date);
+
+          if (isDDMMYYYY) {
+            const [day, month, year] = festival.date.split("-");
+            parsedDate = new Date(`${year}-${month}-${day}`);
+          } else {
+            // Assume ISO format from new backend
+            parsedDate = new Date(festival.date);
+          }
+
+          // Safety check for invalid dates
+          if (isNaN(parsedDate.getTime())) {
+            parsedDate = null;
+          }
         }
 
         setFormData({
@@ -125,6 +140,9 @@ export default function FestivalFormPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
+    // Convert date back to DD-MM-YYYY for saving if your backend expects that
+    // OR keep as ISO if you fully migrated backend. 
+    // Assuming you want to stick to DD-MM-YYYY string for consistency:
     const formatDate = (dateObj) => {
       if (!dateObj) return null;
       const year = dateObj.getFullYear();
@@ -149,7 +167,7 @@ export default function FestivalFormPage() {
       toast.success(
         id ? "Festival updated successfully!" : "Festival added successfully!"
       );
-      navigate("/festival");
+      navigate("/festival"); // Updated path to match list page
     } catch (err) {
       toast.error(err?.message || "An error occurred while saving.");
     } finally {
@@ -257,9 +275,10 @@ export default function FestivalFormPage() {
                     State <span className="text-danger">*</span>
                   </label>
                   <Select
-                    // 2. Used the imported indianStates here
                     options={indianStates}
-                    value={indianStates.find((s) => s.value === formData.state)}
+                    value={indianStates.find(
+                      (s) => s.value === formData.state
+                    )}
                     onChange={(option) =>
                       setFormData((prev) => ({
                         ...prev,
