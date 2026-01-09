@@ -11,7 +11,7 @@ import { uploadImage } from "../../services/uploadService";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 import ImageUpload from "../../components/ImageUpload";
 import ConfirmationModal from "../../common/ConfirmationModal";
-import CustomPagination from "../../common/Pagination"; 
+import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 
 export default function FeatureManagementPage() {
@@ -19,7 +19,7 @@ export default function FeatureManagementPage() {
 
   const { list: gods, pagination, status, error } = useSelector(
     (state) => state.gods
-  );
+  ); // Ensure your reducer is named 'gods' in store
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,6 +27,9 @@ export default function FeatureManagementPage() {
   const [godToDelete, setGodToDelete] = useState(null);
   const [errors, setErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
+
+  // ✅ New state to track which toggle is loading
+  const [togglingId, setTogglingId] = useState(null);
 
   const itemsPerPage = 10;
 
@@ -44,12 +47,36 @@ export default function FeatureManagementPage() {
   };
 
   useEffect(() => {
-    loadGods(1); 
+    loadGods(1);
   }, [dispatch]);
 
   const handlePageChange = (newPage) => {
     if (newPage !== pagination?.currentPage) {
       loadGods(newPage);
+    }
+  };
+
+  // ✅ Status Toggle Handler
+  const handleStatusToggle = async (god) => {
+    if (togglingId === god._id) return; // Prevent double clicks
+
+    setTogglingId(god._id);
+    const newStatus = !god.isActive;
+
+    try {
+      // Dispatch updateGod with only the ID and the new status
+      await dispatch(updateGod({ id: god._id, isActive: newStatus })).unwrap();
+
+      toast.success(
+        `"${god.name}" is now ${newStatus ? "Active" : "Inactive"}`
+      );
+      // Optional: Reload list if your reducer doesn't auto-update the list
+      // loadGods(pagination?.currentPage || 1);
+    } catch (err) {
+      console.error("Failed to update status:", err);
+      toast.error(err.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -148,7 +175,7 @@ export default function FeatureManagementPage() {
       toast.success(
         editingGod ? "God updated successfully!" : "God added successfully!"
       );
-      loadGods(pagination?.currentPage || 1); 
+      loadGods(pagination?.currentPage || 1);
       handleCloseModal();
     } catch (err) {
       console.error("Failed to save the feature:", err);
@@ -184,7 +211,7 @@ export default function FeatureManagementPage() {
     <>
       <div className="card shadow-sm">
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-          <h4 className="mb-0 text-primary-emphasis">✨ God Management</h4>
+          <h4 className="mb-0 text-primary-emphasis"> God Management</h4>
 
           <button
             className="btn btn-labeled btn-success"
@@ -217,7 +244,7 @@ export default function FeatureManagementPage() {
                   status={status}
                   error={error}
                   dataLength={gods.length}
-                  colSpan={7}
+                  colSpan={6}
                   loadingText="Loading gods..."
                   emptyText="No gods Found."
                 />
@@ -240,13 +267,39 @@ export default function FeatureManagementPage() {
                       <td className="fw-bold">{god.name}</td>
                       <td>{god.percentage ?? 0}%</td>
                       <td>{god.sort}</td>
+
+                      {/* ✅ Updated Status Toggle Column */}
                       <td>
-                        {god.isActive ? (
-                          <span className="badge bg-success">Active</span>
-                        ) : (
-                          <span className="badge bg-secondary">Inactive</span>
-                        )}
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id={`status-switch-${god._id}`}
+                            checked={god.isActive}
+                            disabled={togglingId === god._id}
+                            onChange={() => handleStatusToggle(god)}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <label
+                            className="form-check-label small ms-1"
+                            htmlFor={`status-switch-${god._id}`}
+                          >
+                            {togglingId === god._id ? (
+                              <span
+                                className="spinner-border spinner-border-sm text-secondary"
+                                role="status"
+                                aria-hidden="true"
+                              ></span>
+                            ) : god.isActive ? (
+                              "Active"
+                            ) : (
+                              "Inactive"
+                            )}
+                          </label>
+                        </div>
                       </td>
+
                       <td className="text-center">
                         <button
                           className="btn btn-sm btn-outline-secondary mr-2"

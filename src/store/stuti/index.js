@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
-// --- ASYNC THUNKS FOR THE /stuti ENDPOINT ---
 
 export const fetchStutis = createAsyncThunk(
   "stuti/fetchAll",

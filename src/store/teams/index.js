@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, isAllOf } from "@reduxjs/toolkit";
 
-// ** Axios Imports
 import { toast } from "react-toastify";
 import httpService from "../../common/http.service";
 
@@ -12,7 +11,6 @@ export const appCreateTeams = createAsyncThunk(
       const response = await httpService.post("/team", {}, params);
       if (response?.data) {
         toast.success("Team created Successfully");
-        // params.navigate(`/teams`);
       }
       return await response.data;
     } catch (error) {
@@ -55,7 +53,6 @@ export const appAllGetTeams = createAsyncThunk(
     try {
       let url = `/team`;
 
-      // Pick correct userType
       if (params.userType) {
         url += `?userType=${params.userType}`;
       } else {
@@ -127,7 +124,6 @@ export const appUpdateTeams = createAsyncThunk(
         }
       );
       console.log(response,"response")
-      // params.navigate("/teams/1");
       toast.success("Teams is Updated Successfully");
       
       return await response.data;

@@ -4,7 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-import { fetchArticles, deleteArticle } from "../../store/Articles/index";
+// ✅ Import updateArticle here
+import {
+  fetchArticles,
+  deleteArticle,
+  updateArticle,
+} from "../../store/Articles/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
@@ -46,8 +51,11 @@ export default function ArticleListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState(null);
 
+  // ✅ Track which item is currently toggling to show spinner
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
-  const itemsPerPage = 10; 
+  const itemsPerPage = 10;
 
   const loadArticles = useCallback(() => {
     dispatch(fetchArticles({ ...filters, limit: itemsPerPage }))
@@ -64,6 +72,27 @@ export default function ArticleListPage() {
       dispatch(fetchAllGods());
     }
   }, [dispatch, godStatus]);
+
+  const handleStatusToggle = async (article) => {
+    if (togglingId === article._id) return;
+    setFilters({ language: "", god: "", page: 1 });
+
+    setTogglingId(article._id);
+    const newStatus = !article.isActive;
+
+    try {
+      await dispatch(
+        updateArticle({ id: article._id, isActive: newStatus })
+      ).unwrap();
+      toast.success(
+        `Article "${article.title}" is now ${newStatus ? "Active" : "Inactive"}`
+      );
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
@@ -123,7 +152,7 @@ export default function ArticleListPage() {
       <style>{styles}</style>
       <div className="card shadow-sm">
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-          <h4 className="mb-0 text-primary-emphasis">📰 Article Management</h4>
+          <h4 className="mb-0 text-primary-emphasis">Article Management</h4>
           <button
             className="btn btn-labeled btn-success"
             type="button"
@@ -190,7 +219,7 @@ export default function ArticleListPage() {
                   <th>God</th>
                   <th>Language</th>
                   <th>Sort</th>
-                  <th>Type</th>
+                  <th>Membership</th>
                   <th>Status</th>
                   <th className="text-center">Actions</th>
                 </tr>
@@ -200,7 +229,7 @@ export default function ArticleListPage() {
                   status={status}
                   error={error}
                   dataLength={articles.length}
-                  colSpan={7}
+                  colSpan={7} // Adjusted colspan since one column was removed
                   loadingText="Loading articles..."
                   emptyText="No articles Found."
                 />
@@ -241,19 +270,41 @@ export default function ArticleListPage() {
                       <td>{getLanguageNameById(article?.language)}</td>
                       <td>{article?.sort}</td>
                       <td>
-                       
                         {article.isFree ? (
-                      <span className="badge bg-info">Free</span>
-                    ) : (
-                      <span className="badge bg-warning">Premium</span>
-                    )}
+                          <span className="badge bg-info">Free</span>
+                        ) : (
+                          <span className="badge bg-warning">Paid</span>
+                        )}
                       </td>
                       <td>
-                        {article.isActive ? (
-                          <span className="badge bg-success">Active</span>
-                        ) : (
-                          <span className="badge bg-secondary">Inactive</span>
-                        )}
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id={`status-switch-${article._id}`}
+                            checked={article.isActive}
+                            disabled={togglingId === article._id}
+                            onChange={() => handleStatusToggle(article)}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <label
+                            className="form-check-label small ms-1"
+                            htmlFor={`status-switch-${article._id}`}
+                          >
+                            {togglingId === article._id ? (
+                              <span
+                                className="spinner-border spinner-border-sm text-secondary"
+                                role="status"
+                                aria-hidden="true"
+                              ></span>
+                            ) : article.isActive ? (
+                              "Active"
+                            ) : (
+                              "Inactive"
+                            )}
+                          </label>
+                        </div>
                       </td>
                       <td className="text-center">
                         <button

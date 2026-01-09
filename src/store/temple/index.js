@@ -1,16 +1,13 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
-// --- ASYNC THUNKS FOR THE /temple ENDPOINT ---
-
 export const fetchTemples = createAsyncThunk(
   "temple/fetchAll",
   async (params = { page: 1, limit: 10 }, { rejectWithValue }) => {
     try {
-      // ✨ MODIFIED: Added a cache-busting parameter with the current timestamp.
       const paramsWithCacheBuster = {
         ...params,
-        _: Date.now(), // The underscore '_' is a common convention
+        _: Date.now(),
       };
 
       const queryString = new URLSearchParams(
@@ -19,7 +16,7 @@ export const fetchTemples = createAsyncThunk(
         )
       ).toString();
 
-      const url = `/temple?${queryString}`; // The URL will now be unique for each request
+      const url = `/temple?${queryString}`;
       const response = await httpService.get(url);
 
       return {
@@ -34,7 +31,6 @@ export const fetchTemples = createAsyncThunk(
   }
 );
 
-// ... rest of your templeSlice.js file remains the same ...
 
 export const addTemple = createAsyncThunk(
   "temple/add",

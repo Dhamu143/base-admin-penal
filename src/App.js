@@ -74,6 +74,8 @@ import StutiFormPage from "./pages/StutiManagementPage/StutiFormPage.js";
 import GodFormPage from "./pages/GodManagementPage/GodFormModal.js";
 import RingtoneFormPage from "./pages/RingtoneManagementPage/RingtoneForm.js";
 import ErrorBoundary from "./common/ErrorBoundary.js";
+import DailyLogListPage from "./pages/DailyLog/index.js";
+import DailyLogFormPage from "./pages/DailyLog/DailyLogFormPage.js";
 
 function App() {
   const navigate = useNavigate();
@@ -110,6 +112,10 @@ function App() {
         <Routes>
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+
+            <Route path="/dailylog" element={<DailyLogListPage />} />
+            <Route path="/dailylog/new" element={<DailyLogFormPage />} />
+            <Route path="/dailylog/edit/:id" element={<DailyLogFormPage />} />
 
             <Route path="/aarti" element={<AartiManagementPage />} />
             {/* Create New Aarti */}
@@ -211,7 +217,6 @@ function App() {
           <Route path="/teamsform" element={<TeamsForm />} />          
           </Route> */}
 
-          
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Login />} />
           </Route>

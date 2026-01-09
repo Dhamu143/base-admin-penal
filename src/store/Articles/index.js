@@ -1,14 +1,10 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
-// --- Async Thunks ---
-
-// 🔄 MODIFIED: Now accepts a 'params' object for pagination and filtering
 export const fetchArticles = createAsyncThunk(
   "articles/fetchArticles",
   async (params = {}, { rejectWithValue }) => {
     try {
-      // Build a query string from the params object, ignoring empty values
       const queryString = new URLSearchParams(
         Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
       ).toString();
@@ -16,7 +12,6 @@ export const fetchArticles = createAsyncThunk(
       const url = queryString ? `/articles?${queryString}` : "/articles";
       const response = await httpService.get(url);
 
-      // The backend should return a structure like: { data: { data: [...], pagination: {...} } }
       return response.data?.data;
     } catch (err) {
       return rejectWithValue(
@@ -26,7 +21,6 @@ export const fetchArticles = createAsyncThunk(
   }
 );
 
-// Add a new article
 export const addArticle = createAsyncThunk(
   "articles/addArticle",
   async (articleData, { rejectWithValue }) => {
@@ -45,7 +39,6 @@ export const addArticle = createAsyncThunk(
   }
 );
 
-// Update an article
 export const updateArticle = createAsyncThunk(
   "articles/updateArticle",
   async ({ id, ...data }, { rejectWithValue }) => {
@@ -60,7 +53,6 @@ export const updateArticle = createAsyncThunk(
   }
 );
 
-// Delete an article
 export const deleteArticle = createAsyncThunk(
   "articles/deleteArticle",
   async (articleId, { rejectWithValue }) => {
@@ -75,10 +67,9 @@ export const deleteArticle = createAsyncThunk(
   }
 );
 
-// --- Slice ---
 const initialState = {
   list: [],
-  pagination: null, // 🔄 MODIFIED: Default to null for better conditional checks
+  pagination: null, 
   status: "idle",
   error: null,
 };
@@ -99,18 +90,16 @@ const articlesSlice = createSlice({
         state.list = Array.isArray(action.payload?.data)
           ? action.payload.data
           : [];
-        state.pagination = action.payload?.pagination || null; // 🔄 MODIFIED: Handle payload
+        state.pagination = action.payload?.pagination || null; 
       })
       .addCase(fetchArticles.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
-        state.list = []; // Clear list on error
+        state.list = []; 
       })
 
-      // Add
       .addCase(addArticle.fulfilled, (state, action) => {
-        // For paginated lists, re-fetching is often better than pushing
-        // state.list.push(action.payload);
+
       })
 
       // Update
@@ -123,7 +112,6 @@ const articlesSlice = createSlice({
         }
       })
 
-      // Delete
       .addCase(deleteArticle.fulfilled, (state, action) => {
         state.list = state.list.filter(
           (article) => article._id !== action.payload

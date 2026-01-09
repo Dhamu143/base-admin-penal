@@ -3,7 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-import { fetchSloks, deleteSlok } from "../../store/sloks/index";
+
+// ✅ Import updateSlok here
+import { fetchSloks, deleteSlok, updateSlok } from "../../store/sloks/index";
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -32,8 +34,11 @@ export default function SlokListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [slokToDelete, setSlokToDelete] = useState(null);
 
+  // ✅ Track which item is currently toggling to show spinner
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
-  const itemsPerPage = 10; 
+  const itemsPerPage = 10;
 
   const loadSloks = useCallback(() => {
     dispatch(fetchSloks({ ...filters, limit: itemsPerPage }))
@@ -50,6 +55,27 @@ export default function SlokListPage() {
       dispatch(fetchAllGods());
     }
   }, [dispatch, godStatus]);
+
+  const handleStatusToggle = async (slok) => {
+    if (togglingId === slok._id) return;
+    setFilters({ language: "", god: "", page: 1 });
+
+    setTogglingId(slok._id);
+    const newStatus = !slok.isActive;
+
+    try {
+      await dispatch(
+        updateSlok({ id: slok._id, isActive: newStatus })
+      ).unwrap();
+      toast.success(
+        `Sloka "${slok.name}" is now ${newStatus ? "Active" : "Inactive"}`
+      );
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.language || "N/A";
@@ -111,7 +137,7 @@ export default function SlokListPage() {
       `}</style>
       <div className="card shadow-sm">
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-          <h4 className="mb-0 text-primary-emphasis">🕉️ Sloka Management</h4>
+          <h4 className="mb-0 text-primary-emphasis">Sloka Management</h4>
           <button
             className="btn btn-labeled btn-success"
             type="button"
@@ -178,7 +204,6 @@ export default function SlokListPage() {
                   <th>Language</th>
                   <th>Description</th>
                   <th>Sort</th>
-                  <th>Type</th>
                   <th>Status</th>
                   <th className="text-center">Actions</th>
                 </tr>
@@ -195,29 +220,57 @@ export default function SlokListPage() {
                 {status === "succeeded" &&
                   sloks.map((slok) => (
                     <tr key={slok._id}>
-                      <td style={{ maxWidth: "150px" }}>{slok?.name || "N/A"}</td>
+                      <td style={{ maxWidth: "150px" }}>
+                        {slok?.name || "N/A"}
+                      </td>
                       <td>{slok?.god?.name}</td>
                       <td>{getLanguageNameById(slok.language)}</td>
                       <td>
                         <p style={{ maxWidth: "270px" }}>
-                          {slok?.description?.replace(/<[^>]+>/g, "")}
+                          <span
+                            className="truncate-text"
+                            title={slok?.description?.replace(/<[^>]+>/g, "")}
+                          >
+                            {slok?.description
+                              ?.replace(/<[^>]+>/g, "")
+                              .substring(0, 50) + "..."}
+                          </span>
                         </p>
-                      </td>{" "}
+                      </td>
                       <td>{slok?.sort}</td>
+
+                      {/* --- ✅ STATUS TOGGLE SWITCH --- */}
                       <td>
-                        {slok.isFree ? (
-                          <span className="badge bg-info">Free</span>
-                        ) : (
-                          <span className="badge bg-warning">Premium</span>
-                        )}
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id={`status-switch-${slok._id}`}
+                            checked={slok.isActive}
+                            disabled={togglingId === slok._id}
+                            onChange={() => handleStatusToggle(slok)}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <label
+                            className="form-check-label small ms-1"
+                            htmlFor={`status-switch-${slok._id}`}
+                          >
+                            {togglingId === slok._id ? (
+                              <span
+                                className="spinner-border spinner-border-sm text-secondary"
+                                role="status"
+                                aria-hidden="true"
+                              ></span>
+                            ) : slok.isActive ? (
+                              "Active"
+                            ) : (
+                              "Inactive"
+                            )}
+                          </label>
+                        </div>
                       </td>
-                      <td>
-                        {slok.isActive ? (
-                          <span className="badge bg-success">Active</span>
-                        ) : (
-                          <span className="badge bg-secondary">Inactive</span>
-                        )}
-                      </td>
+
                       <td className="text-center">
                         <button
                           className="btn btn-sm btn-outline-primary mr-2"

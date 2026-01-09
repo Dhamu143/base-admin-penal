@@ -64,7 +64,7 @@ export default function UserTablePage() {
     <div className="card shadow-sm">
       {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">👥 User Management</h4>
+        <h4 className="mb-0 text-primary-emphasis"> User Management</h4>
       </div>
 
       {/* Table */}

@@ -1,9 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
-// --- ASYNC THUNKS FOR THE /story ENDPOINT ---
 
-// Fetch all stories with optional filter parameters
 export const fetchStories = createAsyncThunk(
   "story/fetchAll",
   async (params = {}, { rejectWithValue }) => {
@@ -27,12 +25,10 @@ export const fetchStories = createAsyncThunk(
   }
 );
 
-// Add a new story
 export const addStory = createAsyncThunk(
   "story/add",
   async (storyData, { rejectWithValue }) => {
     try {
-      // Use the /story/create endpoint
       const response = await httpService.post("/story/create", {}, storyData);
       return response.data?.data;
     } catch (err) {
@@ -43,7 +39,6 @@ export const addStory = createAsyncThunk(
   }
 );
 
-// Update an existing story
 export const updateStory = createAsyncThunk(
   "story/update",
   async ({ id, ...storyData }, { rejectWithValue }) => {
@@ -58,7 +53,6 @@ export const updateStory = createAsyncThunk(
   }
 );
 
-// Delete a story
 export const deleteStory = createAsyncThunk(
   "story/delete",
   async (id, { rejectWithValue }) => {
@@ -73,7 +67,6 @@ export const deleteStory = createAsyncThunk(
   }
 );
 
-// --- SLICE ---
 const storySlice = createSlice({
   name: "story",
   initialState: {

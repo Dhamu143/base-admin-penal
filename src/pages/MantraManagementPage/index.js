@@ -4,7 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-import { fetchMantras, deleteMantra } from "../../store/mantra/index";
+// ✅ Import updateMantra here
+import {
+  fetchMantras,
+  deleteMantra,
+  updateMantra,
+} from "../../store/mantra/index";
 import { fetchAllGods } from "../../store/god";
 
 import { staticLanguages } from "../../constants/languages";
@@ -45,8 +50,11 @@ export default function MantraListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [mantraToDelete, setMantraToDelete] = useState(null);
 
+  // ✅ Track which item is currently toggling to show spinner
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
-  const itemsPerPage = 10; 
+  const itemsPerPage = 10;
 
   const loadMantras = useCallback(() => {
     dispatch(fetchMantras({ ...filters, limit: itemsPerPage }))
@@ -64,9 +72,28 @@ export default function MantraListPage() {
     }
   }, [dispatch, godStatus]);
 
+  const handleStatusToggle = async (mantra) => {
+    if (togglingId === mantra._id) return;
+    setTogglingId(mantra._id);
+    const newStatus = !mantra.isActive;
+    setFilters({ language: "", god: "", page: 1 });
+
+    try {
+      await dispatch(
+        updateMantra({ id: mantra._id, isActive: newStatus })
+      ).unwrap();
+      toast.success(
+        `Mantra "${mantra.name}" is now ${newStatus ? "Active" : "Inactive"}`
+      );
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
-
 
   const handleLanguageChange = (option) => {
     const value = option?.value || "";
@@ -123,7 +150,7 @@ export default function MantraListPage() {
       <style>{styles}</style>
       <div className="card shadow-sm">
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-          <h4 className="mb-0 text-primary-emphasis">🕉️ Mantra Management</h4>
+          <h4 className="mb-0 text-primary-emphasis">Mantra Management</h4>
           <button
             className="btn btn-labeled btn-success"
             type="button"
@@ -206,34 +233,52 @@ export default function MantraListPage() {
                 {status === "succeeded" &&
                   mantras.map((mantra) => (
                     <tr key={mantra._id}>
-                      <td
-                        style={{
-                          maxWidth: "100px",
-                        }}
-                      >
-                        {mantra?.name}
-                      </td>
+                      <td style={{ maxWidth: "100px" }}>{mantra?.name}</td>
                       <td>{mantra?.god?.name}</td>
                       <td>{getLanguageNameById(mantra?.language)}</td>
-                      <td
-                        style={{
-                          maxWidth: "400px",
-                        }}
-                      >
+                      <td style={{ maxWidth: "400px" }}>
                         <span
                           title={mantra?.description.replace(/<[^>]+>/g, "")}
                         >
-                          {mantra?.description.replace(/<[^>]+>/g, "")}
+                          {mantra?.description
+                            .replace(/<[^>]+>/g, "")
+                            .substring(0, 50) + "..."}
                         </span>
                       </td>
                       <td>{mantra?.sort}</td>
+
+                      {/* --- ✅ STATUS TOGGLE SWITCH --- */}
                       <td>
-                        {mantra?.isActive ? (
-                          <span className="badge bg-success">Active</span>
-                        ) : (
-                          <span className="badge bg-secondary">Inactive</span>
-                        )}
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id={`status-switch-${mantra._id}`}
+                            checked={mantra.isActive}
+                            disabled={togglingId === mantra._id}
+                            onChange={() => handleStatusToggle(mantra)}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <label
+                            className="form-check-label small ms-1"
+                            htmlFor={`status-switch-${mantra._id}`}
+                          >
+                            {togglingId === mantra._id ? (
+                              <span
+                                className="spinner-border spinner-border-sm text-secondary"
+                                role="status"
+                                aria-hidden="true"
+                              ></span>
+                            ) : mantra.isActive ? (
+                              "Active"
+                            ) : (
+                              "Inactive"
+                            )}
+                          </label>
+                        </div>
                       </td>
+
                       <td className="text-center">
                         <button
                           className="btn btn-sm btn-outline-primary mr-2"

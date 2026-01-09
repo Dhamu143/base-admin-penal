@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-import { fetchNews, deleteNews } from "../../store/news/index";
+// ✅ Import updateNews here
+import { fetchNews, deleteNews, updateNews } from "../../store/news/index";
 import { fetchAllGods } from "../../store/god";
 
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -45,6 +46,9 @@ export default function NewsManagementPage() {
   const [newsToDelete, setNewsToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // ✅ Track which item is currently toggling to show spinner
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
   const itemsPerPage = 10;
 
@@ -64,7 +68,26 @@ export default function NewsManagementPage() {
     }
   }, [dispatch, godStatus]);
 
-  
+  const handleStatusToggle = async (newsItem) => {
+    if (togglingId === newsItem._id) return;
+    setFilters({ language: "", god: "", page: 1 });
+
+    setTogglingId(newsItem._id);
+    const newStatus = !newsItem.isActive;
+
+    try {
+      await dispatch(
+        updateNews({ id: newsItem._id, isActive: newStatus })
+      ).unwrap();
+      toast.success(
+        `News "${newsItem.name}" is now ${newStatus ? "Active" : "Inactive"}`
+      );
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
@@ -123,7 +146,7 @@ export default function NewsManagementPage() {
     <div className="card shadow-sm">
       <style>{styles}</style>
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">📰 News Management</h4>
+        <h4 className="mb-0 text-primary-emphasis"> News Management</h4>
         <button
           className="btn btn-labeled btn-success"
           type="button"
@@ -210,16 +233,46 @@ export default function NewsManagementPage() {
                     <td>{newsItem?.god?.name}</td>
                     <td>{getLanguageNameById(newsItem?.language)}</td>
                     <td style={{ maxWidth: "150px" }}>
-                      <p>{newsItem?.description.replace(/<[^>]+>/g, "")}</p>
+                      <p>
+                        {newsItem?.description
+                          .replace(/<[^>]+>/g, "")
+                          .substring(0, 50) + "..."}
+                      </p>
                     </td>
                     <td>{newsItem?.sort}</td>
+
+                    {/* --- ✅ STATUS TOGGLE SWITCH --- */}
                     <td>
-                      {newsItem?.isActive ? (
-                        <span className="badge bg-success">Active</span>
-                      ) : (
-                        <span className="badge bg-secondary">Inactive</span>
-                      )}
+                      <div className="form-check form-switch">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id={`status-switch-${newsItem._id}`}
+                          checked={newsItem.isActive}
+                          disabled={togglingId === newsItem._id}
+                          onChange={() => handleStatusToggle(newsItem)}
+                          style={{ cursor: "pointer" }}
+                        />
+                        <label
+                          className="form-check-label small ms-1"
+                          htmlFor={`status-switch-${newsItem._id}`}
+                        >
+                          {togglingId === newsItem._id ? (
+                            <span
+                              className="spinner-border spinner-border-sm text-secondary"
+                              role="status"
+                              aria-hidden="true"
+                            ></span>
+                          ) : newsItem.isActive ? (
+                            "Active"
+                          ) : (
+                            "Inactive"
+                          )}
+                        </label>
+                      </div>
                     </td>
+
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"

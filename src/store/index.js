@@ -46,6 +46,8 @@ import quizReducer from "./quiz";
 import news from "./news";
 import story from "./story";
 import stuti from "./stuti";
+import dailyLogReducer from "./dailylog/index";
+
 export const store = configureStore({
   reducer: {
     auth,
@@ -92,6 +94,7 @@ export const store = configureStore({
     news,
     story,
     stuti,
+    dailyLog: dailyLogReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

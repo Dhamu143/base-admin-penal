@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-import { fetchQuizzes, deleteQuiz } from "../../store/quiz";
+// ✅ Import updateQuiz here
+import { fetchQuizzes, deleteQuiz, updateQuiz } from "../../store/quiz";
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -33,6 +34,9 @@ export default function QuizListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState(null);
 
+  // ✅ Track which item is currently toggling to show spinner
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
   const itemsPerPage = 10;
 
@@ -51,6 +55,27 @@ export default function QuizListPage() {
       dispatch(fetchAllGods());
     }
   }, [dispatch, godStatus]);
+
+  const handleStatusToggle = async (quiz) => {
+    if (togglingId === quiz._id) return;
+
+    setTogglingId(quiz._id);
+    const newStatus = !quiz.isActive;
+    setFilters({ language: "", god: "", page: 1 });
+
+    try {
+      await dispatch(
+        updateQuiz({ id: quiz._id, isActive: newStatus })
+      ).unwrap();
+      toast.success(
+        `Quiz status updated to ${newStatus ? "Active" : "Inactive"}`
+      );
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.nativeName || "N/A";
@@ -108,7 +133,7 @@ export default function QuizListPage() {
   return (
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">❓ Quiz Management</h4>
+        <h4 className="mb-0 text-primary-emphasis">Quiz Management</h4>
         <button
           className="btn btn-labeled btn-success"
           type="button"
@@ -193,14 +218,40 @@ export default function QuizListPage() {
                     <td style={{ maxWidth: "200px" }}>{quiz.question}</td>
                     <td>{quiz.correctanswer}</td>
                     <td>{getLanguageNameById(quiz.language)}</td>
-                    <td>{quiz.god.name}</td>
+                    <td>{quiz.god?.name}</td>
+
+                    {/* --- ✅ STATUS TOGGLE SWITCH --- */}
                     <td>
-                      {quiz.isActive ? (
-                        <span className="badge bg-success">Active</span>
-                      ) : (
-                        <span className="badge bg-secondary">Inactive</span>
-                      )}
+                      <div className="form-check form-switch">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id={`status-switch-${quiz._id}`}
+                          checked={quiz.isActive}
+                          disabled={togglingId === quiz._id}
+                          onChange={() => handleStatusToggle(quiz)}
+                          style={{ cursor: "pointer" }}
+                        />
+                        <label
+                          className="form-check-label small ms-1"
+                          htmlFor={`status-switch-${quiz._id}`}
+                        >
+                          {togglingId === quiz._id ? (
+                            <span
+                              className="spinner-border spinner-border-sm text-secondary"
+                              role="status"
+                              aria-hidden="true"
+                            ></span>
+                          ) : quiz.isActive ? (
+                            "Active"
+                          ) : (
+                            "Inactive"
+                          )}
+                        </label>
+                      </div>
                     </td>
+
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"

@@ -90,7 +90,7 @@ export default function RingtoneManagementPage() {
   return (
     <div className="card shadow-sm">
       <div className="card-header d-flex justify-content-between">
-        <h4 className="mb-0">🎵 Ringtone Management</h4>
+        <h4 className="mb-0"> Ringtone Management</h4>
         <button
           className="btn btn-success"
           onClick={() => navigate("/ringtones/new")}

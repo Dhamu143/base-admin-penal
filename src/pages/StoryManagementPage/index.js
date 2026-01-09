@@ -3,7 +3,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-import { fetchStories, deleteStory } from "../../store/story/index";
+
+// ✅ Import updateStory here
+import {
+  fetchStories,
+  deleteStory,
+  updateStory,
+} from "../../store/story/index";
 import { fetchAllGods } from "../../store/god";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import { staticLanguages } from "../../constants/languages";
@@ -32,6 +38,9 @@ export default function StoryManagementPage() {
   const [storyToDelete, setStoryToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // ✅ Track which item is currently toggling to show spinner
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
   const itemsPerPage = 10;
 
@@ -50,6 +59,27 @@ export default function StoryManagementPage() {
       dispatch(fetchAllGods());
     }
   }, [dispatch, godStatus]);
+
+  const handleStatusToggle = async (story) => {
+    if (togglingId === story._id) return;
+    setFilters({ language: "", god: "", page: 1 });
+
+    setTogglingId(story._id);
+    const newStatus = !story.isActive;
+
+    try {
+      await dispatch(
+        updateStory({ id: story._id, isActive: newStatus })
+      ).unwrap();
+      toast.success(
+        `Story "${story.name}" is now ${newStatus ? "Active" : "Inactive"}`
+      );
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
@@ -107,7 +137,7 @@ export default function StoryManagementPage() {
   return (
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">📚 Story Management</h4>
+        <h4 className="mb-0 text-primary-emphasis">Story Management</h4>
         <button
           className="btn btn-labeled btn-success"
           type="button"
@@ -205,13 +235,39 @@ export default function StoryManagementPage() {
                       {storyItem?.description.replace(/<[^>]+>/g, "")}
                     </td>
                     <td>{storyItem?.sort}</td>
+
+                    {/* --- ✅ STATUS TOGGLE SWITCH --- */}
                     <td>
-                      {storyItem?.isActive ? (
-                        <span className="badge bg-success">Active</span>
-                      ) : (
-                        <span className="badge bg-secondary">Inactive</span>
-                      )}
+                      <div className="form-check form-switch">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id={`status-switch-${storyItem._id}`}
+                          checked={storyItem.isActive}
+                          disabled={togglingId === storyItem._id}
+                          onChange={() => handleStatusToggle(storyItem)}
+                          style={{ cursor: "pointer" }}
+                        />
+                        <label
+                          className="form-check-label small ms-1"
+                          htmlFor={`status-switch-${storyItem._id}`}
+                        >
+                          {togglingId === storyItem._id ? (
+                            <span
+                              className="spinner-border spinner-border-sm text-secondary"
+                              role="status"
+                              aria-hidden="true"
+                            ></span>
+                          ) : storyItem.isActive ? (
+                            "Active"
+                          ) : (
+                            "Inactive"
+                          )}
+                        </label>
+                      </div>
                     </td>
+
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"

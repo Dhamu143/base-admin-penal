@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-import { fetchTemples, deleteTemple } from "../../store/temple";
+// 🔄 MODIFIED: Ensure updateTemple is imported
+import { fetchTemples, deleteTemple, updateTemple } from "../../store/temple";
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -33,24 +34,22 @@ export default function TempleListPage() {
   const [templeToDelete, setTempleToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // 🔄 MODIFIED: 'page' is now part of the filters state for a single source of truth.
+  // 🔄 NEW: State to track which ID is currently toggling status
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
   const itemsPerPage = 10;
 
-  // 🔄 MODIFIED: loadTemples is now simpler and doesn't need params.
   const loadTemples = useCallback(() => {
     dispatch(fetchTemples({ ...filters, limit: itemsPerPage }))
       .unwrap()
       .catch((err) => toast.error(err?.message || "Failed to load temples."));
   }, [dispatch, filters, itemsPerPage]);
 
-  // 🔄 MODIFIED: This useEffect now correctly handles all data loading for temples.
-  // It runs ONLY when the filters (language, god, or page) change.
   useEffect(() => {
     loadTemples();
   }, [loadTemples]);
 
-  // This useEffect fetches the master list of gods, but only once.
   useEffect(() => {
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
@@ -60,10 +59,8 @@ export default function TempleListPage() {
   const getLanguageName = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.language || "N/A";
 
-  // 🔄 MODIFIED: Handlers now ONLY update state. The useEffect above handles fetching.
   const handleLanguageChange = (option) => {
     const value = option?.value || "";
-    // When a filter changes, always reset to page 1.
     setFilters((prev) => ({ ...prev, language: value, page: 1 }));
   };
 
@@ -82,6 +79,31 @@ export default function TempleListPage() {
     }
   };
 
+  // 🔄 NEW: Handler for toggling status
+  const handleStatusToggle = async (temple) => {
+    if (togglingId === temple._id) return; // Prevent double clicks
+
+    setTogglingId(temple._id);
+    const newStatus = !temple.isActive;
+
+    try {
+      // Assuming updateTemple takes { id, ...data }
+      await dispatch(
+        updateTemple({ id: temple._id, isActive: newStatus })
+      ).unwrap();
+
+      toast.success(
+        `Temple "${temple.name}" is now ${newStatus ? "Active" : "Inactive"}`
+      );
+      // Note: If your reducer updates the list automatically on success,
+      // the UI will reflect the change immediately.
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!templeToDelete) return;
     setIsDeleting(true);
@@ -89,12 +111,9 @@ export default function TempleListPage() {
       await dispatch(deleteTemple(templeToDelete._id)).unwrap();
       toast.success(`Temple "${templeToDelete.name}" deleted successfully.`);
 
-      // After deletion, if it was the last item on a page, update the page filter.
-      // The useEffect will then automatically refetch the data.
       if (temples.length === 1 && filters.page > 1) {
         setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
       } else {
-        // Otherwise, just reload the current page's data.
         loadTemples();
       }
       setTempleToDelete(null);
@@ -118,7 +137,7 @@ export default function TempleListPage() {
   return (
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">🛕 Temple Management</h4>
+        <h4 className="mb-0 text-primary-emphasis">Temple Management</h4>
         <button
           className="btn btn-labeled btn-success"
           type="button"
@@ -182,6 +201,7 @@ export default function TempleListPage() {
                 <th>Name</th>
                 <th>God</th>
                 <th>Language</th>
+                <th>Status</th> {/* 🔄 MODIFIED: Added Status Column */}
                 <th className="text-center">Actions</th>
               </tr>
             </thead>
@@ -190,7 +210,7 @@ export default function TempleListPage() {
                 status={status}
                 error={error}
                 dataLength={temples.length}
-                colSpan={7}
+                colSpan={6} // 🔄 MODIFIED: Increased colspan to account for Status
                 loadingText="Loading temples..."
                 emptyText="No temples Found."
               />
@@ -225,6 +245,39 @@ export default function TempleListPage() {
                     <td className="fw-semibold">{temple.name}</td>
                     <td>{temple.god.name}</td>
                     <td>{getLanguageName(temple.language)}</td>
+
+                    {/* 🔄 NEW: Status Toggle Switch */}
+                    <td>
+                      <div className="form-check form-switch">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id={`status-switch-${temple._id}`}
+                          checked={temple.isActive}
+                          disabled={togglingId === temple._id}
+                          onChange={() => handleStatusToggle(temple)}
+                          style={{ cursor: "pointer" }}
+                        />
+                        <label
+                          className="form-check-label small ms-1"
+                          htmlFor={`status-switch-${temple._id}`}
+                        >
+                          {togglingId === temple._id ? (
+                            <span
+                              className="spinner-border spinner-border-sm text-secondary"
+                              role="status"
+                              aria-hidden="true"
+                            ></span>
+                          ) : temple.isActive ? (
+                            "Active"
+                          ) : (
+                            "Inactive"
+                          )}
+                        </label>
+                      </div>
+                    </td>
+
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
@@ -251,7 +304,6 @@ export default function TempleListPage() {
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
-            // 🔄 MODIFIED: Read currentPage from the unified filters state
             currentPage={filters.page}
             totalPages={pagination.totalPages}
             totalItems={pagination.totalRecords}

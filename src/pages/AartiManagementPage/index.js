@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-import { fetchAartis, deleteAarti } from "../../store/aarti/index";
+// Import updateAarti here
+import { fetchAartis, deleteAarti, updateAarti } from "../../store/aarti/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
@@ -34,6 +35,9 @@ export default function AartiListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [aartiToDelete, setAartiToDelete] = useState(null);
 
+  // Local state to track which toggle is currently loading/disabled
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
   const itemsPerPage = 10;
 
@@ -52,6 +56,28 @@ export default function AartiListPage() {
       dispatch(fetchAllGods());
     }
   }, [dispatch, godStatus]);
+
+  const handleStatusToggle = async (aarti) => {
+    if (togglingId === aarti._id) return;
+
+    setTogglingId(aarti._id);
+    const newStatus = !aarti.isActive;
+    setFilters({ language: "", god: "", page: 1 });
+
+    try {
+      await dispatch(
+        updateAarti({ id: aarti._id, isActive: newStatus })
+      ).unwrap();
+
+      toast.success(
+        `Aarti "${aarti.name}" is now ${newStatus ? "Active" : "Inactive"}`
+      );
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
@@ -73,7 +99,10 @@ export default function AartiListPage() {
     setIsDeleting(true);
     try {
       await dispatch(deleteAarti(aartiToDelete._id)).unwrap();
-      toast.success(`Aarti "${aartiToDelete.title}" deleted successfully.`);
+      toast.success(
+        `Aarti "${aartiToDelete.title ||
+          aartiToDelete.name}" deleted successfully.`
+      );
       if (aartis.length === 1 && filters.page > 1) {
         setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
       } else {
@@ -100,7 +129,7 @@ export default function AartiListPage() {
   return (
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">🎵 Aarti Management</h4>
+        <h4 className="mb-0 text-primary-emphasis">Aarti Management</h4>
         <button
           className="btn btn-labeled btn-success"
           type="button"
@@ -188,21 +217,47 @@ export default function AartiListPage() {
                     <td>{aarti?.name || "N/A"}</td>
                     <td>{aarti?.god?.name}</td>
                     <td>{getLanguageNameById(aarti?.language)}</td>
-                    <td
-                      style={{
-                        maxWidth: "200px",
-                      }}
-                    >
-                      {aarti.description.replace(/<[^>]+>/g, "")}
+                    <td style={{ maxWidth: "200px" }}>
+                      {aarti.description
+                        ? aarti.description
+                            .replace(/<[^>]+>/g, "")
+                            .substring(0, 50) + "..."
+                        : ""}
                     </td>
                     <td>{aarti?.sort}</td>
+
+                    {/* --- TOGGLE SWITCH COLUMN --- */}
                     <td>
-                       {aarti.isActive ? (
-                          <span className="badge bg-success">Active</span>
-                        ) : (
-                          <span className="badge bg-secondary">Inactive</span>
-                        )}
+                      <div className="form-check form-switch">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id={`status-switch-${aarti._id}`}
+                          checked={aarti.isActive}
+                          disabled={togglingId === aarti._id}
+                          onChange={() => handleStatusToggle(aarti)}
+                          style={{ cursor: "pointer" }}
+                        />
+                        <label
+                          className="form-check-label small ms-1"
+                          htmlFor={`status-switch-${aarti._id}`}
+                        >
+                          {togglingId === aarti._id ? (
+                            <span
+                              className="spinner-border spinner-border-sm text-secondary"
+                              role="status"
+                              aria-hidden="true"
+                            ></span>
+                          ) : aarti.isActive ? (
+                            "Active"
+                          ) : (
+                            "Inactive"
+                          )}
+                        </label>
+                      </div>
                     </td>
+
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
@@ -248,7 +303,10 @@ export default function AartiListPage() {
       >
         <p className="fs-5 text-center">
           Are you sure you want to delete <br />
-          <strong className="text-danger">{aartiToDelete?.title}</strong>?
+          <strong className="text-danger">
+            {aartiToDelete?.title || aartiToDelete?.name}
+          </strong>
+          ?
         </p>
       </ConfirmationModal>
     </div>

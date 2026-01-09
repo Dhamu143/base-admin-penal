@@ -4,7 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
 
-import { fetchBhajans, deleteBhajan } from "../../store/bhajan/index";
+// ✅ Import updateBhajan here
+import {
+  fetchBhajans,
+  deleteBhajan,
+  updateBhajan,
+} from "../../store/bhajan/index";
 import { fetchAllGods } from "../../store/god";
 
 import { staticLanguages } from "../../constants/languages";
@@ -34,8 +39,12 @@ export default function BhajanListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [bhajanToDelete, setBhajanToDelete] = useState(null);
 
+  // ✅ Track which item is currently toggling to show spinner
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
   const itemsPerPage = 10;
+
   const loadBhajans = useCallback(() => {
     dispatch(fetchBhajans({ ...filters, limit: itemsPerPage }))
       .unwrap()
@@ -51,6 +60,26 @@ export default function BhajanListPage() {
       dispatch(fetchAllGods());
     }
   }, [dispatch, godStatus]);
+
+  const handleStatusToggle = async (bhajan) => {
+    if (togglingId === bhajan._id) return;
+    setTogglingId(bhajan._id);
+    const newStatus = !bhajan.isActive;
+    setFilters({ language: "", god: "", page: 1 });
+
+    try {
+      await dispatch(
+        updateBhajan({ id: bhajan._id, isActive: newStatus })
+      ).unwrap();
+      toast.success(
+        `Bhajan "${bhajan.name}" is now ${newStatus ? "Active" : "Inactive"}`
+      );
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const handleLanguageChange = (option) => {
     const value = option?.value || "";
@@ -105,7 +134,7 @@ export default function BhajanListPage() {
   return (
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-        <h4 className="mb-0 text-primary-emphasis">🎶 Bhajan Management</h4>
+        <h4 className="mb-0 text-primary-emphasis"> Bhajan Management</h4>
         <button
           className="btn btn-labeled btn-success"
           type="button"
@@ -193,22 +222,52 @@ export default function BhajanListPage() {
                         {b.name}
                       </span>
                     </td>
-                    <td>{b.god.name}</td>
+                    <td>{b?.god?.name}</td>
                     <td>
                       {staticLanguages.find((l) => l._id === b.language)
                         ?.nativeName || "N/A"}
                     </td>
                     <td style={{ maxWidth: "200px" }}>
-                      {b?.description?.replace(/<[^>]+>/g, "")}
+                      {b?.description
+                        ? b.description
+                            .replace(/<[^>]+>/g, "")
+                            .substring(0, 50) + "..."
+                        : ""}
                     </td>
                     <td>{b?.sort}</td>
+
+                    {/* --- ✅ STATUS TOGGLE SWITCH --- */}
                     <td>
-                      {b?.isActive ? (
-                        <span className="badge bg-success">Active</span>
-                      ) : (
-                        <span className="badge bg-secondary">Inactive</span>
-                      )}
+                      <div className="form-check form-switch">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id={`status-switch-${b._id}`}
+                          checked={b.isActive}
+                          disabled={togglingId === b._id}
+                          onChange={() => handleStatusToggle(b)}
+                          style={{ cursor: "pointer" }}
+                        />
+                        <label
+                          className="form-check-label small ms-1"
+                          htmlFor={`status-switch-${b._id}`}
+                        >
+                          {togglingId === b._id ? (
+                            <span
+                              className="spinner-border spinner-border-sm text-secondary"
+                              role="status"
+                              aria-hidden="true"
+                            ></span>
+                          ) : b.isActive ? (
+                            "Active"
+                          ) : (
+                            "Inactive"
+                          )}
+                        </label>
+                      </div>
                     </td>
+
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"

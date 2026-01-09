@@ -3,7 +3,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-import { fetchFestivals, deleteFestival } from "../../store/festival/index";
+
+import {
+  fetchFestivals,
+  deleteFestival,
+  updateFestival,
+} from "../../store/festival/index";
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -44,6 +49,9 @@ export default function FestivalListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [festivalToDelete, setFestivalToDelete] = useState(null);
 
+  // ✅ Track which item is currently toggling to show spinner
+  const [togglingId, setTogglingId] = useState(null);
+
   const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
   const itemsPerPage = 10;
 
@@ -62,6 +70,29 @@ export default function FestivalListPage() {
       dispatch(fetchAllGods());
     }
   }, [dispatch, godStatus]);
+
+  const handleStatusToggle = async (festival) => {
+    if (togglingId === festival._id) return;
+    setFilters({ language: "", god: "", page: 1 });
+
+    setTogglingId(festival._id);
+    const newStatus = !festival.isActive;
+
+    try {
+      await dispatch(
+        updateFestival({ id: festival._id, isActive: newStatus })
+      ).unwrap();
+      toast.success(
+        `Festival "${festival.name}" is now ${
+          newStatus ? "Active" : "Inactive"
+        }`
+      );
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
@@ -118,7 +149,7 @@ export default function FestivalListPage() {
       <style>{styles}</style>
       <div className="card shadow-sm">
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-          <h4 className="mb-0 text-primary-emphasis">🎉 Festival Management</h4>
+          <h4 className="mb-0 text-primary-emphasis">Festival Management</h4>
           <button
             className="btn btn-labeled btn-success"
             type="button"
@@ -189,7 +220,7 @@ export default function FestivalListPage() {
                       <td className="fw-bold">{festival?.name}</td>
                       <td>{festival?.date}</td>
                       <td>{getLanguageNameById(festival?.language)}</td>
-                        <td
+                      <td
                         style={{
                           maxWidth: "400px",
                         }}
@@ -197,17 +228,44 @@ export default function FestivalListPage() {
                         <span
                           title={festival.description.replace(/<[^>]+>/g, "")}
                         >
-                          {festival.description.replace(/<[^>]+>/g, "")}
+                          {festival.description
+                            .replace(/<[^>]+>/g, "")
+                            .substring(0, 50) + "..."}
                         </span>
                       </td>
 
+                      {/* --- ✅ STATUS TOGGLE SWITCH --- */}
                       <td>
-                        {festival.isActive ? (
-                          <span className="badge bg-success">Active</span>
-                        ) : (
-                          <span className="badge bg-secondary">Inactive</span>
-                        )}
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id={`status-switch-${festival._id}`}
+                            checked={festival.isActive}
+                            disabled={togglingId === festival._id}
+                            onChange={() => handleStatusToggle(festival)}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <label
+                            className="form-check-label small ms-1"
+                            htmlFor={`status-switch-${festival._id}`}
+                          >
+                            {togglingId === festival._id ? (
+                              <span
+                                className="spinner-border spinner-border-sm text-secondary"
+                                role="status"
+                                aria-hidden="true"
+                              ></span>
+                            ) : festival.isActive ? (
+                              "Active"
+                            ) : (
+                              "Inactive"
+                            )}
+                          </label>
+                        </div>
                       </td>
+
                       <td className="text-center">
                         <button
                           className="btn btn-sm btn-outline-primary mr-2"
