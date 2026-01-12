@@ -15,35 +15,7 @@ import { SocketContext } from "./context/socket";
 import { useContext } from "react";
 import { useDispatch } from "react-redux";
 
-import Language from "./pages/language";
-
-import NewLanguage from "./pages/language/add";
-
 import GlobalLoader from "./components/GlobalLoader";
-
-import Faq from "./pages/faq";
-import User from "./pages/users/index";
-import NewUser from "./pages/users/add";
-
-import NewFaq from "./pages/faq/add";
-
-import Teams from "./pages/teams/index";
-import TeamsForm from "./pages/teams/teamsform";
-import UserDetails from "./pages/users/userDetails";
-import Support from "./pages/support";
-import Announcement from "./pages/announcement";
-import Paymentsetting from "./pages/paymentsetting/index";
-import Offer from "./pages/offer";
-import ComplianceDate from "./pages/complianceDate/index";
-import NewComplianceDate from "./pages/complianceDate/add";
-
-import RequstedUser from "./pages/RequstedUser";
-import PaymentHistory from "./pages/Payment-History";
-import NewPost from "./pages/post/add";
-import Post from "./pages/post";
-
-import NewEvent from "./pages/events/add";
-import Event from "./pages/events";
 
 import GodMaster from "./pages/god-Master";
 import AartiManagementPage from "./pages/AartiManagementPage/index.js";
@@ -118,9 +90,7 @@ function App() {
             <Route path="/dailylog/edit/:id" element={<DailyLogFormPage />} />
 
             <Route path="/aarti" element={<AartiManagementPage />} />
-            {/* Create New Aarti */}
             <Route path="/aartis/new" element={<AartiFormPage />} />
-            {/* Edit Existing Aarti */}
             <Route path="/aartis/edit/:id" element={<AartiFormPage />} />
             <Route path="/bhajan" element={<BhajanManagementPage />} />
             <Route path="/bhajans/new" element={<BhajanFormPage />} />
@@ -168,61 +138,12 @@ function App() {
             <Route path="/quiz" element={<QuizManagement />} />
             <Route path="/quizzes/new" element={<QuizFormPage />} />
             <Route path="/quizzes/edit/:id" element={<QuizFormPage />} />
-            {/* 
-          <Route path="/user" element={<User />} />
-          <Route path="/user/:page" element={<User />} />
-          <Route path="/user/new" element={<NewUser />} />
-          <Route path="/user/edit/:id" element={<NewUser />} />
-          <Route path="/user/details/:id" element={<UserDetails />} /> */}
-            {/*        
-          <Route path="/payment" element={<Paymentsetting />} />
-          <Route path="/payment/:page" element={<Paymentsetting />} />
-
-          <Route path="/compliance" element={<ComplianceDate />} />
-          <Route path="/compliance/:page" element={<ComplianceDate />} />
-          <Route path="/compliance/new" element={<NewComplianceDate />} />
-          <Route path="/compliance/edit/:id" element={<NewComplianceDate />} />
-
-          <Route path="/teams" element={<Teams />} />
-          <Route path="/teams/:page" element={<Teams />} />
-
-          <Route path="/post" element={<Post />} />
-          <Route path="/post/:page" element={<Post />} />
-          <Route path="/post/new" element={<NewPost />} />
-          <Route path="/post/edit/:id" element={<NewPost />} />
-
-          <Route path="/event" element={<Event />} />
-          <Route path="/event/:page" element={<Event />} />
-          <Route path="/event/new" element={<NewEvent />} />
-          <Route path="/event/edit/:id" element={<NewEvent />} />
-
-          <Route path="/requsteduser" element={<RequstedUser />} />
-          <Route path="/requsteduser/:page" element={<RequstedUser />} />
-          <Route path="/payment-history" element={<PaymentHistory />} />
-          <Route path="/payment-history/:page" element={<PaymentHistory />} />
-
-          <Route path="/faq" element={<Faq />} />
-          <Route path="/faq/:page" element={<Faq />} />
-          <Route path="/faq/new" element={<NewFaq />} />
-          <Route path="/faq/edit/:id" element={<NewFaq />} />
-
-          <Route path="/support" element={<Support />} />
-          <Route path="/announcement" element={<Announcement />} />
-          <Route path="/payment-settings" element={<Paymentsetting />} />
-          <Route path="/payment-settings/:page" element={<Paymentsetting />} />
-          <Route path="/offer" element={<Offer />} />
-          */}
           </Route>
-          {/* <Route element={<PrivateRoute />}>
-          <Route path="/teamsform" element={<TeamsForm />} />          
-          </Route> */}
 
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Login />} />
           </Route>
           <Route path="/signup" element={<SignUp />} />
-          <Route path="/access" element={<TeamsForm />} />
-          <Route path="/access/:userId" element={<TeamsForm />} />
         </Routes>
         <ToastContainer />
         <audio ref={audioRef} id="order-sound" src="/assets/sound/sound.mp3" />
