@@ -2,15 +2,16 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
-// --- ASYNC THUNKS FOR THE /mantra ENDPOINT ---
-
-// Fetch all mantras with optional filters & pagination
 export const fetchMantras = createAsyncThunk(
   "mantra/fetchAll",
   async (params = {}, { rejectWithValue }) => {
     try {
       const queryString = new URLSearchParams(
-        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+        Object.fromEntries(
+          Object.entries(params).filter(
+            ([_, v]) => v !== "" && v !== undefined && v !== null
+          )
+        )
       ).toString();
 
       const url = queryString ? `/mantra?${queryString}` : "/mantra";

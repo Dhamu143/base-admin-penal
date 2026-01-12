@@ -6,9 +6,12 @@ export const fetchArticles = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const queryString = new URLSearchParams(
-        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+        Object.fromEntries(
+          Object.entries(params).filter(
+            ([_, v]) => v !== "" && v !== undefined && v !== null
+          )
+        )
       ).toString();
-
       const url = queryString ? `/articles?${queryString}` : "/articles";
       const response = await httpService.get(url);
 
@@ -69,7 +72,7 @@ export const deleteArticle = createAsyncThunk(
 
 const initialState = {
   list: [],
-  pagination: null, 
+  pagination: null,
   status: "idle",
   error: null,
 };
@@ -90,17 +93,15 @@ const articlesSlice = createSlice({
         state.list = Array.isArray(action.payload?.data)
           ? action.payload.data
           : [];
-        state.pagination = action.payload?.pagination || null; 
+        state.pagination = action.payload?.pagination || null;
       })
       .addCase(fetchArticles.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
-        state.list = []; 
+        state.list = [];
       })
 
-      .addCase(addArticle.fulfilled, (state, action) => {
-
-      })
+      .addCase(addArticle.fulfilled, (state, action) => {})
 
       // Update
       .addCase(updateArticle.fulfilled, (state, action) => {

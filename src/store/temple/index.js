@@ -1,36 +1,29 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
+// store/temple.js
 export const fetchTemples = createAsyncThunk(
   "temple/fetchAll",
-  async (params = { page: 1, limit: 10 }, { rejectWithValue }) => {
+  async (params, { rejectWithValue }) => {
     try {
-      const paramsWithCacheBuster = {
-        ...params,
-        _: Date.now(),
-      };
+      // Remove empty values to keep URL clean
+      const cleanedParams = Object.fromEntries(
+        Object.entries(params).filter(([_, v]) => v != null && v !== "")
+      );
 
-      const queryString = new URLSearchParams(
-        Object.fromEntries(
-          Object.entries(paramsWithCacheBuster).filter(([_, v]) => v)
-        )
-      ).toString();
-
-      const url = `/temple?${queryString}`;
-      const response = await httpService.get(url);
+      const response = await httpService.get("/temple", {
+        params: cleanedParams,
+      });
 
       return {
         data: response.data?.data?.data || [],
         pagination: response.data?.data?.pagination || null,
       };
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Could not fetch temples."
-      );
+      return rejectWithValue(err.response?.data?.message || "Could not fetch.");
     }
   }
 );
-
 
 export const addTemple = createAsyncThunk(
   "temple/add",

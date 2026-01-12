@@ -234,7 +234,6 @@ export default function FestivalListPage() {
                         </span>
                       </td>
 
-                      {/* --- ✅ STATUS TOGGLE SWITCH --- */}
                       <td>
                         <div className="form-check form-switch">
                           <input
@@ -242,7 +241,7 @@ export default function FestivalListPage() {
                             type="checkbox"
                             role="switch"
                             id={`status-switch-${festival._id}`}
-                            checked={festival.isActive}
+                            checked={festival?.isActive}
                             disabled={togglingId === festival._id}
                             onChange={() => handleStatusToggle(festival)}
                             style={{ cursor: "pointer" }}

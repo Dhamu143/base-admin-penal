@@ -6,7 +6,11 @@ export const fetchQuizzes = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const queryString = new URLSearchParams(
-        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+        Object.fromEntries(
+          Object.entries(params).filter(
+            ([_, v]) => v !== "" && v !== undefined && v !== null
+          )
+        )
       ).toString();
 
       const url = queryString ? `/quiz?${queryString}` : "/quiz";

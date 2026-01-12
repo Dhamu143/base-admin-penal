@@ -2,31 +2,34 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import Select from "react-select";
 
-// ✅ Import updateStory here
+// ✅ Hooks & Shared Components
+import FilterBar from "../../common/FilterBar";
+import { useFilters } from "../../hook/useFilters";
+import ConfirmationModal from "../../common/ConfirmationModal";
+import CustomPagination from "../../common/Pagination";
+import { TableStatus } from "../../components/TableStatus";
+
+// ✅ Actions & Constants
 import {
   fetchStories,
   deleteStory,
   updateStory,
 } from "../../store/story/index";
 import { fetchAllGods } from "../../store/god";
-import ConfirmationModal from "../../common/ConfirmationModal";
 import { staticLanguages } from "../../constants/languages";
-import CustomPagination from "../../common/Pagination";
-import { TableStatus } from "../../components/TableStatus";
-
-const languageOptions = [
-  { value: "", label: "All Languages" },
-  ...staticLanguages.map((lang) => ({
-    value: lang._id,
-    label: `${lang.language} (${lang.nativeName})`,
-  })),
-];
 
 export default function StoryManagementPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const itemsPerPage = 10;
+
+  const {
+    filters,
+    handleFilterChange,
+    handlePageChange,
+    resetFilters,
+  } = useFilters(1);
 
   const { list: stories, pagination, status, error } = useSelector(
     (state) => state.story
@@ -37,12 +40,7 @@ export default function StoryManagementPage() {
 
   const [storyToDelete, setStoryToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // ✅ Track which item is currently toggling to show spinner
   const [togglingId, setTogglingId] = useState(null);
-
-  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
-  const itemsPerPage = 10;
 
   const loadStories = useCallback(() => {
     dispatch(fetchStories({ ...filters, limit: itemsPerPage }))
@@ -62,7 +60,6 @@ export default function StoryManagementPage() {
 
   const handleStatusToggle = async (story) => {
     if (togglingId === story._id) return;
-    setFilters({ language: "", god: "", page: 1 });
 
     setTogglingId(story._id);
     const newStatus = !story.isActive;
@@ -81,29 +78,6 @@ export default function StoryManagementPage() {
     }
   };
 
-  const getLanguageNameById = (langId) =>
-    staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
-
-  const handleLanguageChange = (option) => {
-    const value = option?.value || "";
-    setFilters((prev) => ({ ...prev, language: value, page: 1 }));
-  };
-
-  const handleGodChange = (option) => {
-    const value = option?.value || "";
-    setFilters((prev) => ({ ...prev, god: value, page: 1 }));
-  };
-
-  const handleResetFilters = () => {
-    setFilters({ language: "", god: "", page: 1 });
-  };
-
-  const handlePageChange = (newPage) => {
-    if (newPage !== filters.page) {
-      setFilters((prev) => ({ ...prev, page: newPage }));
-    }
-  };
-
   const confirmDelete = async () => {
     if (!storyToDelete) return;
     setIsDeleting(true);
@@ -112,7 +86,7 @@ export default function StoryManagementPage() {
       toast.success(`Story "${storyToDelete.name}" deleted successfully.`);
 
       if (stories.length === 1 && filters.page > 1) {
-        setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
+        handlePageChange(filters.page - 1);
       } else {
         loadStories();
       }
@@ -124,23 +98,21 @@ export default function StoryManagementPage() {
     }
   };
 
+  const getLanguageNameById = (langId) =>
+    staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
+
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
   ];
 
-  const selectedLanguage = languageOptions.find(
-    (opt) => opt.value === filters.language
-  );
-  const selectedGod = godOptions.find((opt) => opt.value === filters.god);
-
   return (
     <div className="card shadow-sm">
+      {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Story Management</h4>
         <button
           className="btn btn-labeled btn-success"
-          type="button"
           style={{ fontSize: "17px" }}
           onClick={() => navigate("/story/new")}
         >
@@ -151,49 +123,15 @@ export default function StoryManagementPage() {
         </button>
       </div>
 
-      <div className="card-body border-bottom">
-        <div className="d-flex flex-column flex-md-row align-items-md-center">
-          <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
-            <label className="form-label fw-bold small mb-1">
-              Filter by Language
-            </label>
-            <Select
-              placeholder="Select Language..."
-              options={languageOptions}
-              value={selectedLanguage}
-              onChange={handleLanguageChange}
-              isClearable
-              classNamePrefix="react-select"
-            />
-          </div>
+      <FilterBar
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onReset={resetFilters}
+        godOptions={godOptions}
+        godStatus={godStatus}
+      />
 
-          <div className="ml-4" style={{ minWidth: "250px" }}>
-            <label className="form-label fw-bold small mb-1">
-              Filter by God
-            </label>
-            <Select
-              placeholder="Select God..."
-              options={godOptions}
-              value={selectedGod}
-              onChange={handleGodChange}
-              isClearable
-              isLoading={godStatus === "loading"}
-              isDisabled={godStatus !== "succeeded"}
-              classNamePrefix="react-select"
-            />
-          </div>
-
-          <div className="mt-md-auto ms-md-auto">
-            <button
-              className="btn btn-outline-secondary w-100 p-2 ml-4"
-              onClick={handleResetFilters}
-            >
-              <i className="fas fa-undo mr-1"></i>Reset
-            </button>
-          </div>
-        </div>
-      </div>
-
+      {/* Table Content */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
@@ -236,29 +174,20 @@ export default function StoryManagementPage() {
                     </td>
                     <td>{storyItem?.sort}</td>
 
-                    {/* --- ✅ STATUS TOGGLE SWITCH --- */}
+                    {/* Status Toggle */}
                     <td>
                       <div className="form-check form-switch">
                         <input
                           className="form-check-input"
                           type="checkbox"
-                          role="switch"
-                          id={`status-switch-${storyItem._id}`}
                           checked={storyItem.isActive}
                           disabled={togglingId === storyItem._id}
                           onChange={() => handleStatusToggle(storyItem)}
                           style={{ cursor: "pointer" }}
                         />
-                        <label
-                          className="form-check-label small ms-1"
-                          htmlFor={`status-switch-${storyItem._id}`}
-                        >
+                        <label className="form-check-label small ms-1">
                           {togglingId === storyItem._id ? (
-                            <span
-                              className="spinner-border spinner-border-sm text-secondary"
-                              role="status"
-                              aria-hidden="true"
-                            ></span>
+                            <span className="spinner-border spinner-border-sm text-secondary"></span>
                           ) : storyItem.isActive ? (
                             "Active"
                           ) : (
@@ -291,6 +220,7 @@ export default function StoryManagementPage() {
         </div>
       </div>
 
+      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
@@ -303,6 +233,7 @@ export default function StoryManagementPage() {
         </div>
       )}
 
+      {/* Delete Confirmation */}
       <ConfirmationModal
         show={storyToDelete !== null}
         onClose={() => setStoryToDelete(null)}

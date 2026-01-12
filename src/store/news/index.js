@@ -1,18 +1,17 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
-// --- ASYNC THUNKS FOR THE /news ENDPOINT ---
-
-// Fetch all news with optional filter parameters
 export const fetchNews = createAsyncThunk(
-  // <-- Changed
-  "news/fetchAll", // <-- Changed
+  "news/fetchAll",
   async (params = {}, { rejectWithValue }) => {
     try {
       const queryString = new URLSearchParams(
-        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+        Object.fromEntries(
+          Object.entries(params).filter(
+            ([_, v]) => v !== "" && v !== undefined && v !== null
+          )
+        )
       ).toString();
-
       const url = queryString ? `/news?${queryString}` : "/news"; // <-- Changed
       const response = await httpService.get(url);
 
@@ -22,57 +21,49 @@ export const fetchNews = createAsyncThunk(
       };
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.message || "Could not fetch news." // <-- Changed
+        err.response?.data?.message || "Could not fetch news."
       );
     }
   }
 );
 
-// Add a new news item
 export const addNews = createAsyncThunk(
-  // <-- Changed
-  "news/add", // <-- Changed
+  "news/add",
   async (newsData, { rejectWithValue }) => {
-    // <-- Changed
     try {
-      const response = await httpService.post("/news/create", {}, newsData); // <-- Changed
+      const response = await httpService.post("/news/create", {}, newsData);
       return response.data?.data;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.message || "Could not add news item." // <-- Changed
+        err.response?.data?.message || "Could not add news item."
       );
     }
   }
 );
 
-// Update an existing news item
 export const updateNews = createAsyncThunk(
-  // <-- Changed
-  "news/update", // <-- Changed
+  "news/update", 
   async ({ id, ...newsData }, { rejectWithValue }) => {
-    // <-- Changed
     try {
-      const response = await httpService.put(`/news/${id}`, {}, newsData); // <-- Changed
+      const response = await httpService.put(`/news/${id}`, {}, newsData); 
       return response.data?.data;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.message || "Could not update news item." // <-- Changed
+        err.response?.data?.message || "Could not update news item."
       );
     }
   }
 );
 
-// Delete a news item
 export const deleteNews = createAsyncThunk(
-  // <-- Changed
-  "news/delete", // <-- Changed
+  "news/delete", 
   async (id, { rejectWithValue }) => {
     try {
-      await httpService.delete(`/news/${id}`); // <-- Changed
+      await httpService.delete(`/news/${id}`); 
       return id;
     } catch (err) {
       return rejectWithValue(
-        err.response?.data?.message || "Could not delete news item." // <-- Changed
+        err.response?.data?.message || "Could not delete news item."
       );
     }
   }
@@ -80,8 +71,7 @@ export const deleteNews = createAsyncThunk(
 
 // --- SLICE ---
 const newsSlice = createSlice({
-  // <-- Changed
-  name: "news", // <-- Changed
+  name: "news", 
   initialState: {
     list: [],
     pagination: null,

@@ -1,46 +1,51 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import httpService from "../../common/http.service";
+import http from "../../common/http.service"; // Import your custom HttpService
 
-// 1. Fetch All Logs (with pagination support)
+const BASE_PATH = "/dailylog";
+
+// 1. Fetch All Logs
 export const fetchDailyLogs = createAsyncThunk(
   "dailyLog/fetchAll",
   async (params = {}, { rejectWithValue }) => {
     try {
-      // Build query string (e.g., ?page=1&limit=10)
-      const queryString = new URLSearchParams(
-        Object.fromEntries(
-          Object.entries(params).filter(([_, v]) => v != null && v !== "")
-        )
-      ).toString();
+      console.log("🔍 [Fetch All] Sending params:", params);
+      const response = await http.get(`${BASE_PATH}/all`, params);
 
-      const url = queryString
-        ? `/dailylog/all?${queryString}`
-        : "/dailylog/all";
-      const response = await httpService.get(url);
+      let rawData = response.data?.data || response.data || [];
+      let list = rawData.data || rawData;
 
-      // Expecting { success: true, data: { data: [...], pagination: {...} } }
-      return response.data?.data;
+      if (!Array.isArray(list) && typeof list === "object") {
+        list = [list];
+      }
+
+      console.log("✅ [Fetch All] Success. Count:", list.length);
+      return {
+        data: list,
+        pagination: rawData.pagination || null,
+      };
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Failed to fetch daily logs"
-      );
+      console.error("❌ [Fetch All] Error:", err.message);
+      return rejectWithValue(err.message || "Failed to fetch logs");
     }
   }
 );
 
-// 2. Fetch Single Log by ID (For Edit Page)
+// 2. Fetch Single Log by ID
 export const fetchDailyLogById = createAsyncThunk(
   "dailyLog/fetchById",
   async (id, { rejectWithValue }) => {
     try {
-      // Note: Ensure you have a backend route like: router.get("/:id", ...)
-      // If not, you might need to rely on the list data or add the route.
-      const response = await httpService.get(`/dailylog/${id}`);
-      return response.data?.data;
+      console.log("🔍 [Fetch By ID] ID:", id);
+      const response = await http.get(`${BASE_PATH}/${id}`);
+      const data = response.data?.data || response.data;
+
+      if (!data) throw new Error("Log not found");
+
+      console.log("✅ [Fetch By ID] Data found");
+      return data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Failed to fetch daily log details"
-      );
+      console.error("❌ [Fetch By ID] Error:", err.message);
+      return rejectWithValue(err.message || "Failed to fetch details");
     }
   }
 );
@@ -50,12 +55,15 @@ export const addDailyLog = createAsyncThunk(
   "dailyLog/add",
   async (logData, { rejectWithValue }) => {
     try {
-      const response = await httpService.post("/dailylog/add", {}, logData);
-      return response.data?.data;
+      console.log("📤 [Add Log] Payload:", logData);
+      // Signature: post(url, params, payload) -> we pass null for params
+      const response = await http.post(`${BASE_PATH}/add`, null, logData);
+
+      console.log("✅ [Add Log] Success");
+      return response.data?.data || response.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Failed to add daily log"
-      );
+      console.error("❌ [Add Log] Error:", err.message);
+      return rejectWithValue(err.message || "Failed to add log");
     }
   }
 );
@@ -65,12 +73,15 @@ export const updateDailyLog = createAsyncThunk(
   "dailyLog/update",
   async ({ id, ...data }, { rejectWithValue }) => {
     try {
-      const response = await httpService.put(`/dailylog/edit/${id}`, {}, data);
-      return response.data?.data;
+      console.log("📤 [Update Log] ID:", id, "Payload:", data);
+      // Signature: put(url, params, payload)
+      const response = await http.put(`${BASE_PATH}/edit/${id}`, null, data);
+
+      console.log("✅ [Update Log] Success");
+      return response.data?.data || response.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Failed to update daily log"
-      );
+      console.error("❌ [Update Log] Error:", err.message);
+      return rejectWithValue(err.message || "Failed to update log");
     }
   }
 );
@@ -80,30 +91,29 @@ export const deleteDailyLog = createAsyncThunk(
   "dailyLog/delete",
   async (id, { rejectWithValue }) => {
     try {
-      await httpService.delete(`/dailylog/delete/${id}`);
+      console.log("🗑️ [Delete Log] ID:", id);
+      await http.delete(`${BASE_PATH}/delete/${id}`);
+
+      console.log("✅ [Delete Log] Removed from DB");
       return id;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.message || "Failed to delete daily log"
-      );
+      console.error("❌ [Delete Log] Error:", err.message);
+      return rejectWithValue(err.message || "Failed to delete log");
     }
   }
 );
 
-const initialState = {
-  list: [],
-  currentLog: null, // Stores single log for editing
-  pagination: null,
-  status: "idle", // For list fetching
-  detailsStatus: "idle", // For single item fetching
-  error: null,
-};
-
 const dailyLogSlice = createSlice({
   name: "dailyLog",
-  initialState,
+  initialState: {
+    list: [],
+    currentLog: null,
+    pagination: null,
+    status: "idle",
+    detailsStatus: "idle",
+    error: null,
+  },
   reducers: {
-    // Synchronous action to clear the current selected log (used when leaving Edit page)
     clearCurrentDailyLog: (state) => {
       state.currentLog = null;
       state.detailsStatus = "idle";
@@ -112,57 +122,27 @@ const dailyLogSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // --- Fetch List ---
-      .addCase(fetchDailyLogs.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
       .addCase(fetchDailyLogs.fulfilled, (state, action) => {
         state.status = "succeeded";
-        // Handle structure: response.data.data.data (List) & response.data.data.pagination
-        state.list = Array.isArray(action.payload?.data)
-          ? action.payload.data
-          : [];
-        state.pagination = action.payload?.pagination || null;
-      })
-      .addCase(fetchDailyLogs.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
-        state.list = [];
-      })
-
-      // --- Fetch Single by ID ---
-      .addCase(fetchDailyLogById.pending, (state) => {
-        state.detailsStatus = "loading";
-        state.error = null;
+        state.list = action.payload.data;
+        state.pagination = action.payload.pagination;
       })
       .addCase(fetchDailyLogById.fulfilled, (state, action) => {
         state.detailsStatus = "succeeded";
         state.currentLog = action.payload;
       })
-      .addCase(fetchDailyLogById.rejected, (state, action) => {
-        state.detailsStatus = "failed";
-        state.error = action.payload;
-      })
-
-      // --- Add ---
-      .addCase(addDailyLog.fulfilled, (state) => {
-        // You can choose to push to list here, or rely on re-fetching the list in the UI
+      .addCase(addDailyLog.fulfilled, (state, action) => {
         state.status = "succeeded";
+        if (action.payload) state.list.unshift(action.payload);
       })
-
-      // --- Update ---
       .addCase(updateDailyLog.fulfilled, (state, action) => {
+        state.detailsStatus = "succeeded";
+        state.currentLog = action.payload;
         const index = state.list.findIndex(
           (log) => log._id === action.payload._id
         );
-        if (index !== -1) {
-          state.list[index] = action.payload;
-        }
-        state.currentLog = action.payload; // Update current view if open
+        if (index !== -1) state.list[index] = action.payload;
       })
-
-      // --- Delete ---
       .addCase(deleteDailyLog.fulfilled, (state, action) => {
         state.list = state.list.filter((log) => log._id !== action.payload);
       });
@@ -170,5 +150,4 @@ const dailyLogSlice = createSlice({
 });
 
 export const { clearCurrentDailyLog } = dailyLogSlice.actions;
-
 export default dailyLogSlice.reducer;

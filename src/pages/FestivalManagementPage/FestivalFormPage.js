@@ -34,6 +34,7 @@ export default function FestivalFormPage() {
     date: null,
     image: "",
     state: "",
+    tag: "", 
   });
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -43,7 +44,6 @@ export default function FestivalFormPage() {
     if (festivalStatus === "idle") dispatch(fetchFestivals());
   }, [festivalStatus, dispatch]);
 
-  // 👇 FIX: Robust Date Parsing Logic
   useEffect(() => {
     if (id && festivals.length > 0) {
       const festival = festivals.find((f) => f._id === id);
@@ -51,18 +51,13 @@ export default function FestivalFormPage() {
         let parsedDate = null;
 
         if (festival.date) {
-          // Check if format is old style DD-MM-YYYY
           const isDDMMYYYY = /^\d{2}-\d{2}-\d{4}$/.test(festival.date);
-
           if (isDDMMYYYY) {
             const [day, month, year] = festival.date.split("-");
             parsedDate = new Date(`${year}-${month}-${day}`);
           } else {
-            // Assume ISO format from new backend
             parsedDate = new Date(festival.date);
           }
-
-          // Safety check for invalid dates
           if (isNaN(parsedDate.getTime())) {
             parsedDate = null;
           }
@@ -77,6 +72,7 @@ export default function FestivalFormPage() {
           date: parsedDate,
           image: festival.image || "",
           state: festival.state || "",
+          tag: festival.tag || "",
         });
       }
     }
@@ -140,9 +136,6 @@ export default function FestivalFormPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    // Convert date back to DD-MM-YYYY for saving if your backend expects that
-    // OR keep as ISO if you fully migrated backend. 
-    // Assuming you want to stick to DD-MM-YYYY string for consistency:
     const formatDate = (dateObj) => {
       if (!dateObj) return null;
       const year = dateObj.getFullYear();
@@ -167,7 +160,7 @@ export default function FestivalFormPage() {
       toast.success(
         id ? "Festival updated successfully!" : "Festival added successfully!"
       );
-      navigate("/festival"); // Updated path to match list page
+      navigate("/festival");
     } catch (err) {
       toast.error(err?.message || "An error occurred while saving.");
     } finally {
@@ -220,6 +213,18 @@ export default function FestivalFormPage() {
                   {errors.name && (
                     <div className="invalid-feedback">{errors.name}</div>
                   )}
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Tag</label>
+                  <input
+                    type="text"
+                    name="tag"
+                    className="form-control"
+                    value={formData.tag}
+                    onChange={handleFormChange}
+                    placeholder="e.g., Upcoming, Popular"
+                  />
                 </div>
 
                 <div className="mb-3">
@@ -276,9 +281,7 @@ export default function FestivalFormPage() {
                   </label>
                   <Select
                     options={indianStates}
-                    value={indianStates.find(
-                      (s) => s.value === formData.state
-                    )}
+                    value={indianStates.find((s) => s.value === formData.state)}
                     onChange={(option) =>
                       setFormData((prev) => ({
                         ...prev,
@@ -343,7 +346,7 @@ export default function FestivalFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-                  <div className="col-md-6 d-flex align-items-center">
+                  <div className="col-md-6 d-flex align-items-center mt-3">
                     <div className="form-check form-switch fs-5">
                       <input
                         className="form-check-input"
@@ -397,7 +400,7 @@ export default function FestivalFormPage() {
                 disabled={isSaving || isUploading}
               >
                 {isSaving ? (
-                  <span className="spinner-border spinner-border-sm me-2"></span>
+                  <span className="spinner-border spinner-border-sm mr-2"></span>
                 ) : (
                   <i className="fas fa-save mr-2"></i>
                 )}

@@ -7,7 +7,7 @@ import { fetchDailyLogs, deleteDailyLog } from "../../store/dailylog/index";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
-
+import DynamicImage from "../../components/PostPreview/PostPreview";
 export default function DailyLogListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -112,20 +112,16 @@ export default function DailyLogListPage() {
                 logs?.map((log) => (
                   <tr key={log._id}>
                     <td>
-                      {/* <img
-                        src={log?.image || "https://via.placeholder.com/50"}
-                        alt="Log"                                                                                                                                             
+                      <DynamicImage
+                        src={log?.image || "N/A"}
+                        alt="Log"
                         style={{
                           width: "50px",
                           height: "50px",
                           objectFit: "cover",
                           borderRadius: "5px",
                         }}
-                        onError={(e) =>
-                          (e.target.src =
-                            "https://via.placeholder.com/50?text=Error")
-                        }
-                      /> */}
+                      />
                     </td>
                     <td className="fw-bold">{log.title}</td>
                     <td style={{ maxWidth: "300px" }} className="text-truncate">

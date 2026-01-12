@@ -2,9 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import Select from "react-select";
 
-// ✅ Import updateArticle here
 import {
   fetchArticles,
   deleteArticle,
@@ -17,6 +15,8 @@ import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
+import FilterBar from "../../common/FilterBar"; 
+import { useFilters } from "../../hook/useFilters"; 
 
 const styles = `
   .truncate-text {
@@ -28,14 +28,6 @@ const styles = `
     vertical-align: middle;
   }
 `;
-
-const languageOptions = [
-  { value: "", label: "All Languages" },
-  ...staticLanguages.map((lang) => ({
-    value: lang._id,
-    label: `${lang.language} (${lang.nativeName})`,
-  })),
-];
 
 export default function ArticleListPage() {
   const dispatch = useDispatch();
@@ -50,11 +42,14 @@ export default function ArticleListPage() {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState(null);
-
-  // ✅ Track which item is currently toggling to show spinner
   const [togglingId, setTogglingId] = useState(null);
 
-  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
+  const {
+    filters,
+    handleFilterChange,
+    handlePageChange,
+    resetFilters,
+  } = useFilters();
   const itemsPerPage = 10;
 
   const loadArticles = useCallback(() => {
@@ -68,15 +63,11 @@ export default function ArticleListPage() {
   }, [loadArticles]);
 
   useEffect(() => {
-    if (godStatus === "idle") {
-      dispatch(fetchAllGods());
-    }
+    if (godStatus === "idle") dispatch(fetchAllGods());
   }, [dispatch, godStatus]);
 
   const handleStatusToggle = async (article) => {
     if (togglingId === article._id) return;
-    setFilters({ language: "", god: "", page: 1 });
-
     setTogglingId(article._id);
     const newStatus = !article.isActive;
 
@@ -94,41 +85,13 @@ export default function ArticleListPage() {
     }
   };
 
-  const getLanguageNameById = (langId) =>
-    staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
-
-  const handleLanguageChange = (option) => {
-    const value = option?.value || "";
-    setFilters((prev) => ({ ...prev, language: value, page: 1 }));
-  };
-
-  const handleGodChange = (option) => {
-    const value = option?.value || "";
-    setFilters((prev) => ({ ...prev, god: value, page: 1 }));
-  };
-
-  const handleResetFilters = () => {
-    setFilters({ language: "", god: "", page: 1 });
-  };
-
-  const handlePageChange = (newPage) => {
-    if (newPage !== filters.page) {
-      setFilters((prev) => ({ ...prev, page: newPage }));
-    }
-  };
-
   const confirmDelete = async () => {
     if (!articleToDelete) return;
     setIsDeleting(true);
     try {
       await dispatch(deleteArticle(articleToDelete._id)).unwrap();
-      toast.success(`Article "${articleToDelete.title}" deleted successfully.`);
-
-      if (articles.length === 1 && filters.page > 1) {
-        setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
-      } else {
-        loadArticles();
-      }
+      toast.success(`Article deleted successfully.`);
+      loadArticles();
       setArticleToDelete(null);
     } catch (err) {
       toast.error(err?.message || "Failed to delete article.");
@@ -142,10 +105,8 @@ export default function ArticleListPage() {
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
   ];
 
-  const selectedLanguage = languageOptions.find(
-    (opt) => opt.value === filters.language
-  );
-  const selectedGod = godOptions.find((opt) => opt.value === filters.god);
+  const getLanguageNameById = (langId) =>
+    staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
 
   return (
     <>
@@ -154,60 +115,20 @@ export default function ArticleListPage() {
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
           <h4 className="mb-0 text-primary-emphasis">Article Management</h4>
           <button
-            className="btn btn-labeled btn-success"
-            type="button"
-            style={{ fontSize: "17px" }}
+            className="btn btn-success"
             onClick={() => navigate("/articles/new")}
           >
-            <span className="btn-label me-2">
-              <i className="fas fa-plus"></i>
-            </span>
-            Add New Article
+            <i className="fas fa-plus me-2"></i> Add New Article
           </button>
         </div>
 
-        <div className="card-body border-bottom">
-          <div className="d-flex flex-column flex-md-row align-items-md-center">
-            <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
-              <label className="form-label fw-bold small mb-1">
-                Filter by Language
-              </label>
-              <Select
-                placeholder="Select Language..."
-                options={languageOptions}
-                value={selectedLanguage}
-                onChange={handleLanguageChange}
-                isClearable
-                classNamePrefix="react-select"
-              />
-            </div>
-
-            <div className="ml-4" style={{ minWidth: "250px" }}>
-              <label className="form-label fw-bold small mb-1">
-                Filter by God
-              </label>
-              <Select
-                placeholder="Select God..."
-                options={godOptions}
-                value={selectedGod}
-                onChange={handleGodChange}
-                isClearable
-                isLoading={godStatus === "loading"}
-                isDisabled={godStatus !== "succeeded"}
-                classNamePrefix="react-select"
-              />
-            </div>
-
-            <div className="mt-md-auto ms-md-2">
-              <button
-                className="btn btn-outline-secondary w-100 p-2 ml-4"
-                onClick={handleResetFilters}
-              >
-                <i className="fas fa-undo mr-1"></i>Reset
-              </button>
-            </div>
-          </div>
-        </div>
+        <FilterBar
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onReset={resetFilters}
+          godOptions={godOptions}
+          godStatus={godStatus}
+        />
 
         <div className="card-body">
           <div className="table-responsive">
@@ -229,9 +150,7 @@ export default function ArticleListPage() {
                   status={status}
                   error={error}
                   dataLength={articles.length}
-                  colSpan={7} // Adjusted colspan since one column was removed
-                  loadingText="Loading articles..."
-                  emptyText="No articles Found."
+                  colSpan={8}
                 />
                 {status === "succeeded" &&
                   articles.map((article) => (
@@ -247,19 +166,19 @@ export default function ArticleListPage() {
                             src={article?.featureimage}
                             alt={article?.title}
                             style={{
-                              width: "60px",
-                              height: "60px",
+                              width: "50px",
+                              height: "50px",
                               objectFit: "cover",
-                              borderRadius: "8px",
+                              borderRadius: "6px",
                             }}
                           />
                         ) : (
                           <div
-                            className="d-flex justify-content-center align-items-center bg-light"
+                            className="bg-light d-flex align-items-center justify-content-center"
                             style={{
-                              width: "60px",
-                              height: "60px",
-                              borderRadius: "8px",
+                              width: "50px",
+                              height: "50px",
+                              borderRadius: "6px",
                             }}
                           >
                             <i className="fas fa-image text-muted"></i>
@@ -270,40 +189,23 @@ export default function ArticleListPage() {
                       <td>{getLanguageNameById(article?.language)}</td>
                       <td>{article?.sort}</td>
                       <td>
-                        {article.isFree ? (
-                          <span className="badge bg-info">Free</span>
-                        ) : (
-                          <span className="badge bg-warning">Paid</span>
-                        )}
+                        <span
+                          className={`badge ${
+                            article.isFree ? "bg-info" : "bg-warning"
+                          }`}
+                        >
+                          {article.isFree ? "Free" : "Paid"}
+                        </span>
                       </td>
                       <td>
                         <div className="form-check form-switch">
                           <input
                             className="form-check-input"
                             type="checkbox"
-                            role="switch"
-                            id={`status-switch-${article._id}`}
                             checked={article.isActive}
                             disabled={togglingId === article._id}
                             onChange={() => handleStatusToggle(article)}
-                            style={{ cursor: "pointer" }}
                           />
-                          <label
-                            className="form-check-label small ms-1"
-                            htmlFor={`status-switch-${article._id}`}
-                          >
-                            {togglingId === article._id ? (
-                              <span
-                                className="spinner-border spinner-border-sm text-secondary"
-                                role="status"
-                                aria-hidden="true"
-                              ></span>
-                            ) : article.isActive ? (
-                              "Active"
-                            ) : (
-                              "Inactive"
-                            )}
-                          </label>
                         </div>
                       </td>
                       <td className="text-center">
@@ -312,14 +214,12 @@ export default function ArticleListPage() {
                           onClick={() =>
                             navigate(`/articles/edit/${article._id}`)
                           }
-                          title="Edit"
                         >
                           <i className="fas fa-pencil-alt"></i>
                         </button>
                         <button
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => setArticleToDelete(article)}
-                          title="Delete"
                         >
                           <i className="fas fa-trash"></i>
                         </button>
@@ -331,7 +231,7 @@ export default function ArticleListPage() {
           </div>
         </div>
 
-        {pagination && pagination.totalPages > 1 && (
+        {pagination?.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination
               currentPage={filters.page}
@@ -352,9 +252,9 @@ export default function ArticleListPage() {
         isLoading={isDeleting}
         confirmButtonVariant="danger"
       >
-        <p className="fs-5 text-center">
-          Are you sure you want to delete <br />
-          <strong className="text-danger">{articleToDelete?.title}</strong>?
+        <p className="text-center">
+          Are you sure you want to delete{" "}
+          <strong>{articleToDelete?.title}</strong>?
         </p>
       </ConfirmationModal>
     </>

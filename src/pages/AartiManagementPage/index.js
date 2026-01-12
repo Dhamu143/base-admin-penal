@@ -2,9 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import Select from "react-select";
 
-// Import updateAarti here
 import { fetchAartis, deleteAarti, updateAarti } from "../../store/aarti/index";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
@@ -12,14 +10,8 @@ import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
-
-const languageOptions = [
-  { value: "", label: "All Languages" },
-  ...staticLanguages.map((lang) => ({
-    value: lang._id,
-    label: `${lang.language} (${lang.nativeName})`,
-  })),
-];
+import FilterBar from "../../common/FilterBar";
+import { useFilters } from "../../hook/useFilters";
 
 export default function AartiListPage() {
   const dispatch = useDispatch();
@@ -34,11 +26,14 @@ export default function AartiListPage() {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [aartiToDelete, setAartiToDelete] = useState(null);
-
-  // Local state to track which toggle is currently loading/disabled
   const [togglingId, setTogglingId] = useState(null);
 
-  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
+  const {
+    filters,
+    handleFilterChange,
+    handlePageChange,
+    resetFilters,
+  } = useFilters();
   const itemsPerPage = 10;
 
   const loadAartis = useCallback(() => {
@@ -52,23 +47,19 @@ export default function AartiListPage() {
   }, [loadAartis]);
 
   useEffect(() => {
-    if (godStatus === "idle") {
-      dispatch(fetchAllGods());
-    }
+    if (godStatus === "idle") dispatch(fetchAllGods());
   }, [dispatch, godStatus]);
 
+  // Handlers
   const handleStatusToggle = async (aarti) => {
     if (togglingId === aarti._id) return;
-
     setTogglingId(aarti._id);
     const newStatus = !aarti.isActive;
-    setFilters({ language: "", god: "", page: 1 });
 
     try {
       await dispatch(
         updateAarti({ id: aarti._id, isActive: newStatus })
       ).unwrap();
-
       toast.success(
         `Aarti "${aarti.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
@@ -79,38 +70,16 @@ export default function AartiListPage() {
     }
   };
 
-  const getLanguageNameById = (langId) =>
-    staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
-
-  const handleLanguageChange = (option) =>
-    setFilters((prev) => ({ ...prev, language: option?.value || "", page: 1 }));
-
-  const handleGodChange = (option) =>
-    setFilters((prev) => ({ ...prev, god: option?.value || "", page: 1 }));
-
-  const handleResetFilters = () =>
-    setFilters({ language: "", god: "", page: 1 });
-
-  const handlePageChange = (newPage) =>
-    setFilters((prev) => ({ ...prev, page: newPage }));
-
   const confirmDelete = async () => {
     if (!aartiToDelete) return;
     setIsDeleting(true);
     try {
       await dispatch(deleteAarti(aartiToDelete._id)).unwrap();
-      toast.success(
-        `Aarti "${aartiToDelete.title ||
-          aartiToDelete.name}" deleted successfully.`
-      );
-      if (aartis.length === 1 && filters.page > 1) {
-        setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
-      } else {
-        loadAartis();
-      }
+      toast.success("Deleted successfully.");
+      loadAartis();
       setAartiToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Failed to delete Aarti.");
+      toast.error(err?.message || "Failed to delete.");
     } finally {
       setIsDeleting(false);
     }
@@ -121,73 +90,29 @@ export default function AartiListPage() {
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
   ];
 
-  const selectedLanguage = languageOptions.find(
-    (opt) => opt.value === filters.language
-  );
-  const selectedGod = godOptions.find((opt) => opt.value === filters.god);
+  const getLanguageNameById = (langId) =>
+    staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
 
   return (
     <div className="card shadow-sm">
-      <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
+      <div className="card-header bg-light d-flex justify-content-between align-items-center p-3 border-bottom">
         <h4 className="mb-0 text-primary-emphasis">Aarti Management</h4>
         <button
-          className="btn btn-labeled btn-success"
-          type="button"
-          style={{ fontSize: "17px" }}
+          className="btn btn-success"
           onClick={() => navigate("/aartis/new")}
         >
-          <span className="btn-label me-2">
-            <i className="fas fa-plus"></i>
-          </span>
-          Add New Aarti
+          <i className="fas fa-plus me-2"></i> Add New Aarti
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="card-body border-bottom">
-        <div className="d-flex flex-column flex-md-row align-items-md-center">
-          <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
-            <label className="form-label fw-bold small mb-1">
-              Filter by Language
-            </label>
-            <Select
-              placeholder="Select Language..."
-              options={languageOptions}
-              value={selectedLanguage}
-              onChange={handleLanguageChange}
-              isClearable
-              classNamePrefix="react-select"
-            />
-          </div>
+      <FilterBar
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onReset={resetFilters}
+        godOptions={godOptions}
+        godStatus={godStatus}
+      />
 
-          <div className="ml-4" style={{ minWidth: "250px" }}>
-            <label className="form-label fw-bold small mb-1">
-              Filter by God
-            </label>
-            <Select
-              placeholder="Select God..."
-              options={godOptions}
-              value={selectedGod}
-              onChange={handleGodChange}
-              isClearable
-              isLoading={godStatus === "loading"}
-              isDisabled={godStatus !== "succeeded"}
-              classNamePrefix="react-select"
-            />
-          </div>
-
-          <div className="mt-md-auto ms-md-auto">
-            <button
-              className="btn btn-outline-secondary w-100 p-2 ml-4"
-              onClick={handleResetFilters}
-            >
-              <i className="fas fa-undo mr-1"></i>Reset
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle">
@@ -208,66 +133,64 @@ export default function AartiListPage() {
                 error={error}
                 dataLength={aartis.length}
                 colSpan={7}
-                loadingText="Loading Aartis..."
-                emptyText="No Aartis Found."
               />
               {status === "succeeded" &&
                 aartis.map((aarti) => (
                   <tr key={aarti._id}>
-                    <td>{aarti?.name || "N/A"}</td>
+                    <td className="fw-bold">{aarti?.name || "N/A"}</td>
                     <td>{aarti?.god?.name}</td>
                     <td>{getLanguageNameById(aarti?.language)}</td>
-                    <td style={{ maxWidth: "200px" }}>
+                    <td className="text-muted" style={{ fontSize: "0.9rem" }}>
                       {aarti.description
-                        ? aarti.description
-                            .replace(/<[^>]+>/g, "")
-                            .substring(0, 50) + "..."
-                        : ""}
+                        ?.replace(/<[^>]+>/g, "")
+                        .substring(0, 40)}
+                      ...
                     </td>
                     <td>{aarti?.sort}</td>
-
-                    {/* --- TOGGLE SWITCH COLUMN --- */}
                     <td>
-                      <div className="form-check form-switch">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          role="switch"
-                          id={`status-switch-${aarti._id}`}
-                          checked={aarti.isActive}
-                          disabled={togglingId === aarti._id}
-                          onChange={() => handleStatusToggle(aarti)}
-                          style={{ cursor: "pointer" }}
-                        />
-                        <label
-                          className="form-check-label small ms-1"
-                          htmlFor={`status-switch-${aarti._id}`}
+                      <div className="d-flex align-items-center">
+                        <div className="form-check form-switch me-2">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            checked={aarti.isActive}
+                            disabled={togglingId === aarti._id}
+                            onChange={() => handleStatusToggle(aarti)}
+                            style={{ cursor: "pointer" }}
+                          />
+                        </div>
+                        <span
+                          className={`badge rounded-pill ${
+                            aarti.isActive
+                              ? "bg-success-subtle text-success"
+                              : "bg-secondary-subtle text-secondary"
+                          }`}
                         >
                           {togglingId === aarti._id ? (
                             <span
-                              className="spinner-border spinner-border-sm text-secondary"
+                              className="spinner-border spinner-border-sm"
                               role="status"
-                              aria-hidden="true"
                             ></span>
                           ) : aarti.isActive ? (
                             "Active"
                           ) : (
                             "Inactive"
                           )}
-                        </label>
+                        </span>
                       </div>
                     </td>
-
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
                         onClick={() => navigate(`/aartis/edit/${aarti._id}`)}
+                        title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
                       </button>
                       <button
                         className="btn btn-sm btn-outline-danger"
                         onClick={() => setAartiToDelete(aarti)}
+                        title="Delete"
                       >
                         <i className="fas fa-trash"></i>
                       </button>
@@ -279,9 +202,8 @@ export default function AartiListPage() {
         </div>
       </div>
 
-      {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
-        <div className="card-footer">
+      {pagination?.totalPages > 1 && (
+        <div className="card-footer bg-white border-top">
           <CustomPagination
             currentPage={filters.page}
             totalPages={pagination.totalPages}
@@ -292,7 +214,6 @@ export default function AartiListPage() {
         </div>
       )}
 
-      {/* Delete Confirmation */}
       <ConfirmationModal
         show={aartiToDelete !== null}
         onClose={() => setAartiToDelete(null)}
@@ -301,12 +222,13 @@ export default function AartiListPage() {
         isLoading={isDeleting}
         confirmButtonVariant="danger"
       >
-        <p className="fs-5 text-center">
-          Are you sure you want to delete <br />
-          <strong className="text-danger">
-            {aartiToDelete?.title || aartiToDelete?.name}
-          </strong>
+        <p className="text-center mb-0">
+          Are you sure you want to delete <strong>{aartiToDelete?.name}</strong>
           ?
+          <br />
+          <span className="text-muted small">
+            This action cannot be undone.
+          </span>
         </p>
       </ConfirmationModal>
     </div>

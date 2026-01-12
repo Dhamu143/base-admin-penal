@@ -20,7 +20,7 @@ export default function AartiFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { currentAarti, detailsStatus, error, list } = useSelector(
+  const { currentAarti, detailsStatus, error } = useSelector(
     (state) => state.aartis
   );
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
@@ -36,52 +36,76 @@ export default function AartiFormPage() {
     description: "",
     image: "",
     views: "",
-    share: "", 
-    like: "", 
+    share: "",
+    like: "",
   });
+
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    if (godStatus === "idle") dispatch(fetchAllGods());
+    if (godStatus === "idle") {
+      dispatch(fetchAllGods());
+    }
   }, [godStatus, dispatch]);
 
   useEffect(() => {
-    if (!id) {
-      dispatch(clearCurrentAarti());
-      return;
-    }
-
-    const aarti = currentAarti || list.find((a) => a._id === id);
-    if (aarti) {
-      setFormData({
-        name: aarti.name || "",
-        sort: aarti.sort || "",
-        isActive: aarti.isActive,
-        language: aarti.language || "",
-        god: aarti.god?._id || aarti.god || "",
-        description: aarti.description || "",
-        image: aarti.image || "",
-        views: aarti.views || "",
-        share: aarti.share || "",
-        like: aarti.like || "",
-      });
-    } else if (detailsStatus !== "loading") {
+    if (id) {
+      console.log("🔄 Edit Mode Detected. Fetching ID:", id);
       dispatch(fetchAartiById(id));
+    } else {
+      console.log("✨ Add Mode Detected. Clearing previous data.");
+      dispatch(clearCurrentAarti());
+      setFormData({
+        name: "",
+        sort: "",
+        isActive: true,
+        language: "",
+        god: "",
+        description: "",
+        image: "",
+        views: "",
+        share: "",
+        like: "",
+      });
     }
 
     return () => {
       dispatch(clearCurrentAarti());
     };
-  }, [id, currentAarti, list, dispatch, detailsStatus]);
+  }, [id, dispatch]);
+
+  useEffect(() => {
+    if (
+      id &&
+      currentAarti &&
+      (currentAarti._id === id || currentAarti.id === id)
+    ) {
+      console.log("✅ Data Arrived! Populating Form:", currentAarti);
+
+      setFormData({
+        name: currentAarti.name || "",
+        sort: currentAarti.sort || "",
+        isActive: currentAarti.isActive ?? true,
+        language: currentAarti.language || "",
+        god: currentAarti.god?._id || currentAarti.god || "", 
+        description: currentAarti.description || "",
+        image: currentAarti.image || "",
+        views: currentAarti.views || "",
+        share: currentAarti.share || "",
+        like: currentAarti.like || "",
+      });
+    }
+  }, [currentAarti, id]);
 
   useEffect(() => {
     if (formData.language && allGods.length > 0) {
-      setFilteredGods(
-        allGods.filter((god) => god.language === formData.language)
+      const filtered = allGods.filter(
+        (god) => god.language === formData.language
       );
+      setFilteredGods(filtered);
     } else {
       setFilteredGods([]);
     }
@@ -93,9 +117,7 @@ export default function AartiFormPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: null }));
-    }
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
   const handleImageUpload = async (e) => {
@@ -109,8 +131,8 @@ export default function AartiFormPage() {
       setErrors((prev) => ({ ...prev, image: null }));
       toast.success("Image uploaded successfully!");
     } catch (err) {
-      toast.error("Image upload failed. Please try again.");
-      console.error("Image upload error:", err);
+      toast.error("Image upload failed.");
+      console.error(err);
     } finally {
       setIsUploading(false);
     }
@@ -126,24 +148,18 @@ export default function AartiFormPage() {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = "Aarti name is required.";
-    if (!formData.language) newErrors.language = "Please select a language.";
-    if (!formData.god) newErrors.god = "Please select a God.";
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+    if (!formData.language) newErrors.language = "Language is required";
+    if (!formData.god) newErrors.god = "God is required";
     if (!formData.description.trim() || formData.description === "<p><br></p>")
-      newErrors.description = "Description / Content is required.";
+      newErrors.description = "Content is required";
     if (formData.sort === "" || isNaN(formData.sort))
-      newErrors.sort = "Sort order must be a valid number.";
-    if (formData.views !== "" && isNaN(formData.views))
-      newErrors.views = "Views must be a valid number.";
-    if (formData.share !== "" && isNaN(formData.share))
-      newErrors.share = "Share count must be a valid number.";
-    if (formData.like !== "" && isNaN(formData.like))
-      newErrors.like = "Like count must be a valid number.";
-    if (!formData.image) newErrors.image = "Aarti image is required.";
+      newErrors.sort = "Sort must be a number";
+    if (!formData.image) newErrors.image = "Image is required";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -161,12 +177,11 @@ export default function AartiFormPage() {
 
       const action = id ? updateAarti({ id, ...payload }) : addAarti(payload);
       await dispatch(action).unwrap();
+
       toast.success(`Aarti ${id ? "updated" : "created"} successfully!`);
       navigate("/aarti");
     } catch (err) {
-      toast.error(
-        err?.message || `Failed to ${id ? "update" : "create"} aarti.`
-      );
+      toast.error(err?.message || "Operation failed.");
     } finally {
       setIsSaving(false);
     }
@@ -179,19 +194,17 @@ export default function AartiFormPage() {
         style={{ height: "50vh" }}
       >
         <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading Aarti...</span>
+          <span className="visually-hidden">Loading...</span>
         </div>
       </div>
     );
   }
 
-  if (id && detailsStatus === "failed" && !currentAarti) {
+  if (id && detailsStatus === "failed") {
     return (
-      <div className="alert alert-danger text-center m-4">
-        <h4>Error</h4>
-        <p>
-          {error || "Could not load Aarti details. Please try again later."}
-        </p>
+      <div className="alert alert-danger text-center m-5">
+        <h4>Error Loading Data</h4>
+        <p>{error || "Unable to fetch Aarti details."}</p>
         <button className="btn btn-primary" onClick={() => navigate("/aarti")}>
           Back to List
         </button>
@@ -212,7 +225,6 @@ export default function AartiFormPage() {
           / <span>{id ? "Edit Aarti" : "New Aarti"}</span>
         </div>
         <button
-          type="button"
           className="btn btn-outline-primary btn-sm"
           onClick={() => navigate("/aarti")}
         >
@@ -225,12 +237,10 @@ export default function AartiFormPage() {
           <form onSubmit={handleSubmit} noValidate>
             <div className="row">
               <div className="col-md-6">
-                <h5 className="mb-3 text-primary">Aarti Details</h5>
-                {/* Name */}
+                <h5 className="mb-3 text-primary">Details</h5>
+
                 <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Aarti Name <span className="text-danger">*</span>
-                  </label>
+                  <label className="form-label fw-bold">Name *</label>
                   <input
                     type="text"
                     name="name"
@@ -239,18 +249,14 @@ export default function AartiFormPage() {
                     }`}
                     value={formData.name}
                     onChange={handleFormChange}
-                    placeholder="e.g., Jai Ganesha Deva"
                   />
                   {errors.name && (
                     <div className="invalid-feedback">{errors.name}</div>
                   )}
                 </div>
 
-                {/* Language */}
                 <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Language <span className="text-danger">*</span>
-                  </label>
+                  <label className="form-label fw-bold">Language *</label>
                   <Select
                     options={staticLanguages.map((l) => ({
                       value: l._id,
@@ -260,92 +266,75 @@ export default function AartiFormPage() {
                       staticLanguages,
                       formData.language
                     )}
-                    onChange={(option) =>
+                    onChange={(opt) =>
                       setFormData((prev) => ({
                         ...prev,
-                        language: option?.value || "",
+                        language: opt?.value || "",
                         god: "",
                       }))
                     }
                     placeholder="Select Language..."
                   />
                   {errors.language && (
-                    <div className="text-danger small mt-1">
-                      {errors.language}
-                    </div>
+                    <div className="text-danger small">{errors.language}</div>
                   )}
                 </div>
 
-                {/* God */}
                 <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    God <span className="text-danger">*</span>
-                  </label>
+                  <label className="form-label fw-bold">God *</label>
                   <Select
                     options={filteredGods.map((g) => ({
                       value: g._id,
                       label: g.name,
                     }))}
                     value={getSelectedOption(filteredGods, formData.god)}
-                    onChange={(option) =>
+                    onChange={(opt) =>
                       setFormData((prev) => ({
                         ...prev,
-                        god: option?.value || "",
+                        god: opt?.value || "",
                       }))
                     }
                     placeholder={
                       formData.language
                         ? "Select God..."
-                        : "Select Language first..."
+                        : "Select Language First"
                     }
-                    isDisabled={!formData.language || filteredGods.length === 0}
+                    isDisabled={!formData.language}
                   />
                   {errors.god && (
-                    <div className="text-danger small mt-1">{errors.god}</div>
+                    <div className="text-danger small">{errors.god}</div>
                   )}
                 </div>
 
-                {/* Image Upload Section */}
                 <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Aarti Image <span className="text-danger">*</span>
-                  </label>
+                  <label className="form-label fw-bold">Image *</label>
                   <input
                     type="file"
                     className={`form-control ${
                       errors.image ? "is-invalid" : ""
                     }`}
                     onChange={handleImageUpload}
-                    accept="image/*"
                     disabled={isUploading}
                   />
                   {isUploading && (
-                    <div className="text-primary small mt-1">Uploading...</div>
-                  )}
-                  {errors.image && (
-                    <div className="invalid-feedback d-block">
-                      {errors.image}
-                    </div>
+                    <small className="text-primary">Uploading...</small>
                   )}
                   {formData.image && !isUploading && (
-                    <div className="mt-2">
-                      <img
-                        src={formData.image}
-                        alt="Aarti Preview"
-                        className="img-fluid rounded"
-                        style={{ maxHeight: "150px" }}
-                      />
-                    </div>
+                    <img
+                      src={formData.image}
+                      alt="Preview"
+                      className="img-fluid rounded mt-2"
+                      style={{ maxHeight: "100px" }}
+                    />
+                  )}
+                  {errors.image && (
+                    <div className="invalid-feedback">{errors.image}</div>
                   )}
                 </div>
 
-                {/* MODIFIED: Row for Sort and Views */}
                 <div className="row">
-                  {/* Sort Order */}
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label fw-bold">
-                      Sort Order <span className="text-danger">*</span>
-                    </label>
+                  <div className="col-6 mb-3">
+                    <label className="form-label fw-bold">Sort *</label>
                     <input
                       type="number"
                       name="sort"
@@ -359,106 +348,75 @@ export default function AartiFormPage() {
                       <div className="invalid-feedback">{errors.sort}</div>
                     )}
                   </div>
-
-                  {/* Views Field */}
-                  <div className="col-md-6 mb-3">
+                  <div className="col-6 mb-3">
                     <label className="form-label fw-bold">Views</label>
                     <input
                       type="number"
                       name="views"
-                      className={`form-control ${
-                        errors.views ? "is-invalid" : ""
-                      }`}
+                      className="form-control"
                       value={formData.views}
                       onChange={handleFormChange}
-                      placeholder="e.g., 100"
                     />
-                    {errors.views && (
-                      <div className="invalid-feedback">{errors.views}</div>
-                    )}
                   </div>
                 </div>
 
-                {/* ADDED: New row for Share and Like */}
                 <div className="row">
-                  {/* Share Field */}
-                  <div className="col-md-6 mb-3">
+                  <div className="col-6 mb-3">
                     <label className="form-label fw-bold">Share</label>
                     <input
                       type="number"
                       name="share"
-                      className={`form-control ${
-                        errors.share ? "is-invalid" : ""
-                      }`}
+                      className="form-control"
                       value={formData.share}
                       onChange={handleFormChange}
-                      placeholder="e.g., 50"
                     />
-                    {errors.share && (
-                      <div className="invalid-feedback">{errors.share}</div>
-                    )}
                   </div>
-
-                  {/* Like Field */}
-                  <div className="col-md-6 mb-3">
+                  <div className="col-6 mb-3">
                     <label className="form-label fw-bold">Like</label>
                     <input
                       type="number"
                       name="like"
-                      className={`form-control ${
-                        errors.like ? "is-invalid" : ""
-                      }`}
+                      className="form-control"
                       value={formData.like}
                       onChange={handleFormChange}
-                      placeholder="e.g., 200"
                     />
-                    {errors.like && (
-                      <div className="invalid-feedback">{errors.like}</div>
-                    )}
                   </div>
                 </div>
 
-                {/* is Active - Moved to its own row for clarity */}
-                <div className="row">
-                  <div className="col-md-12 mb-3">
-                    <div className="form-check form-switch fs-5">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        role="switch"
-                        name="isActive"
-                        checked={formData.isActive}
-                        onChange={handleFormChange}
-                      />
-                      <label className="form-check-label">is Active</label>
-                    </div>
-                  </div>
+                <div className="form-check form-switch mb-3">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    name="isActive"
+                    checked={formData.isActive}
+                    onChange={handleFormChange}
+                  />
+                  <label className="form-check-label">Is Active</label>
                 </div>
               </div>
 
               <div className="col-md-6">
-                <h5 className="mb-3 text-primary">Aarti Content</h5>
+                <h5 className="mb-3 text-primary">Content</h5>
                 <RichTextEditor
                   value={formData.description}
                   onChange={(html) =>
                     setFormData((prev) => ({ ...prev, description: html }))
                   }
-                  placeholder="Enter the full aarti text here..."
                 />
                 {errors.description && (
-                  <div className="invalid-feedback d-block mt-2">
+                  <div className="text-danger small mt-1">
                     {errors.description}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
+            <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
               <button
                 type="button"
-                className="btn btn-outline-secondary mr-2"
+                className="btn btn-outline-secondary"
                 onClick={() => navigate("/aarti")}
-                disabled={isSaving || isUploading}
               >
                 Cancel
               </button>
@@ -467,12 +425,10 @@ export default function AartiFormPage() {
                 className="btn btn-success"
                 disabled={isSaving || isUploading}
               >
-                {isSaving ? (
+                {isSaving && (
                   <span className="spinner-border spinner-border-sm me-2"></span>
-                ) : (
-                  <i className="fas fa-save mr-2"></i>
                 )}
-                {id ? "Update Aarti" : "Create Aarti"}
+                {id ? "Update" : "Create"}
               </button>
             </div>
           </form>

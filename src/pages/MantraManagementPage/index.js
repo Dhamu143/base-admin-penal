@@ -2,28 +2,22 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import Select from "react-select";
 
-// ✅ Import updateMantra here
+// ✅ Hooks & Components
+import FilterBar from "../../common/FilterBar";
+import { useFilters } from "../../hook/useFilters";
+import ConfirmationModal from "../../common/ConfirmationModal";
+import CustomPagination from "../../common/Pagination";
+import { TableStatus } from "../../components/TableStatus";
+
+// ✅ Actions
 import {
   fetchMantras,
   deleteMantra,
   updateMantra,
 } from "../../store/mantra/index";
 import { fetchAllGods } from "../../store/god";
-
 import { staticLanguages } from "../../constants/languages";
-import ConfirmationModal from "../../common/ConfirmationModal";
-import CustomPagination from "../../common/Pagination";
-import { TableStatus } from "../../components/TableStatus";
-
-const languageOptions = [
-  { value: "", label: "All Languages" },
-  ...staticLanguages.map((lang) => ({
-    value: lang._id,
-    label: `${lang.language} (${lang.nativeName})`,
-  })),
-];
 
 const styles = `
   .truncate-text {
@@ -39,7 +33,17 @@ const styles = `
 export default function MantraListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const itemsPerPage = 10;
 
+  // --- Custom Hook for Filters ---
+  const {
+    filters,
+    handleFilterChange,
+    handlePageChange,
+    resetFilters,
+  } = useFilters(1);
+
+  // Redux State
   const { list: mantras, pagination, status, error } = useSelector(
     (state) => state.mantras
   );
@@ -47,15 +51,12 @@ export default function MantraListPage() {
     (state) => state.God
   );
 
+  // Local UI State
   const [isDeleting, setIsDeleting] = useState(false);
   const [mantraToDelete, setMantraToDelete] = useState(null);
-
-  // ✅ Track which item is currently toggling to show spinner
   const [togglingId, setTogglingId] = useState(null);
 
-  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
-  const itemsPerPage = 10;
-
+  // Load Data
   const loadMantras = useCallback(() => {
     dispatch(fetchMantras({ ...filters, limit: itemsPerPage }))
       .unwrap()
@@ -72,11 +73,11 @@ export default function MantraListPage() {
     }
   }, [dispatch, godStatus]);
 
+  // Actions
   const handleStatusToggle = async (mantra) => {
     if (togglingId === mantra._id) return;
     setTogglingId(mantra._id);
     const newStatus = !mantra.isActive;
-    setFilters({ language: "", god: "", page: 1 });
 
     try {
       await dispatch(
@@ -92,29 +93,6 @@ export default function MantraListPage() {
     }
   };
 
-  const getLanguageNameById = (langId) =>
-    staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
-
-  const handleLanguageChange = (option) => {
-    const value = option?.value || "";
-    setFilters((prev) => ({ ...prev, language: value, page: 1 }));
-  };
-
-  const handleGodChange = (option) => {
-    const value = option?.value || "";
-    setFilters((prev) => ({ ...prev, god: value, page: 1 }));
-  };
-
-  const handleResetFilters = () => {
-    setFilters({ language: "", god: "", page: 1 });
-  };
-
-  const handlePageChange = (newPage) => {
-    if (newPage !== filters.page) {
-      setFilters((prev) => ({ ...prev, page: newPage }));
-    }
-  };
-
   const confirmDelete = async () => {
     if (!mantraToDelete) return;
     setIsDeleting(true);
@@ -123,7 +101,7 @@ export default function MantraListPage() {
       toast.success(`Mantra "${mantraToDelete.name}" deleted successfully.`);
 
       if (mantras.length === 1 && filters.page > 1) {
-        setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
+        handlePageChange(filters.page - 1);
       } else {
         loadMantras();
       }
@@ -135,25 +113,24 @@ export default function MantraListPage() {
     }
   };
 
+  const getLanguageNameById = (langId) =>
+    staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
+
+  // Prepare God Options for the FilterBar
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
   ];
 
-  const selectedLanguage = languageOptions.find(
-    (opt) => opt.value === filters.language
-  );
-  const selectedGod = godOptions.find((opt) => opt.value === filters.god);
-
   return (
     <>
       <style>{styles}</style>
       <div className="card shadow-sm">
+        {/* Header */}
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
           <h4 className="mb-0 text-primary-emphasis">Mantra Management</h4>
           <button
             className="btn btn-labeled btn-success"
-            type="button"
             style={{ fontSize: "17px" }}
             onClick={() => navigate("/mantras/new")}
           >
@@ -164,49 +141,16 @@ export default function MantraListPage() {
           </button>
         </div>
 
-        <div className="card-body border-bottom">
-          <div className="d-flex flex-column flex-md-row align-items-md-center">
-            <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
-              <label className="form-label fw-bold small mb-1">
-                Filter by Language
-              </label>
-              <Select
-                placeholder="Select Language..."
-                options={languageOptions}
-                value={selectedLanguage}
-                onChange={handleLanguageChange}
-                isClearable
-                classNamePrefix="react-select"
-              />
-            </div>
+        {/* ✅ Decoupled Filter Bar */}
+        <FilterBar
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onReset={resetFilters}
+          godOptions={godOptions}
+          godStatus={godStatus}
+        />
 
-            <div className="ml-4" style={{ minWidth: "250px" }}>
-              <label className="form-label fw-bold small mb-1">
-                Filter by God
-              </label>
-              <Select
-                placeholder="Select God..."
-                options={godOptions}
-                value={selectedGod}
-                onChange={handleGodChange}
-                isClearable
-                isLoading={godStatus === "loading"}
-                isDisabled={godStatus !== "succeeded"}
-                classNamePrefix="react-select"
-              />
-            </div>
-
-            <div className="mt-md-auto ms-md-auto">
-              <button
-                className="btn btn-outline-secondary w-100 p-2 ml-4"
-                onClick={handleResetFilters}
-              >
-                <i className="fas fa-undo mr-1"></i>Reset
-              </button>
-            </div>
-          </div>
-        </div>
-
+        {/* Table Content */}
         <div className="card-body">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
@@ -247,29 +191,19 @@ export default function MantraListPage() {
                       </td>
                       <td>{mantra?.sort}</td>
 
-                      {/* --- ✅ STATUS TOGGLE SWITCH --- */}
                       <td>
                         <div className="form-check form-switch">
                           <input
                             className="form-check-input"
                             type="checkbox"
-                            role="switch"
-                            id={`status-switch-${mantra._id}`}
-                            checked={mantra.isActive}
+                            checked={mantra?.isActive}
                             disabled={togglingId === mantra._id}
                             onChange={() => handleStatusToggle(mantra)}
                             style={{ cursor: "pointer" }}
                           />
-                          <label
-                            className="form-check-label small ms-1"
-                            htmlFor={`status-switch-${mantra._id}`}
-                          >
+                          <label className="form-check-label small ms-1">
                             {togglingId === mantra._id ? (
-                              <span
-                                className="spinner-border spinner-border-sm text-secondary"
-                                role="status"
-                                aria-hidden="true"
-                              ></span>
+                              <span className="spinner-border spinner-border-sm text-secondary"></span>
                             ) : mantra.isActive ? (
                               "Active"
                             ) : (
@@ -304,6 +238,7 @@ export default function MantraListPage() {
           </div>
         </div>
 
+        {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination

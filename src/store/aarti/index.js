@@ -1,15 +1,16 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
-// --- Async Thunks ---
-
-// Fetch with pagination/filter support
 export const fetchAartis = createAsyncThunk(
   "aartis/fetchAartis",
   async (params = {}, { rejectWithValue }) => {
     try {
       const queryString = new URLSearchParams(
-        Object.fromEntries(Object.entries(params).filter(([_, v]) => v))
+        Object.fromEntries(
+          Object.entries(params).filter(
+            ([_, v]) => v !== "" && v !== undefined && v !== null
+          )
+        )
       ).toString();
 
       const url = queryString ? `/aarti?${queryString}` : "/aarti";
@@ -28,7 +29,6 @@ export const fetchAartis = createAsyncThunk(
   }
 );
 
-// Fetch single
 export const fetchAartiById = createAsyncThunk(
   "aartis/fetchAartiById",
   async (id, { rejectWithValue }) => {
@@ -46,14 +46,12 @@ export const fetchAartiById = createAsyncThunk(
   }
 );
 
-// Update
 export const updateAarti = createAsyncThunk(
   "aartis/updateAarti",
   async ({ id, ...data }, { rejectWithValue }) => {
     try {
       console.log("✏️ Updating Aarti:", id, data);
 
-      // Use {} for params, pass data as the third argument
       const response = await httpService.put(`/aarti/${id}`, {}, data);
 
       console.log("✅ Updated Aarti:", response.data);
@@ -67,7 +65,6 @@ export const updateAarti = createAsyncThunk(
   }
 );
 
-// Add
 export const addAarti = createAsyncThunk(
   "aartis/addAarti",
   async (aartiData, { rejectWithValue }) => {
@@ -87,7 +84,6 @@ export const addAarti = createAsyncThunk(
   }
 );
 
-// Delete
 export const deleteAarti = createAsyncThunk(
   "aartis/deleteAarti",
   async (id, { rejectWithValue }) => {
@@ -107,7 +103,6 @@ export const deleteAarti = createAsyncThunk(
   }
 );
 
-// --- Slice ---
 const initialState = {
   list: [],
   pagination: null,
