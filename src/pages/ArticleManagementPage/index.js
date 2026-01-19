@@ -1,22 +1,25 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query"; // Import QueryClient
 
+// New Hooks
 import {
-  fetchArticles,
-  deleteArticle,
-  updateArticle,
-} from "../../store/Articles/index";
-import { fetchAllGods } from "../../store/god/index";
+  useArticles,
+  useDeleteArticle,
+  useUpdateArticle
+} from "../../hooks/useArticles";
+
+import { fetchAllGods } from "../../store/god/index"; // Keeping God in Redux as requested previously
 import { staticLanguages } from "../../constants/languages";
 
 import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
-import FilterBar from "../../common/FilterBar"; 
-import { useFilters } from "../../hook/useFilters"; 
+import FilterBar from "../../common/FilterBar";
+import { useFilters } from "../../hooks/useFilters";
 
 const styles = `
   .truncate-text {
@@ -32,18 +35,9 @@ const styles = `
 export default function ArticleListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient(); // Initialize Client
 
-  const { list: articles, pagination, status, error } = useSelector(
-    (state) => state.articles
-  );
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
-
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [articleToDelete, setArticleToDelete] = useState(null);
-  const [togglingId, setTogglingId] = useState(null);
-
+  // 1. Filters
   const {
     filters,
     handleFilterChange,
@@ -52,19 +46,43 @@ export default function ArticleListPage() {
   } = useFilters();
   const itemsPerPage = 10;
 
-  const loadArticles = useCallback(() => {
-    dispatch(fetchArticles({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load articles."));
-  }, [dispatch, filters, itemsPerPage]);
+  // 2. Fetch Articles (React Query)
+  const { data, isLoading, isError, error } = useArticles({
+    ...filters,
+    limit: itemsPerPage
+  });
 
-  useEffect(() => {
-    loadArticles();
-  }, [loadArticles]);
+  const articles = Array.isArray(data?.data) ? data.data : [];
+  const pagination = data?.pagination || null;
+
+  // 3. Mutations
+  const deleteMutation = useDeleteArticle();
+  const updateMutation = useUpdateArticle();
+
+  // 4. Gods (Redux)
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
+
+  const [articleToDelete, setArticleToDelete] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [dispatch, godStatus]);
+
+  // ✅ Manual Refresh Handler
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["articles"]);
+    toast.success("List refreshed!");
+  };
+
+  // ✅ Reset Handler (Clear filters + Force Fetch)
+  const handleReset = () => {
+    resetFilters();
+    queryClient.invalidateQueries(["articles"]);
+    toast.info("Filters reset and list refreshed");
+  };
 
   const handleStatusToggle = async (article) => {
     if (togglingId === article._id) return;
@@ -72,14 +90,12 @@ export default function ArticleListPage() {
     const newStatus = !article.isActive;
 
     try {
-      await dispatch(
-        updateArticle({ id: article._id, isActive: newStatus })
-      ).unwrap();
+      await updateMutation.mutateAsync({ id: article._id, isActive: newStatus });
       toast.success(
         `Article "${article.title}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -87,16 +103,11 @@ export default function ArticleListPage() {
 
   const confirmDelete = async () => {
     if (!articleToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteArticle(articleToDelete._id)).unwrap();
-      toast.success(`Article deleted successfully.`);
-      loadArticles();
+      await deleteMutation.mutateAsync(articleToDelete._id);
       setArticleToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Failed to delete article.");
-    } finally {
-      setIsDeleting(false);
+      // Error handled in hook
     }
   };
 
@@ -114,18 +125,20 @@ export default function ArticleListPage() {
       <div className="card shadow-sm">
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
           <h4 className="mb-0 text-primary-emphasis">Article Management</h4>
-          <button
-            className="btn btn-success"
-            onClick={() => navigate("/articles/new")}
-          >
-            <i className="fas fa-plus me-2"></i> Add New Article
-          </button>
+          <div>
+            <button
+              className="btn btn-success"
+              onClick={() => navigate("/articles/new")}
+            >
+              <i className="fas fa-plus me-2"></i> Add New Article
+            </button>
+          </div>
         </div>
 
         <FilterBar
           filters={filters}
           onFilterChange={handleFilterChange}
-          onReset={resetFilters}
+          onReset={handleReset} // Use custom reset
           godOptions={godOptions}
           godStatus={godStatus}
         />
@@ -147,12 +160,12 @@ export default function ArticleListPage() {
               </thead>
               <tbody>
                 <TableStatus
-                  status={status}
+                  status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                   error={error}
                   dataLength={articles.length}
                   colSpan={8}
                 />
-                {status === "succeeded" &&
+                {!isLoading && !isError && Array.isArray(articles) &&
                   articles.map((article) => (
                     <tr key={article._id}>
                       <td className="fw-bold">
@@ -190,9 +203,8 @@ export default function ArticleListPage() {
                       <td>{article?.sort}</td>
                       <td>
                         <span
-                          className={`badge ${
-                            article.isFree ? "bg-info" : "bg-warning"
-                          }`}
+                          className={`badge ${article.isFree ? "bg-info" : "bg-warning"
+                            }`}
                         >
                           {article.isFree ? "Free" : "Paid"}
                         </span>
@@ -205,6 +217,7 @@ export default function ArticleListPage() {
                             checked={article.isActive}
                             disabled={togglingId === article._id}
                             onChange={() => handleStatusToggle(article)}
+                            style={{ cursor: "pointer" }}
                           />
                         </div>
                       </td>
@@ -249,7 +262,7 @@ export default function ArticleListPage() {
         onClose={() => setArticleToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="text-center">

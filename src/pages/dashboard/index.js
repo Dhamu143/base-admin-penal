@@ -1,20 +1,13 @@
-import { Fragment, useContext, useEffect } from "react";
-import { SocketContext } from "../../context/socket";
+import { Fragment } from "react";
 import { Link } from "react-router-dom";
-import { appGetAllDashboard } from "../../store/dashboard";
-import { useDispatch, useSelector } from "react-redux";
 import dashboardCards from "../../common/dashboardCards";
+import { useDashboardStats } from "../../hooks/useDashboard"; // Import the hook
 
 function Dashboard() {
-  const socket = useContext(SocketContext);
-  const dispatch = useDispatch();
-  const dashboard = useSelector((state) => state?.dashboardReducer.dashboard);
+  // Use the hook (Handles fetching, caching, and socket updates automatically)
+  const { data: dashboard, isLoading, isError } = useDashboardStats();
 
-  useEffect(() => {
-    socket.connect();
-    dispatch(appGetAllDashboard());
-  }, [dispatch, socket]);
-
+  // Helper to render cards
   const renderCard = (
     title,
     count,
@@ -41,7 +34,8 @@ function Dashboard() {
             <div className="d-flex align-items-center">
               <div className="flex-grow-1">
                 <div className="h2 mb-0 font-weight-bold text-white">
-                  {count}
+                  {/* Show 0 while loading, or a spinner if preferred */}
+                  {isLoading ? "..." : count}
                 </div>
                 <div className="text-uppercase font-weight-bold text-white small">
                   {title} <br />
@@ -73,8 +67,15 @@ function Dashboard() {
       </div>
 
       <div className="row m-3">
+        {/* Error State Handling */}
+        {isError && (
+          <div className="alert alert-danger w-100">Failed to load dashboard stats.</div>
+        )}
+
+        {/* Data Mapping */}
         {Array.isArray(dashboardCards) &&
           dashboardCards.map((card) => {
+            // Default stats if data hasn't loaded yet
             const stats = dashboard?.[card.valueKey] || {
               total: 0,
               active: 0,

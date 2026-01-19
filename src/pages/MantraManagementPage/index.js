@@ -1,23 +1,25 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query"; // Import QueryClient
 
-// ✅ Hooks & Components
+// Hooks
+import {
+  useMantras,
+  useDeleteMantra,
+  useUpdateMantra
+} from "../../hooks/useMantra";
+
+import { fetchAllGods } from "../../store/god";
+import { staticLanguages } from "../../constants/languages";
+
+// Components
 import FilterBar from "../../common/FilterBar";
-import { useFilters } from "../../hook/useFilters";
+import { useFilters } from "../../hooks/useFilters";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
-
-// ✅ Actions
-import {
-  fetchMantras,
-  deleteMantra,
-  updateMantra,
-} from "../../store/mantra/index";
-import { fetchAllGods } from "../../store/god";
-import { staticLanguages } from "../../constants/languages";
 
 const styles = `
   .truncate-text {
@@ -33,9 +35,10 @@ const styles = `
 export default function MantraListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient(); // Initialize Client
   const itemsPerPage = 10;
 
-  // --- Custom Hook for Filters ---
+  // 1. Filters
   const {
     filters,
     handleFilterChange,
@@ -43,35 +46,45 @@ export default function MantraListPage() {
     resetFilters,
   } = useFilters(1);
 
-  // Redux State
-  const { list: mantras, pagination, status, error } = useSelector(
-    (state) => state.mantras
-  );
+  // 2. Fetch Mantras (React Query)
+  const { data, isLoading, isError, error } = useMantras({
+    ...filters,
+    limit: itemsPerPage
+  });
+
+  const mantras = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  // 3. Mutations
+  const deleteMutation = useDeleteMantra();
+  const updateMutation = useUpdateMantra();
+
+  // 4. Redux (Gods)
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
-  // Local UI State
-  const [isDeleting, setIsDeleting] = useState(false);
   const [mantraToDelete, setMantraToDelete] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
-
-  // Load Data
-  const loadMantras = useCallback(() => {
-    dispatch(fetchMantras({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load mantras."));
-  }, [dispatch, filters, itemsPerPage]);
-
-  useEffect(() => {
-    loadMantras();
-  }, [loadMantras]);
 
   useEffect(() => {
     if (godStatus === "idle") {
       dispatch(fetchAllGods());
     }
   }, [dispatch, godStatus]);
+
+  // ✅ Manual Refresh Handler
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["mantras"]);
+    toast.success("List refreshed!");
+  };
+
+  // ✅ Reset Handler
+  const handleReset = () => {
+    resetFilters();
+    queryClient.invalidateQueries(["mantras"]);
+    toast.info("Filters reset and list refreshed");
+  };
 
   // Actions
   const handleStatusToggle = async (mantra) => {
@@ -80,14 +93,12 @@ export default function MantraListPage() {
     const newStatus = !mantra.isActive;
 
     try {
-      await dispatch(
-        updateMantra({ id: mantra._id, isActive: newStatus })
-      ).unwrap();
+      await updateMutation.mutateAsync({ id: mantra._id, isActive: newStatus });
       toast.success(
         `Mantra "${mantra.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -95,28 +106,23 @@ export default function MantraListPage() {
 
   const confirmDelete = async () => {
     if (!mantraToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteMantra(mantraToDelete._id)).unwrap();
-      toast.success(`Mantra "${mantraToDelete.name}" deleted successfully.`);
+      await deleteMutation.mutateAsync(mantraToDelete._id);
 
+      // Pagination logic: if last item on page, go back
       if (mantras.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
-      } else {
-        loadMantras();
       }
+
       setMantraToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Failed to delete mantra.");
-    } finally {
-      setIsDeleting(false);
+      // Error handled in hook
     }
   };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
 
-  // Prepare God Options for the FilterBar
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
@@ -129,23 +135,25 @@ export default function MantraListPage() {
         {/* Header */}
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
           <h4 className="mb-0 text-primary-emphasis">Mantra Management</h4>
-          <button
-            className="btn btn-labeled btn-success"
-            style={{ fontSize: "17px" }}
-            onClick={() => navigate("/mantras/new")}
-          >
-            <span className="btn-label me-2">
-              <i className="fas fa-plus"></i>
-            </span>
-            Add New Mantra
-          </button>
+          <div>
+            <button
+              className="btn btn-labeled btn-success"
+              style={{ fontSize: "17px" }}
+              onClick={() => navigate("/mantras/new")}
+            >
+              <span className="btn-label me-2">
+                <i className="fas fa-plus"></i>
+              </span>
+              Add New Mantra
+            </button>
+          </div>
         </div>
 
-        {/* ✅ Decoupled Filter Bar */}
+        {/* Filter Bar */}
         <FilterBar
           filters={filters}
           onFilterChange={handleFilterChange}
-          onReset={resetFilters}
+          onReset={handleReset} // Use custom reset
           godOptions={godOptions}
           godStatus={godStatus}
         />
@@ -167,14 +175,14 @@ export default function MantraListPage() {
               </thead>
               <tbody>
                 <TableStatus
-                  status={status}
+                  status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                   error={error}
                   dataLength={mantras.length}
                   colSpan={7}
                   loadingText="Loading mantras..."
                   emptyText="No mantras Found."
                 />
-                {status === "succeeded" &&
+                {!isLoading && !isError && Array.isArray(mantras) &&
                   mantras.map((mantra) => (
                     <tr key={mantra._id}>
                       <td style={{ maxWidth: "100px" }}>{mantra?.name}</td>
@@ -257,7 +265,7 @@ export default function MantraListPage() {
           onConfirm={confirmDelete}
           title="Confirm Deletion"
           confirmText="Delete"
-          isLoading={isDeleting}
+          isLoading={deleteMutation.isPending}
           confirmButtonVariant="danger"
         >
           <p className="fs-5 text-center">

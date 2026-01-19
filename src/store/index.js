@@ -25,7 +25,6 @@ import dashboardReducer from "../store/dashboard/index";
 // import contributionReducer from "../store/contribution/index";
 // import PendingMembershipReducer from "../store/pendingmembers/index";
 // import fundrasingReducer from "../store/fundrasing/index";
-// import postReducer from "../store/post/index";
 // import projectcategoryReducer from "../store/projectcategory/index";
 // import socialprojectReducer from "../store/socialproject/index";
 // import socialprojectbookingReducer from "../store/socialprojectbooking/index";
@@ -48,6 +47,7 @@ import news from "./news";
 import story from "./story";
 import stuti from "./stuti";
 import dailyLogReducer from "./dailylog/index";
+import postReducer from "./post/index";
 
 export const store = configureStore({
   reducer: {
@@ -62,7 +62,6 @@ export const store = configureStore({
     // requestedhubReducer,
     // facilityReducer,
     // teamsReducer,
-    // postReducer,
     // projectcategoryReducer,
     // socialprojectReducer,
     // PendingMembershipReducer,
@@ -96,6 +95,7 @@ export const store = configureStore({
     story,
     stuti,
     dailyLog: dailyLogReducer,
+    posts: postReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -1,27 +1,28 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
 
-// ✅ Hooks & Shared Components
+import {
+  useStories,
+  useDeleteStory,
+  useUpdateStory
+} from "../../hooks/useStory";
+
+import { fetchAllGods } from "../../store/god";
+import { staticLanguages } from "../../constants/languages";
+
 import FilterBar from "../../common/FilterBar";
-import { useFilters } from "../../hook/useFilters";
+import { useFilters } from "../../hooks/useFilters";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 
-// ✅ Actions & Constants
-import {
-  fetchStories,
-  deleteStory,
-  updateStory,
-} from "../../store/story/index";
-import { fetchAllGods } from "../../store/god";
-import { staticLanguages } from "../../constants/languages";
-
 export default function StoryManagementPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const {
@@ -31,26 +32,23 @@ export default function StoryManagementPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { list: stories, pagination, status, error } = useSelector(
-    (state) => state.story
-  );
+  const { data, isLoading, isError, error } = useStories({
+    ...filters,
+    limit: itemsPerPage
+  });
+
+  const stories = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  const deleteMutation = useDeleteStory();
+  const updateMutation = useUpdateStory();
+
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
   const [storyToDelete, setStoryToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
-
-  const loadStories = useCallback(() => {
-    dispatch(fetchStories({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load stories."));
-  }, [dispatch, filters, itemsPerPage]);
-
-  useEffect(() => {
-    loadStories();
-  }, [loadStories]);
 
   useEffect(() => {
     if (godStatus === "idle") {
@@ -58,21 +56,28 @@ export default function StoryManagementPage() {
     }
   }, [dispatch, godStatus]);
 
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["stories"]);
+    toast.success("List refreshed!");
+  };
+
+  const handleReset = () => {
+    resetFilters();
+    queryClient.invalidateQueries(["stories"]);
+    toast.info("Filters reset and list refreshed");
+  };
+
   const handleStatusToggle = async (story) => {
     if (togglingId === story._id) return;
-
     setTogglingId(story._id);
     const newStatus = !story.isActive;
 
     try {
-      await dispatch(
-        updateStory({ id: story._id, isActive: newStatus })
-      ).unwrap();
+      await updateMutation.mutateAsync({ id: story._id, isActive: newStatus });
       toast.success(
         `Story "${story.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
     } finally {
       setTogglingId(null);
     }
@@ -80,21 +85,15 @@ export default function StoryManagementPage() {
 
   const confirmDelete = async () => {
     if (!storyToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteStory(storyToDelete._id)).unwrap();
-      toast.success(`Story "${storyToDelete.name}" deleted successfully.`);
+      await deleteMutation.mutateAsync(storyToDelete._id);
 
       if (stories.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
-      } else {
-        loadStories();
       }
+
       setStoryToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Failed to delete story.");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -108,30 +107,30 @@ export default function StoryManagementPage() {
 
   return (
     <div className="card shadow-sm">
-      {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Story Management</h4>
-        <button
-          className="btn btn-labeled btn-success"
-          style={{ fontSize: "17px" }}
-          onClick={() => navigate("/story/new")}
-        >
-          <span className="btn-label me-2">
-            <i className="fas fa-plus"></i>
-          </span>
-          Add New Story
-        </button>
+        <div>
+          <button
+            className="btn btn-labeled btn-success"
+            style={{ fontSize: "17px" }}
+            onClick={() => navigate("/story/new")}
+          >
+            <span className="btn-label me-2">
+              <i className="fas fa-plus"></i>
+            </span>
+            Add New Story
+          </button>
+        </div>
       </div>
 
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={resetFilters}
+        onReset={handleReset}
         godOptions={godOptions}
         godStatus={godStatus}
       />
 
-      {/* Table Content */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
@@ -148,14 +147,14 @@ export default function StoryManagementPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={status}
+                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={stories.length}
                 colSpan={7}
                 loadingText="Loading stories..."
                 emptyText="No stories Found."
               />
-              {status === "succeeded" &&
+              {!isLoading && !isError && Array.isArray(stories) &&
                 stories.map((storyItem) => (
                   <tr key={storyItem._id}>
                     <td className="fw-semibold">{storyItem?.name}</td>
@@ -170,11 +169,10 @@ export default function StoryManagementPage() {
                       }}
                       title={storyItem?.description.replace(/<[^>]+>/g, "")}
                     >
-                      {storyItem?.description.replace(/<[^>]+>/g, "")}
+                      {storyItem?.description.replace(/<[^>]+>/g, "").substring(0, 50)}...
                     </td>
                     <td>{storyItem?.sort}</td>
 
-                    {/* Status Toggle */}
                     <td>
                       <div className="form-check form-switch">
                         <input
@@ -200,7 +198,7 @@ export default function StoryManagementPage() {
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
-                        onClick={() => navigate(`/story/${storyItem._id}/edit`)}
+                        onClick={() => navigate(`/story/edit/${storyItem._id}`)}
                         title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
@@ -220,7 +218,6 @@ export default function StoryManagementPage() {
         </div>
       </div>
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
@@ -233,14 +230,13 @@ export default function StoryManagementPage() {
         </div>
       )}
 
-      {/* Delete Confirmation */}
       <ConfirmationModal
         show={storyToDelete !== null}
         onClose={() => setStoryToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
         confirmText="Delete"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">

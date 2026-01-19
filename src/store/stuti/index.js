@@ -35,7 +35,7 @@ export const addStuti = createAsyncThunk(
       );
     }
   }
-);
+); 
 
 export const updateStuti = createAsyncThunk(
   "stuti/update",

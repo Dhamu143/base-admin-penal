@@ -12,7 +12,7 @@ export const fetchNews = createAsyncThunk(
           )
         )
       ).toString();
-      const url = queryString ? `/news?${queryString}` : "/news"; // <-- Changed
+      const url = queryString ? `/news?${queryString}` : "/news";
       const response = await httpService.get(url);
 
       return {
@@ -69,7 +69,6 @@ export const deleteNews = createAsyncThunk(
   }
 );
 
-// --- SLICE ---
 const newsSlice = createSlice({
   name: "news", 
   initialState: {
@@ -81,7 +80,6 @@ const newsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch
       .addCase(fetchNews.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -98,7 +96,6 @@ const newsSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Add
       .addCase(addNews.fulfilled, (state, action) => {
         state.list.push(action.payload);
       })
@@ -106,7 +103,6 @@ const newsSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Update
       .addCase(updateNews.fulfilled, (state, action) => {
         const index = state.list.findIndex(
           (item) => item._id === action.payload._id
@@ -119,7 +115,6 @@ const newsSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Delete
       .addCase(deleteNews.fulfilled, (state, action) => {
         state.list = state.list.filter((item) => item._id !== action.payload);
       })

@@ -1,165 +1,131 @@
-import { createSlice, createAsyncThunk, isAllOf } from "@reduxjs/toolkit";
-
-// ** Axios Imports
-import { toast } from "react-toastify";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import httpService from "../../common/http.service";
 
-export const appCreatePost = createAsyncThunk(
-  "appPost/appCreatePost",
-  async (params) => {
+export const createPost = createAsyncThunk(
+  "post/create",
+  async (formData, { rejectWithValue }) => {
     try {
-      const response = await httpService.post("/post", {}, params);
-      if (response?.data) {
-        toast.success("Post created Successfully");
-        // params.navigate("/post");
-      }
-      return await response.data;
-    } catch (error) {
-      toast.error(error?.message);
+      const response = await httpService.post("/posts/create", {}, formData);
+      return response.data?.data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Could not create post."
+      );
     }
   }
 );
 
-
-export const appGetAllPost = createAsyncThunk(
-  "appPost/appGetAllPost",
-  async (params) => {
+export const fetchAdminPosts = createAsyncThunk(
+  "post/fetchAdminAll",
+  async (params = {}, { rejectWithValue }) => {
     try {
-      // const response = await httpService.get(`/post?page=${params.page}&limit=${params.limit}`);
-      let url = `/post?page=${params.page}&limit=${params.limit}`;
-      if (params.hub) {
-        url += `&hub=${params.hub}`;
-      }
-      if (params.sanstha) {
-        url += `&sanstha=${params.sanstha}`;
-      }
-        if (params.categoryOptions) {
-        url += `&category=${params.categoryOptions}`;
-      }
-         if (params.approval_required) {
-        url += `&approval_required=${params.approval_required}`;
-      }
-       const response = await httpService.get(url);  
-      return await response.data.data;
-    } catch (error) {
-      toast.error(error?.message);
+      const queryString = new URLSearchParams(
+        Object.fromEntries(
+          Object.entries(params).filter(
+            ([_, v]) => v !== "" && v !== undefined && v !== null
+          )
+        )
+      ).toString();
+
+      const url = queryString
+        ? `/posts/admin/all?${queryString}`
+        : "/posts/admin/all";
+
+      const response = await httpService.get(url);
+
+      return {
+        data: response.data?.data || [],
+        total: response.data?.total || 0,
+        totalPages: response.data?.totalPages || 1,
+        currentPage: response.data?.currentPage || 1,
+      };
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Could not fetch posts."
+      );
     }
   }
 );
 
-export const appUpdatePost = createAsyncThunk(
-  "appPost/appUpdatePost",
-  async (params) => {
-    console.log(params)
+export const verifyPost = createAsyncThunk(
+  "post/verify",
+  async ({ id, isVerified }, { rejectWithValue }) => {
     try {
       const response = await httpService.put(
-        `/post/${params.id}`,
+        `/posts/admin/verify/${id}`,
         {},
-        // params
-        {
-        title: params.title,
-        file: params?.file,
-        description: params?.description,
-        category: params?.category,
-        sanstha: params?.sanstha,
-        hub: params?.hub,
-        approval_required: params?.approval_required
-        }
+        { isVerified }
       );
-      if (response.data) {
-        // params.navigate("/post/1");
-        toast.success("Post Updated Successfully");
-      }
-      return await response.data;
-    } catch (error) {
-      toast.error(error?.message);
+      return response.data?.data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Could not verify post."
+      );
     }
   }
 );
 
-export const appDeletePost = createAsyncThunk(
-  "appPost/appDeletePost",
-  async (id) => {
+export const deletePost = createAsyncThunk(
+  "post/delete",
+  async (id, { rejectWithValue }) => {
     try {
-      const response = await httpService.delete(`/post/${id}`);
-      if (response?.data) {
-        response.data.id = id;
-        toast.success("Post Deleted Successfully");
-      }
-      return await response.data;
-    } catch (error) {
-      toast.error(error?.message);
+      await httpService.delete(`/posts/${id}`);
+      return id;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Could not delete post."
+      );
     }
   }
 );
 
-export const appPostSlice = createSlice({
-  name: "Post",
+const postSlice = createSlice({
+  name: "posts",
   initialState: {
-    post: [],
-    slugData: "",
-    paginate: "",
-    isloder: false,
-    isdeleted: false,
+    list: [],
+    totalCount: 0,
+    totalPages: 1,
+    currentPage: 1,
+
+    status: "idle",
+    error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
+    builder
+      .addCase(fetchAdminPosts.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchAdminPosts.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.list = action.payload.data;
+        state.totalCount = action.payload.total;
+        state.totalPages = action.payload.totalPages;
+        state.currentPage = action.payload.currentPage;
+      })
+      .addCase(fetchAdminPosts.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
 
-    builder.addMatcher(isAllOf(appDeletePost.pending), (state, action) => {
-      state.isdeleted = false;
-    });
-    builder.addMatcher(isAllOf(appDeletePost.fulfilled), (state, action) => {
-      state.isdeleted = true;
-      if (Array.isArray(state.post)) {
-          const index = state.post.findIndex((data) => data?._id === action.payload.id);
-          if (index !== -1) {
-            state.post.splice(index, 1);
-          }
+      .addCase(createPost.fulfilled, (state, action) => {
+       
+        state.status = "succeeded";
+      })
+
+      .addCase(verifyPost.fulfilled, (state, action) => {
+        const index = state.list.findIndex((p) => p._id === action.payload._id);
+        if (index !== -1) {
+          state.list[index] = action.payload; 
         }
-    });
-    builder.addMatcher(isAllOf(appDeletePost.rejected), (state, action) => {
-      state.isdeleted = false;
-    });
-    // builder.addMatcher(isAllOf(appUpdatePost.fulfilled), (state, action) => {
-    //   const index = state.post?.findIndex(
-    //     (data) => data?._id === action?.payload?.data?._id
-    //   );
-    //   state.post[index] = action?.payload?.data;
-    // });
-       builder.addMatcher(isAllOf(appUpdatePost.fulfilled), (state, action) => {
-      const index = state.post?.data?.findIndex(
-        (data) => data?._id === action?.payload?.data?._id
-      );
-    
-      if (index !== -1) {
-        state.post.data[index] = action?.payload?.data;
-      }
-    });
-    builder.addMatcher(isAllOf(appGetAllPost.pending), (state, action) => {
-      state.isloder = true;
-    });
-    builder.addMatcher(isAllOf(appGetAllPost.fulfilled), (state, action) => {
-      state.post = action.payload;
-  
-      const paginate = {
-        hasNextPage: action?.payload?.pagination?.totalPages > action?.payload?.pagination?.currentPage,
-        hasPrevPage: action?.payload?.pagination?.currentPage > 1,
-        limit: action?.payload?.pagination?.pageSize || 10,
-        nextPage: action?.payload?.pagination?.currentPage ? action?.payload?.pagination?.currentPage + 1 : 1,
-        page: action?.payload?.pagination?.currentPage || 1,
-        pageSize: action?.payload?.pagination?.pageSize || 10,
-        pagingCounter: action?.payload?.pagination?.currentPage ? (action?.payload?.pagination?.currentPage - 1) * action?.payload?.pagination?.pageSize + 1 : 1,
-        prevPage: action?.payload?.pagination?.currentPage ? action?.payload?.pagination?.currentPage - 1 : 0,
-        totalDocs: action?.payload?.pagination?.totalRecords || action?.payload?.data?.length || 0,
-        totalPages: action?.payload?.pagination?.totalPages || Math.ceil((action?.payload?.data?.length || 0) / 10)
-      };
-      state.paginate = paginate;
-      state.isloder = false;
-    });
-    builder.addMatcher(isAllOf(appGetAllPost.rejected), (state, action) => {
-      state.isloder = false;
-    });
+      })
+
+      .addCase(deletePost.fulfilled, (state, action) => {
+        state.list = state.list.filter((p) => p._id !== action.payload);
+        state.totalCount -= 1;
+      });
   },
 });
 
-export default appPostSlice.reducer;
+export default postSlice.reducer;

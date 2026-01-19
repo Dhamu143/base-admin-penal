@@ -1,88 +1,73 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { fetchDailyLogs, deleteDailyLog } from "../../store/dailylog/index";
+import { useQueryClient } from "@tanstack/react-query";
+
+// Import New Hooks
+import {
+  useDailyLogs,
+  useDeleteDailyLog
+} from "../../hooks/useDailyLog";
 
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 import DynamicImage from "../../components/PostPreview/PostPreview";
+
 export default function DailyLogListPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient(); // Initialize Client
 
-  const entireState = useSelector((state) => state);
-  console.log("🔍 FULL REDUX STATE:", entireState);
-
-  const { list: logs, pagination, status, error } = useSelector((state) => {
-    return (
-      state.dailyLog || {
-        list: [],
-        pagination: null,
-        status: "idle",
-        error: null,
-      }
-    );
-  });
-
-  console.log("📊 CURRENT LOGS STATE:", { logs, status, error });
-
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [logToDelete, setLogToDelete] = useState(null);
+  // Local Pagination State
   const [page, setPage] = useState(1);
   const limit = 10;
 
-  // Fetch Logs
-  const loadLogs = useCallback(() => {
-    console.log(`🚀 Dispatching fetchDailyLogs for Page: ${page}`);
-    dispatch(fetchDailyLogs({ page, limit }))
-      .unwrap()
-      .then((res) => console.log("✅ Fetch Success:", res))
-      .catch((err) => {
-        console.error("❌ Fetch Error:", err);
-        toast.error(err?.message || "Failed to load Daily Logs.");
-      });
-  }, [dispatch, page]);
+  // 1. Fetch Logs using React Query
+  const { data, isLoading, isError, error } = useDailyLogs({ page, limit });
 
-  useEffect(() => {
-    loadLogs();
-  }, [loadLogs]);
+  // Safe Data Access
+  const logs = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  // 2. Mutations
+  const deleteMutation = useDeleteDailyLog();
+
+  const [logToDelete, setLogToDelete] = useState(null);
+
+  // ✅ Manual Refresh Handler
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["dailyLogs"]);
+    toast.success("List refreshed!");
+  };
 
   // Handle Delete
   const confirmDelete = async () => {
     if (!logToDelete) return;
-    console.log("🗑️ Deleting Log ID:", logToDelete._id);
 
-    setIsDeleting(true);
     try {
-      await dispatch(deleteDailyLog(logToDelete._id)).unwrap();
-      toast.success("Daily Log deleted successfully.");
-      loadLogs(); // Refresh list
-    } catch (err) {
-      console.error("❌ Delete Error:", err);
-      toast.error(err?.message || "Failed to delete log.");
-    } finally {
-      setIsDeleting(false);
+      await deleteMutation.mutateAsync(logToDelete._id);
       setLogToDelete(null);
+    } catch (err) {
+      // Error handled in hook
     }
   };
 
-  // If the reducer is not loading, render the UI
   return (
     <div className="card shadow-sm">
       {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Daily Log Management</h4>
-        <button
-          className="btn btn-labeled btn-success"
-          onClick={() => navigate("/dailylog/new")}
-        >
-          <span className="btn-label me-2">
-            <i className="fas fa-plus"></i>
-          </span>
-          Add New Log
-        </button>
+        <div>
+          <button
+            className="btn btn-labeled btn-success"
+            onClick={() => navigate("/dailylog/new")}
+          >
+            <span className="btn-label me-2">
+              <i className="fas fa-plus"></i>
+            </span>
+            Add New Log
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -100,16 +85,16 @@ export default function DailyLogListPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={status}
+                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
-                dataLength={logs?.length || 0}
+                dataLength={logs.length}
                 colSpan={5}
                 loadingText="Loading Daily Logs..."
                 emptyText="No Daily Logs Found."
               />
 
-              {status === "succeeded" &&
-                logs?.map((log) => (
+              {!isLoading && !isError && Array.isArray(logs) &&
+                logs.map((log) => (
                   <tr key={log._id}>
                     <td>
                       <DynamicImage
@@ -139,12 +124,14 @@ export default function DailyLogListPage() {
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
                         onClick={() => navigate(`/dailylog/edit/${log._id}`)}
+                        title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
                       </button>
                       <button
                         className="btn btn-sm btn-outline-danger"
                         onClick={() => setLogToDelete(log)}
+                        title="Delete"
                       >
                         <i className="fas fa-trash"></i>
                       </button>
@@ -156,7 +143,6 @@ export default function DailyLogListPage() {
         </div>
       </div>
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
@@ -169,16 +155,17 @@ export default function DailyLogListPage() {
         </div>
       )}
 
-      {/* Delete Modal */}
       <ConfirmationModal
         show={!!logToDelete}
         onClose={() => setLogToDelete(null)}
         onConfirm={confirmDelete}
         title="Delete Daily Log"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
-        Are you sure you want to delete <strong>{logToDelete?.title}</strong>?
+        <p className="text-center mb-0">
+          Are you sure you want to delete <strong>{logToDelete?.title}</strong>?
+        </p>
       </ConfirmationModal>
     </div>
   );

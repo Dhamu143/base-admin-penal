@@ -1,21 +1,28 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
+
+import {
+  useQuizzes,
+  useDeleteQuiz,
+  useUpdateQuiz
+} from "../../hooks/useQuiz";
+
+import { fetchAllGods } from "../../store/god";
+import { staticLanguages } from "../../constants/languages";
 
 import FilterBar from "../../common/FilterBar";
-import { useFilters } from "../../hook/useFilters";
+import { useFilters } from "../../hooks/useFilters";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 
-import { fetchQuizzes, deleteQuiz, updateQuiz } from "../../store/quiz";
-import { fetchAllGods } from "../../store/god";
-import { staticLanguages } from "../../constants/languages";
-
 export default function QuizListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const {
@@ -25,27 +32,23 @@ export default function QuizListPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { list: quizzes, pagination, status, error } = useSelector(
-    (state) => state.quizzes
-  );
+  const { data, isLoading, isError, error } = useQuizzes({
+    ...filters,
+    limit: itemsPerPage
+  });
+
+  const quizzes = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  const deleteMutation = useDeleteQuiz();
+  const updateMutation = useUpdateQuiz();
+
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
-  const [isDeleting, setIsDeleting] = useState(false);
   const [quizToDelete, setQuizToDelete] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
-
-  // Load Data
-  const loadQuizzes = useCallback(() => {
-    dispatch(fetchQuizzes({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load quizzes."));
-  }, [dispatch, filters, itemsPerPage]);
-
-  useEffect(() => {
-    loadQuizzes();
-  }, [loadQuizzes]);
 
   useEffect(() => {
     if (godStatus === "idle") {
@@ -53,22 +56,24 @@ export default function QuizListPage() {
     }
   }, [dispatch, godStatus]);
 
-  // Actions
+
+  const handleReset = () => {
+    resetFilters();
+    queryClient.invalidateQueries(["quizzes"]);
+    toast.info("Filters reset and list refreshed");
+  };
+
   const handleStatusToggle = async (quiz) => {
     if (togglingId === quiz._id) return;
-
     setTogglingId(quiz._id);
     const newStatus = !quiz.isActive;
 
     try {
-      await dispatch(
-        updateQuiz({ id: quiz._id, isActive: newStatus })
-      ).unwrap();
+      await updateMutation.mutateAsync({ id: quiz._id, isActive: newStatus });
       toast.success(
         `Quiz status updated to ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
     } finally {
       setTogglingId(null);
     }
@@ -76,21 +81,15 @@ export default function QuizListPage() {
 
   const confirmDelete = async () => {
     if (!quizToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteQuiz(quizToDelete._id)).unwrap();
-      toast.success(`Quiz question was deleted.`);
+      await deleteMutation.mutateAsync(quizToDelete._id);
 
       if (quizzes.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
-      } else {
-        loadQuizzes();
       }
+
       setQuizToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Failed to delete the quiz.");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -104,25 +103,27 @@ export default function QuizListPage() {
 
   return (
     <div className="card shadow-sm">
-      {/* Header */}
+
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Quiz Management</h4>
-        <button
-          className="btn btn-labeled btn-success"
-          style={{ fontSize: "17px" }}
-          onClick={() => navigate("/quizzes/new")}
-        >
-          <span className="btn-label me-2">
-            <i className="fas fa-plus"></i>
-          </span>
-          Add New Quiz
-        </button>
+        <div>
+                   <button
+            className="btn btn-labeled btn-success"
+            style={{ fontSize: "17px" }}
+            onClick={() => navigate("/quizzes/new")}
+          >
+            <span className="btn-label me-2">
+              <i className="fas fa-plus"></i>
+            </span>
+            Add New Quiz
+          </button>
+        </div>
       </div>
 
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={resetFilters}
+        onReset={handleReset}
         godOptions={godOptions}
         godStatus={godStatus}
       />
@@ -142,14 +143,14 @@ export default function QuizListPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={status}
+                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={quizzes.length}
                 colSpan={6}
                 loadingText="Loading quizzes..."
                 emptyText="No quizzes Found."
               />
-              {status === "succeeded" &&
+              {!isLoading && !isError && Array.isArray(quizzes) &&
                 quizzes.map((quiz) => (
                   <tr key={quiz._id}>
                     <td style={{ maxWidth: "200px" }}>{quiz.question}</td>
@@ -202,7 +203,6 @@ export default function QuizListPage() {
         </div>
       </div>
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
@@ -215,13 +215,12 @@ export default function QuizListPage() {
         </div>
       )}
 
-      {/* Confirmation Modal */}
       <ConfirmationModal
         show={quizToDelete !== null}
         onClose={() => setQuizToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">

@@ -8,31 +8,33 @@ import { store } from "./store";
 import { createRoot } from "react-dom/client";
 import { SocketContext, socket } from "./context/socket";
 
+// 1. Import Query Client
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// 2. Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Optional: prevent refetch on window focus
+      retry: 1,
+    },
+  },
+});
+
 const root = createRoot(document.getElementById("root"));
 root.render(
   // <React.StrictMode>
   <Provider store={store}>
-    <SocketContext.Provider value={socket}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </SocketContext.Provider>
+    {/* 3. Wrap App with QueryClientProvider */}
+    <QueryClientProvider client={queryClient}>
+      <SocketContext.Provider value={socket}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </SocketContext.Provider>
+    </QueryClientProvider>
   </Provider>
   // </React.StrictMode>
 );
 
-// ReactDOM.render(
-//   <React.StrictMode>
-//     <Provider store={store}>
-//       <BrowserRouter>
-//         <App />
-//       </BrowserRouter>
-//     </Provider>
-//   </React.StrictMode>,
-//   document.getElementById("root")
-// );
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();

@@ -48,7 +48,8 @@ import RingtoneFormPage from "./pages/RingtoneManagementPage/RingtoneForm.js";
 import ErrorBoundary from "./common/ErrorBoundary.js";
 import DailyLogListPage from "./pages/DailyLog/index.js";
 import DailyLogFormPage from "./pages/DailyLog/DailyLogFormPage.js";
-
+import Post from "./pages/Post/index.js";
+import CreatePostPage from "./pages/Post/CreatePostPage.js";
 function App() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -138,6 +139,9 @@ function App() {
             <Route path="/quiz" element={<QuizManagement />} />
             <Route path="/quizzes/new" element={<QuizFormPage />} />
             <Route path="/quizzes/edit/:id" element={<QuizFormPage />} />
+
+            <Route path="/post" element={<Post />} />
+            <Route path="/post/create" element={<CreatePostPage />} />
           </Route>
 
           <Route element={<PrivateRoute />}>

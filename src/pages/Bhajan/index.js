@@ -1,42 +1,32 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query"; // Import QueryClient
 
-// Actions & Constants
+// New Hooks
 import {
-  fetchBhajans,
-  deleteBhajan,
-  updateBhajan,
-} from "../../store/bhajan/index";
+  useBhajans,
+  useDeleteBhajan,
+  useUpdateBhajan
+} from "../../hooks/useBhajans";
+
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 
-// Reusable Components & Hooks
+// Reusable Components
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
-import FilterBar from "../../common/FilterBar"; // Reusable Component
-import { useFilters } from "../../hook/useFilters"; // Reusable Hook
+import FilterBar from "../../common/FilterBar";
+import { useFilters } from "../../hooks/useFilters";
 
 export default function BhajanListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient(); // Initialize
 
-  // Redux State
-  const { list: bhajans, pagination, status, error } = useSelector(
-    (state) => state.bhajans
-  );
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
-
-  // Local UI State
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [bhajanToDelete, setBhajanToDelete] = useState(null);
-  const [togglingId, setTogglingId] = useState(null);
-
-  // Reusable Filter Hook
+  // 1. Filters
   const {
     filters,
     handleFilterChange,
@@ -45,16 +35,26 @@ export default function BhajanListPage() {
   } = useFilters();
   const itemsPerPage = 10;
 
-  // Load Data
-  const loadBhajans = useCallback(() => {
-    dispatch(fetchBhajans({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load bhajans."));
-  }, [dispatch, filters, itemsPerPage]);
+  // 2. Fetch Bhajans (React Query)
+  const { data, isLoading, isError, error } = useBhajans({
+    ...filters,
+    limit: itemsPerPage
+  });
 
-  useEffect(() => {
-    loadBhajans();
-  }, [loadBhajans]);
+  const bhajans = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  // 3. Mutations
+  const deleteMutation = useDeleteBhajan();
+  const updateMutation = useUpdateBhajan();
+
+  // 4. Redux for God Filters (Keeping as per previous pattern)
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
+
+  const [bhajanToDelete, setBhajanToDelete] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
     if (godStatus === "idle") {
@@ -62,22 +62,31 @@ export default function BhajanListPage() {
     }
   }, [dispatch, godStatus]);
 
-  // Handlers
+  // ✅ Manual Refresh Handler
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["bhajans"]);
+    toast.success("List refreshed!");
+  };
+
+  // ✅ Reset Handler (Clear filters + Force Fetch)
+  const handleReset = () => {
+    resetFilters();
+    queryClient.invalidateQueries(["bhajans"]);
+    toast.info("Filters reset and list refreshed");
+  };
+
   const handleStatusToggle = async (bhajan) => {
     if (togglingId === bhajan._id) return;
     setTogglingId(bhajan._id);
     const newStatus = !bhajan.isActive;
 
     try {
-      await dispatch(
-        updateBhajan({ id: bhajan._id, isActive: newStatus })
-      ).unwrap();
-
+      await updateMutation.mutateAsync({ id: bhajan._id, isActive: newStatus });
       toast.success(
         `Bhajan "${bhajan.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -85,20 +94,14 @@ export default function BhajanListPage() {
 
   const confirmDelete = async () => {
     if (!bhajanToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteBhajan(bhajanToDelete._id)).unwrap();
-      toast.success(`Bhajan "${bhajanToDelete.name}" deleted successfully.`);
-      loadBhajans();
+      await deleteMutation.mutateAsync(bhajanToDelete._id);
       setBhajanToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "An error occurred while deleting.");
-    } finally {
-      setIsDeleting(false);
+      // Error handled in hook
     }
   };
 
-  // Prepare Options for FilterBar
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
@@ -108,19 +111,21 @@ export default function BhajanListPage() {
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Bhajan Management</h4>
-        <button
-          className="btn btn-success"
-          onClick={() => navigate("/bhajans/new")}
-        >
-          <i className="fas fa-plus me-2"></i> Add New Bhajan
-        </button>
+        <div>
+
+          <button
+            className="btn btn-success"
+            onClick={() => navigate("/bhajans/new")}
+          >
+            <i className="fas fa-plus me-2"></i> Add New Bhajan
+          </button>
+        </div>
       </div>
 
-      {/* REUSABLE FILTER BAR */}
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={resetFilters}
+        onReset={handleReset} // Use custom reset
         godOptions={godOptions}
         godStatus={godStatus}
       />
@@ -141,14 +146,14 @@ export default function BhajanListPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={status}
+                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={bhajans.length}
                 colSpan={7}
                 loadingText="Loading bhajans..."
                 emptyText="No bhajans Found."
               />
-              {status === "succeeded" &&
+              {!isLoading && !isError && Array.isArray(bhajans) &&
                 bhajans.map((b) => (
                   <tr key={b._id}>
                     <td className="fw-bold">{b.name}</td>
@@ -160,8 +165,8 @@ export default function BhajanListPage() {
                     <td style={{ maxWidth: "200px" }}>
                       {b?.description
                         ? b.description
-                            .replace(/<[^>]+>/g, "")
-                            .substring(0, 40) + "..."
+                          .replace(/<[^>]+>/g, "")
+                          .substring(0, 40) + "..."
                         : ""}
                     </td>
                     <td>{b?.sort}</td>
@@ -173,6 +178,7 @@ export default function BhajanListPage() {
                           checked={b.isActive}
                           disabled={togglingId === b._id}
                           onChange={() => handleStatusToggle(b)}
+                          style={{ cursor: "pointer" }}
                         />
                         <label className="form-check-label small ms-1">
                           {togglingId === b._id ? (
@@ -223,7 +229,7 @@ export default function BhajanListPage() {
         onClose={() => setBhajanToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">

@@ -4,13 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import FilterBar from "../../common/FilterBar";
-import { useFilters } from "../../hook/useFilters";
+import { useFilters } from "../../hooks/useFilters";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 
-// ✅ Actions & Constants
 import { fetchTemples, deleteTemple, updateTemple } from "../../store/temple";
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
@@ -20,7 +19,6 @@ export default function TempleListPage() {
   const navigate = useNavigate();
   const itemsPerPage = 10;
 
-  // --- Custom Hook for Filters ---
   const {
     filters,
     handleFilterChange,
@@ -28,7 +26,6 @@ export default function TempleListPage() {
     resetFilters,
   } = useFilters(1);
 
-  // Redux State
   const { list: temples, pagination, status, error } = useSelector(
     (state) => state.temple
   );
@@ -36,12 +33,10 @@ export default function TempleListPage() {
     (state) => state.God
   );
 
-  // Local UI State
   const [templeToDelete, setTempleToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
 
-  // Load Data
   const loadTemples = useCallback(() => {
     dispatch(fetchTemples({ ...filters, limit: itemsPerPage }))
       .unwrap()
@@ -58,7 +53,6 @@ export default function TempleListPage() {
     }
   }, [dispatch, godStatus]);
 
-  // Actions
   const handleStatusToggle = async (temple) => {
     if (togglingId === temple._id) return;
 
@@ -103,7 +97,6 @@ export default function TempleListPage() {
   const getLanguageName = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.language || "N/A";
 
-  // Prepare God Options for FilterBar
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
@@ -111,7 +104,6 @@ export default function TempleListPage() {
 
   return (
     <div className="card shadow-sm">
-      {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Temple Management</h4>
         <button
@@ -126,7 +118,6 @@ export default function TempleListPage() {
         </button>
       </div>
 
-      {/* ✅ Centralized Filter Bar */}
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
@@ -135,7 +126,6 @@ export default function TempleListPage() {
         godStatus={godStatus}
       />
 
-      {/* Table Content */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle">
@@ -188,7 +178,6 @@ export default function TempleListPage() {
                     <td className="fw-semibold">{temple.name}</td>
                     <td>{getLanguageName(temple.language)}</td>
 
-                    {/* Status Toggle Switch */}
                     <td>
                       <div className="form-check form-switch">
                         <input
@@ -234,7 +223,6 @@ export default function TempleListPage() {
         </div>
       </div>
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
@@ -247,7 +235,6 @@ export default function TempleListPage() {
         </div>
       )}
 
-      {/* Confirmation Modal */}
       <ConfirmationModal
         show={templeToDelete !== null}
         onClose={() => setTempleToDelete(null)}

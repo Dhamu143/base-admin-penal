@@ -1,25 +1,30 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { toast } from "react-toastify";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
-
-import { addGod, updateGod, fetchAllGods } from "../../store/god";
-import { fetchGods as fetchMasterGods } from "../../store/godmaster";
 import { staticLanguages } from "../../constants/languages";
 
+// 1. Import New Hooks
+import { useGod, useAddGod, useUpdateGod } from "../../hooks/useGod";
+// Import the hook from previous step for the "Master God" dropdown
+// We alias it to 'useMasterGodList' to avoid confusion
+import { useGods as useMasterGodList } from "../../hooks/useGodmaster";
+
 export default function GodFormPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
-  const { list: masterGods, status: masterStatus } = useSelector(
-    (state) => state.gods
-  );
+  // 2. Fetch Data using React Query
+  // Fetch the current God if in Edit mode
+  const { data: currentGod, isLoading: isGodLoading } = useGod(id);
+
+  // Fetch the Master God list for the dropdown (Page 1, large limit to get all)
+  const { data: masterGodData } = useMasterGodList(1, 1000);
+  const masterGods = masterGodData?.data?.data || [];
+
+  // 3. Mutations
+  const addMutation = useAddGod();
+  const updateMutation = useUpdateGod();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -31,37 +36,25 @@ export default function GodFormPage() {
   });
 
   const [errors, setErrors] = useState({});
-  const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch initial data
+  // 4. Populate Form when Data Arrives
   useEffect(() => {
-    if (godStatus === "idle") dispatch(fetchAllGods());
-    if (masterStatus === "idle")
-      dispatch(fetchMasterGods({ page: 1, limit: 1000 }));
-  }, [godStatus, masterStatus, dispatch]);
-
-  // Populate form for edit
-  useEffect(() => {
-    if (id && allGods.length > 0) {
-      const god = allGods.find((g) => g._id === id);
-      if (god) {
-        setFormData({
-          name: god.name || "",
-          description: god.description || "",
-          sort: god.sort || "",
-          master:
-            typeof god.master === "object"
-              ? god.master._id
-              : god.master || null,
-          language:
-            typeof god.language === "object"
-              ? god.language._id
-              : god.language || "",
-          isActive: god.isActive !== undefined ? god.isActive : true,
-        });
-      }
+    if (id && currentGod) {
+      setFormData({
+        name: currentGod.name || "",
+        description: currentGod.description || "",
+        sort: currentGod.sort || "",
+        // Handle nested object vs ID string
+        master: typeof currentGod.master === "object"
+          ? currentGod.master?._id
+          : currentGod.master || null,
+        language: typeof currentGod.language === "object"
+          ? currentGod.language?._id
+          : currentGod.language || "",
+        isActive: currentGod.isActive !== undefined ? currentGod.isActive : true,
+      });
     }
-  }, [id, allGods]);
+  }, [id, currentGod]);
 
   // Validation
   const validateForm = () => {
@@ -88,26 +81,25 @@ export default function GodFormPage() {
   // Master God options
   const masterGodOptions = useMemo(() => {
     if (!masterGods) return [];
-    let options = masterGods.map((g) => ({ value: g._id, label: g.name }));
 
+    // Map API data to Select options
+    const options = masterGods.map((g) => ({ value: g._id, label: g.name }));
+
+    // Safety check: If the current god has a master that isn't in the list
+    // (rare, but happens if pagination cuts it off), try to preserve it.
     if (formData.master && !options.find((o) => o.value === formData.master)) {
-      const currentMaster = masterGods.find((g) => g._id === formData.master);
-      if (currentMaster) {
-        options = [
-          { value: currentMaster._id, label: currentMaster.name },
-          ...options,
-        ];
+      // If currentGod has the master detail populated, add it manually
+      if (currentGod?.master && typeof currentGod.master === 'object') {
+        options.push({ value: currentGod.master._id, label: currentGod.master.name });
       }
     }
     return options;
-  }, [masterGods, formData.master]);
+  }, [masterGods, formData.master, currentGod]);
 
-  // Selected option for Master God
   const selectedMasterOption = useMemo(() => {
     return masterGodOptions.find((o) => o.value === formData.master) || null;
   }, [masterGodOptions, formData.master]);
 
-  // Language select option
   const getLanguageOption = (value) => {
     const lang = staticLanguages.find((l) => l._id === value);
     return lang
@@ -115,35 +107,43 @@ export default function GodFormPage() {
       : null;
   };
 
-  // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    setIsSaving(true);
-    try {
-      const payload = {
-        ...formData,
-        sort: Number(formData.sort),
-        master: formData.master || null,
-      };
+    const payload = {
+      ...formData,
+      sort: Number(formData.sort),
+      master: formData.master || null,
+    };
 
-      const action = id ? updateGod({ id, ...payload }) : addGod(payload);
-      await dispatch(action).unwrap();
-      toast.success(
-        id ? "God updated successfully!" : "God added successfully!"
-      );
+    try {
+      if (id) {
+        await updateMutation.mutateAsync({ id, ...payload });
+      } else {
+        await addMutation.mutateAsync(payload);
+      }
       navigate("/god");
     } catch (err) {
-      toast.error(err?.message || "Error saving God.");
-    } finally {
-      setIsSaving(false);
+      // Error is handled in the hook's onError (toast)
     }
   };
 
+  const isSaving = addMutation.isPending || updateMutation.isPending;
+
+  // Loading State for Edit Mode
+  if (id && isGodLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="content-wrapper p-4">
-      {/* Header */}
       <div className="mb-4 d-flex align-items-center justify-content-between">
         <div>
           <span
@@ -163,16 +163,13 @@ export default function GodFormPage() {
         </button>
       </div>
 
-      {/* Form */}
       <div className="card shadow-sm">
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
             <div className="row">
-              {/* Left Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">God Details</h5>
 
-                {/* Name */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Name <span className="text-danger">*</span>
@@ -180,9 +177,8 @@ export default function GodFormPage() {
                   <input
                     type="text"
                     name="name"
-                    className={`form-control ${
-                      errors.name ? "is-invalid" : ""
-                    }`}
+                    className={`form-control ${errors.name ? "is-invalid" : ""
+                      }`}
                     value={formData.name}
                     onChange={handleFormChange}
                   />
@@ -191,7 +187,6 @@ export default function GodFormPage() {
                   )}
                 </div>
 
-                {/* Language */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Language <span className="text-danger">*</span>
@@ -217,7 +212,6 @@ export default function GodFormPage() {
                   )}
                 </div>
 
-                {/* Master God */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">Master God</label>
                   <Select
@@ -233,7 +227,6 @@ export default function GodFormPage() {
                   />
                 </div>
 
-                {/* Sort Order */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Sort Order <span className="text-danger">*</span>
@@ -241,9 +234,8 @@ export default function GodFormPage() {
                   <input
                     type="number"
                     name="sort"
-                    className={`form-control ${
-                      errors.sort ? "is-invalid" : ""
-                    }`}
+                    className={`form-control ${errors.sort ? "is-invalid" : ""
+                      }`}
                     value={formData.sort}
                     onChange={handleFormChange}
                   />
@@ -252,7 +244,6 @@ export default function GodFormPage() {
                   )}
                 </div>
 
-                {/* Active Toggle */}
                 <div className="col-md-6 d-flex align-items-center pt-3">
                   <div className="form-check form-switch fs-5">
                     <input
@@ -268,11 +259,8 @@ export default function GodFormPage() {
                 </div>
               </div>
 
-              {/* Right Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Content & Settings</h5>
-
-                {/* Description */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Description <span className="text-danger">*</span>
@@ -292,7 +280,6 @@ export default function GodFormPage() {
               </div>
             </div>
 
-            {/* Buttons */}
             <div className="d-flex justify-content-end gap-2 mt-4">
               <button
                 type="button"

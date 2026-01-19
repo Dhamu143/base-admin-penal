@@ -1,21 +1,28 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
+
+import {
+  useSloks,
+  useDeleteSlok,
+  useUpdateSlok
+} from "../../hooks/useSloks";
+
+import { fetchAllGods } from "../../store/god";
+import { staticLanguages } from "../../constants/languages";
 
 import FilterBar from "../../common/FilterBar";
-import { useFilters } from "../../hook/useFilters";
+import { useFilters } from "../../hooks/useFilters";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 
-import { fetchSloks, deleteSlok, updateSlok } from "../../store/sloks/index";
-import { fetchAllGods } from "../../store/god";
-import { staticLanguages } from "../../constants/languages";
-
 export default function SlokListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const {
@@ -25,28 +32,23 @@ export default function SlokListPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { list: sloks, pagination, status, error } = useSelector(
-    (state) => state.sloks
-  );
+  const { data, isLoading, isError, error } = useSloks({
+    ...filters,
+    limit: itemsPerPage
+  });
+
+  const sloks = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  const deleteMutation = useDeleteSlok();
+  const updateMutation = useUpdateSlok();
+
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
-  // Local UI State
-  const [isDeleting, setIsDeleting] = useState(false);
   const [slokToDelete, setSlokToDelete] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
-
-  // Load Data
-  const loadSloks = useCallback(() => {
-    dispatch(fetchSloks({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load slokas."));
-  }, [dispatch, filters, itemsPerPage]);
-
-  useEffect(() => {
-    loadSloks();
-  }, [loadSloks]);
 
   useEffect(() => {
     if (godStatus === "idle") {
@@ -54,21 +56,28 @@ export default function SlokListPage() {
     }
   }, [dispatch, godStatus]);
 
-  // Actions
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["sloks"]);
+    toast.success("List refreshed!");
+  };
+
+  const handleReset = () => {
+    resetFilters();
+    queryClient.invalidateQueries(["sloks"]);
+    toast.info("Filters reset and list refreshed");
+  };
+
   const handleStatusToggle = async (slok) => {
     if (togglingId === slok._id) return;
     setTogglingId(slok._id);
     const newStatus = !slok.isActive;
 
     try {
-      await dispatch(
-        updateSlok({ id: slok._id, isActive: newStatus })
-      ).unwrap();
+      await updateMutation.mutateAsync({ id: slok._id, isActive: newStatus });
       toast.success(
         `Sloka "${slok.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
     } finally {
       setTogglingId(null);
     }
@@ -76,28 +85,21 @@ export default function SlokListPage() {
 
   const confirmDelete = async () => {
     if (!slokToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteSlok(slokToDelete._id)).unwrap();
-      toast.success(`Sloka "${slokToDelete.name}" deleted successfully.`);
+      await deleteMutation.mutateAsync(slokToDelete._id);
 
       if (sloks.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
-      } else {
-        loadSloks();
       }
+
       setSlokToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "An error occurred while deleting.");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.language || "N/A";
 
-  // Prepare God Options for FilterBar
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
@@ -117,30 +119,31 @@ export default function SlokListPage() {
       `}</style>
 
       <div className="card shadow-sm">
-        {/* Header */}
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
           <h4 className="mb-0 text-primary-emphasis">Sloka Management</h4>
-          <button
-            className="btn btn-labeled btn-success"
-            style={{ fontSize: "17px" }}
-            onClick={() => navigate("/sloks/new")}
-          >
-            <span className="btn-label me-2">
-              <i className="fas fa-plus"></i>
-            </span>
-            Add New Sloka
-          </button>
+          <div>
+          
+            <button
+              className="btn btn-labeled btn-success"
+              style={{ fontSize: "17px" }}
+              onClick={() => navigate("/sloks/new")}
+            >
+              <span className="btn-label me-2">
+                <i className="fas fa-plus"></i>
+              </span>
+              Add New Sloka
+            </button>
+          </div>
         </div>
 
         <FilterBar
           filters={filters}
           onFilterChange={handleFilterChange}
-          onReset={resetFilters}
+          onReset={handleReset}
           godOptions={godOptions}
           godStatus={godStatus}
         />
 
-        {/* Table Content */}
         <div className="card-body">
           <div className="table-responsive">
             <table className="table table-hover align-middle">
@@ -157,14 +160,14 @@ export default function SlokListPage() {
               </thead>
               <tbody>
                 <TableStatus
-                  status={status}
+                  status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                   error={error}
                   dataLength={sloks.length}
                   colSpan={7}
                   loadingText="Loading sloks..."
                   emptyText="No sloks Found."
                 />
-                {status === "succeeded" &&
+                {!isLoading && !isError && Array.isArray(sloks) &&
                   sloks.map((slok) => (
                     <tr key={slok._id}>
                       <td style={{ maxWidth: "150px" }}>
@@ -186,8 +189,7 @@ export default function SlokListPage() {
                         </p>
                       </td>
                       <td>{slok?.sort}</td>
-
-                      {/* Status Toggle */}
+                                                      
                       <td>
                         <div className="form-check form-switch">
                           <input
@@ -233,15 +235,14 @@ export default function SlokListPage() {
           </div>
         </div>
 
-        {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination
               currentPage={filters.page}
               totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
               totalItems={pagination.totalRecords}
               itemsPerPage={itemsPerPage}
-              onPageChange={handlePageChange}
             />
           </div>
         )}
@@ -252,7 +253,7 @@ export default function SlokListPage() {
           onConfirm={confirmDelete}
           title="Confirm Deletion"
           confirmText="Delete"
-          isLoading={isDeleting}
+          isLoading={deleteMutation.isPending}
           confirmButtonVariant="danger"
         >
           <p className="fs-5 text-center">

@@ -43,10 +43,16 @@ const Menu = [
     permissions: ["admin", "users"],
   },
   {
-    name:"Dayly Log",
-    path:"/dailylog",
-    icon:FiFileText,
-    permissions:["admin","users"],
+    name: "Dayly Log",
+    path: "/dailylog",
+    icon: FiFileText,
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Posts",
+    path: "/post",
+    icon: FiFileText,
+    permissions: ["admin", "users"],
   },
   {
     name: "Aarti",

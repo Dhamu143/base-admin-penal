@@ -1,12 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useState } from "react";
 import { toast } from "react-toastify";
-import {
-  fetchGods,
-  addGod,
-  updateGod,
-  deleteGod,
-} from "../../store/godmaster/index";
 import { uploadImage } from "../../services/uploadService";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 import ImageUpload from "../../components/ImageUpload";
@@ -14,24 +7,34 @@ import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 
-export default function FeatureManagementPage() {
-  const dispatch = useDispatch();
+import {
+  useGods,
+  useAddGod,
+  useUpdateGod,
+  useDeleteGod
+} from "../../hooks/useGodmaster";
 
-  const { list: gods, pagination, status, error } = useSelector(
-    (state) => state.gods
-  ); // Ensure your reducer is named 'gods' in store
+export default function FeatureManagementPage() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const { data, isLoading, isError, error } = useGods(currentPage, itemsPerPage);
+
+  const gods = data?.data?.data || [];
+  const pagination = data?.data?.pagination || {
+    currentPage: 1, totalPages: 1, totalRecords: 0
+  };
+
+  const addMutation = useAddGod();
+  const updateMutation = useUpdateGod();
+  const deleteMutation = useDeleteGod();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [editingGod, setEditingGod] = useState(null);
   const [godToDelete, setGodToDelete] = useState(null);
   const [errors, setErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
-
-  // ✅ New state to track which toggle is loading
   const [togglingId, setTogglingId] = useState(null);
-
-  const itemsPerPage = 10;
 
   const initialFormState = {
     name: "",
@@ -42,39 +45,25 @@ export default function FeatureManagementPage() {
   };
   const [formData, setFormData] = useState(initialFormState);
 
-  const loadGods = (page = 1) => {
-    dispatch(fetchGods({ page, limit: itemsPerPage }));
-  };
-
-  useEffect(() => {
-    loadGods(1);
-  }, [dispatch]);
 
   const handlePageChange = (newPage) => {
-    if (newPage !== pagination?.currentPage) {
-      loadGods(newPage);
+    if (newPage !== currentPage) {
+      setCurrentPage(newPage);
     }
   };
 
-  // ✅ Status Toggle Handler
   const handleStatusToggle = async (god) => {
-    if (togglingId === god._id) return; // Prevent double clicks
+    if (togglingId === god._id) return;
 
     setTogglingId(god._id);
     const newStatus = !god.isActive;
 
     try {
-      // Dispatch updateGod with only the ID and the new status
-      await dispatch(updateGod({ id: god._id, isActive: newStatus })).unwrap();
-
+      await updateMutation.mutateAsync({ id: god._id, isActive: newStatus });
       toast.success(
         `"${god.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
-      // Optional: Reload list if your reducer doesn't auto-update the list
-      // loadGods(pagination?.currentPage || 1);
     } catch (err) {
-      console.error("Failed to update status:", err);
-      toast.error(err.message || "Failed to update status.");
     } finally {
       setTogglingId(null);
     }
@@ -124,6 +113,7 @@ export default function FeatureManagementPage() {
 
     setIsUploading(true);
     setFormData((prev) => ({ ...prev, featureimage: data.url }));
+
     try {
       const uploadedUrl = await uploadImage(data.file);
       setFormData((prev) => ({ ...prev, featureimage: uploadedUrl }));
@@ -166,46 +156,34 @@ export default function FeatureManagementPage() {
       return;
     }
 
-    setIsSaving(true);
     try {
-      const action = editingGod
-        ? updateGod({ id: editingGod._id, ...formData })
-        : addGod(formData);
-      await dispatch(action).unwrap();
-      toast.success(
-        editingGod ? "God updated successfully!" : "God added successfully!"
-      );
-      loadGods(pagination?.currentPage || 1);
+      if (editingGod) {
+        await updateMutation.mutateAsync({ id: editingGod._id, ...formData });
+      } else {
+        await addMutation.mutateAsync(formData);
+      }
       handleCloseModal();
     } catch (err) {
-      console.error("Failed to save the feature:", err);
-      toast.error(err.message || "An error occurred while saving.");
-    } finally {
-      setIsSaving(false);
     }
   };
 
   const confirmDelete = async () => {
     if (!godToDelete) return;
-    setIsSaving(true);
+
     try {
-      await dispatch(deleteGod(godToDelete._id)).unwrap();
+      await deleteMutation.mutateAsync(godToDelete._id);
       toast.success(`"${godToDelete.name}" was deleted successfully.`);
 
-      const pageToFetch =
-        gods.length === 1 && pagination?.currentPage > 1
-          ? pagination.currentPage - 1
-          : pagination?.currentPage || 1;
+      if (gods.length === 1 && currentPage > 1) {
+        setCurrentPage((prev) => prev - 1);
+      }
 
-      loadGods(pageToFetch);
       setGodToDelete(null);
     } catch (err) {
-      console.error("Failed to delete the feature:", err);
-      toast.error(err.message || "An error occurred while deleting.");
-    } finally {
-      setIsSaving(false);
     }
   };
+
+  const isSaving = addMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   return (
     <>
@@ -241,14 +219,14 @@ export default function FeatureManagementPage() {
               </thead>
               <tbody>
                 <TableStatus
-                  status={status}
+                  status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                   error={error}
                   dataLength={gods.length}
                   colSpan={6}
                   loadingText="Loading gods..."
                   emptyText="No gods Found."
                 />
-                {status === "succeeded" &&
+                {!isLoading && !isError &&
                   gods.map((god) => (
                     <tr key={god._id}>
                       <td>
@@ -268,7 +246,6 @@ export default function FeatureManagementPage() {
                       <td>{god.percentage ?? 0}%</td>
                       <td>{god.sort}</td>
 
-                      {/* ✅ Updated Status Toggle Column */}
                       <td>
                         <div className="form-check form-switch">
                           <input
@@ -365,9 +342,8 @@ export default function FeatureManagementPage() {
                       </label>
                       <input
                         type="text"
-                        className={`form-control ${
-                          errors.name ? "is-invalid" : ""
-                        }`}
+                        className={`form-control ${errors.name ? "is-invalid" : ""
+                          }`}
                         id="name"
                         name="name"
                         value={formData.name}
@@ -385,9 +361,8 @@ export default function FeatureManagementPage() {
                         </label>
                         <input
                           type="number"
-                          className={`form-control ${
-                            errors.sort ? "is-invalid" : ""
-                          }`}
+                          className={`form-control ${errors.sort ? "is-invalid" : ""
+                            }`}
                           id="sort"
                           name="sort"
                           value={formData.sort}
@@ -408,9 +383,8 @@ export default function FeatureManagementPage() {
                           type="number"
                           min="0"
                           max="100"
-                          className={`form-control ${
-                            errors.percentage ? "is-invalid" : ""
-                          }`}
+                          className={`form-control ${errors.percentage ? "is-invalid" : ""
+                            }`}
                           id="percentage"
                           name="percentage"
                           value={formData.percentage}
@@ -489,7 +463,7 @@ export default function FeatureManagementPage() {
         onClose={() => setGodToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
-        isLoading={isSaving}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">

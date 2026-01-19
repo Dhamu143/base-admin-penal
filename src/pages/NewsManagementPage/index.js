@@ -1,17 +1,23 @@
-import React, { useEffect, useCallback, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
 
-import FilterBar from "../../common/FilterBar"; 
-import { useFilters } from "../../hook/useFilters"; 
+import {
+  useNewsList,
+  useDeleteNews,
+  useUpdateNews
+} from "../../hooks/useNews";
+
+import { fetchAllGods } from "../../store/god";
+import { staticLanguages } from "../../constants/languages";
+
+import FilterBar from "../../common/FilterBar";
+import { useFilters } from "../../hooks/useFilters";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
-
-import { fetchNews, deleteNews, updateNews } from "../../store/news/index";
-import { fetchAllGods } from "../../store/god";
-import { staticLanguages } from "../../constants/languages";
 
 const styles = `
   .truncate-text {
@@ -27,6 +33,7 @@ const styles = `
 export default function NewsManagementPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const {
@@ -36,26 +43,23 @@ export default function NewsManagementPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { list: news, pagination, status, error } = useSelector(
-    (state) => state.news
-  );
+  const { data, isLoading, isError, error } = useNewsList({
+    ...filters,
+    limit: itemsPerPage
+  });
+
+  const news = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  const deleteMutation = useDeleteNews();
+  const updateMutation = useUpdateNews();
+
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
   const [newsToDelete, setNewsToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
-
-  const loadNews = useCallback(() => {
-    dispatch(fetchNews({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load news."));
-  }, [dispatch, filters, itemsPerPage]);
-
-  useEffect(() => {
-    loadNews();
-  }, [loadNews]);
 
   useEffect(() => {
     if (godStatus === "idle") {
@@ -63,21 +67,23 @@ export default function NewsManagementPage() {
     }
   }, [dispatch, godStatus]);
 
-  // Actions
+  const handleReset = () => {
+    resetFilters();
+    queryClient.invalidateQueries(["newsList"]);
+    toast.info("Filters reset and list refreshed");
+  };
+
   const handleStatusToggle = async (newsItem) => {
     if (togglingId === newsItem._id) return;
     setTogglingId(newsItem._id);
     const newStatus = !newsItem.isActive;
 
     try {
-      await dispatch(
-        updateNews({ id: newsItem._id, isActive: newStatus })
-      ).unwrap();
+      await updateMutation.mutateAsync({ id: newsItem._id, isActive: newStatus });
       toast.success(
         `News "${newsItem.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
     } finally {
       setTogglingId(null);
     }
@@ -85,21 +91,15 @@ export default function NewsManagementPage() {
 
   const confirmDelete = async () => {
     if (!newsToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteNews(newsToDelete._id)).unwrap();
-      toast.success(`News "${newsToDelete.name}" deleted successfully.`);
+      await deleteMutation.mutateAsync(newsToDelete._id);
 
       if (news.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
-      } else {
-        loadNews();
       }
+
       setNewsToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Failed to delete news item.");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -115,30 +115,29 @@ export default function NewsManagementPage() {
     <div className="card shadow-sm">
       <style>{styles}</style>
 
-      {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">News Management</h4>
-        <button
-          className="btn btn-labeled btn-success"
-          onClick={() => navigate("/news/new")}
-        >
-          <span className="btn-label me-2">
-            <i className="fas fa-plus"></i>
-          </span>
-          Add New News
-        </button>
+        <div>
+          <button
+            className="btn btn-labeled btn-success"
+            onClick={() => navigate("/news/new")}
+          >
+            <span className="btn-label me-2">
+              <i className="fas fa-plus"></i>
+            </span>
+            Add New News
+          </button>
+        </div>
       </div>
 
-      {/* Reusable Filter Bar */}
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={resetFilters}
+        onReset={handleReset}
         godOptions={godOptions}
         godStatus={godStatus}
       />
 
-      {/* Table Content */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
@@ -155,14 +154,14 @@ export default function NewsManagementPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={status}
+                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={news.length}
                 colSpan={7}
                 loadingText="Loading news..."
                 emptyText="No news Found."
               />
-              {status === "succeeded" &&
+              {!isLoading && !isError && Array.isArray(news) &&
                 news.map((newsItem) => (
                   <tr key={newsItem._id}>
                     <td className="fw-semibold">{newsItem?.name}</td>
@@ -191,15 +190,15 @@ export default function NewsManagementPage() {
                           {togglingId === newsItem._id
                             ? "..."
                             : newsItem.isActive
-                            ? "Active"
-                            : "Inactive"}
+                              ? "Active"
+                              : "Inactive"}
                         </label>
                       </div>
                     </td>
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
-                        onClick={() => navigate(`/news/${newsItem._id}/edit`)}
+                        onClick={() => navigate(`/news/edit/${newsItem._id}`)}
                       >
                         <i className="fas fa-pencil-alt"></i>
                       </button>
@@ -229,14 +228,13 @@ export default function NewsManagementPage() {
         </div>
       )}
 
-      {/* Modals */}
       <ConfirmationModal
         show={newsToDelete !== null}
         onClose={() => setNewsToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
         confirmText="Delete"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">

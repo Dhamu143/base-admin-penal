@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+// 1. Import QueryClient Hook
+import { useQueryClient } from "@tanstack/react-query";
 
-import { fetchAartis, deleteAarti, updateAarti } from "../../store/aarti/index";
+import { useAartis, useDeleteAarti, useUpdateAarti } from "../../hooks/useAarti";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
@@ -11,22 +13,13 @@ import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 import FilterBar from "../../common/FilterBar";
-import { useFilters } from "../../hook/useFilters";
+import { useFilters } from "../../hooks/useFilters";
 
 export default function AartiListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  const { list: aartis, pagination, status, error } = useSelector(
-    (state) => state.aartis
-  );
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
-
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [aartiToDelete, setAartiToDelete] = useState(null);
-  const [togglingId, setTogglingId] = useState(null);
+  // 2. Initialize QueryClient
+  const queryClient = useQueryClient();
 
   const {
     filters,
@@ -36,35 +29,54 @@ export default function AartiListPage() {
   } = useFilters();
   const itemsPerPage = 10;
 
-  const loadAartis = useCallback(() => {
-    dispatch(fetchAartis({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load Aartis."));
-  }, [dispatch, filters, itemsPerPage]);
+  const { data, isLoading, isError, error } = useAartis({
+    ...filters,
+    limit: itemsPerPage
+  });
 
-  useEffect(() => {
-    loadAartis();
-  }, [loadAartis]);
+  const aartis = Array.isArray(data?.data) ? data.data : [];
+  const pagination = data?.pagination || null;
+
+  const deleteMutation = useDeleteAarti();
+  const updateMutation = useUpdateAarti();
+
+  const { masterList: allGods, masterStatus: godStatus } = useSelector(
+    (state) => state.God
+  );
+
+  const [aartiToDelete, setAartiToDelete] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [dispatch, godStatus]);
 
-  // Handlers
+  // ✅ 3. New Handle Reset Function
+  // This resets the filters state AND tells React Query to fetch fresh data
+  const handleReset = () => {
+    resetFilters(); // 1. Clear State
+    queryClient.invalidateQueries(["aartis"]); // 2. Force API Call
+    toast.info("Filters reset and list refreshed");
+  };
+
+  // ✅ 4. Manual Refresh Button Function
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["aartis"]);
+    toast.success("List refreshed!");
+  };
+
   const handleStatusToggle = async (aarti) => {
     if (togglingId === aarti._id) return;
     setTogglingId(aarti._id);
     const newStatus = !aarti.isActive;
 
     try {
-      await dispatch(
-        updateAarti({ id: aarti._id, isActive: newStatus })
-      ).unwrap();
+      await updateMutation.mutateAsync({ id: aarti._id, isActive: newStatus });
       toast.success(
         `Aarti "${aarti.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -72,16 +84,11 @@ export default function AartiListPage() {
 
   const confirmDelete = async () => {
     if (!aartiToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteAarti(aartiToDelete._id)).unwrap();
-      toast.success("Deleted successfully.");
-      loadAartis();
+      await deleteMutation.mutateAsync(aartiToDelete._id);
       setAartiToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Failed to delete.");
-    } finally {
-      setIsDeleting(false);
+      // Error handled in hook
     }
   };
 
@@ -97,22 +104,25 @@ export default function AartiListPage() {
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3 border-bottom">
         <h4 className="mb-0 text-primary-emphasis">Aarti Management</h4>
-        <button
-          className="btn btn-success"
-          onClick={() => navigate("/aartis/new")}
-        >
-          <i className="fas fa-plus me-2"></i> Add New Aarti
-        </button>
+        <div>
+          <button
+            className="btn btn-success"
+            onClick={() => navigate("/aartis/new")}
+          >
+            <i className="fas fa-plus me-2"></i> Add New Aarti
+          </button>
+        </div>
       </div>
 
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={resetFilters}
+        onReset={handleReset} // ✅ Pass the new reset handler here
         godOptions={godOptions}
         godStatus={godStatus}
       />
 
+      {/* Rest of the table code remains the same... */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle">
@@ -129,12 +139,12 @@ export default function AartiListPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={status}
+                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={aartis.length}
                 colSpan={7}
               />
-              {status === "succeeded" &&
+              {!isLoading && !isError && Array.isArray(aartis) &&
                 aartis.map((aarti) => (
                   <tr key={aarti._id}>
                     <td className="fw-bold">{aarti?.name || "N/A"}</td>
@@ -160,11 +170,10 @@ export default function AartiListPage() {
                           />
                         </div>
                         <span
-                          className={`badge rounded-pill ${
-                            aarti.isActive
-                              ? "bg-success-subtle text-success"
-                              : "bg-secondary-subtle text-secondary"
-                          }`}
+                          className={`badge rounded-pill ${aarti.isActive
+                            ? "bg-success-subtle text-success"
+                            : "bg-secondary-subtle text-secondary"
+                            }`}
                         >
                           {togglingId === aarti._id ? (
                             <span
@@ -219,16 +228,11 @@ export default function AartiListPage() {
         onClose={() => setAartiToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="text-center mb-0">
-          Are you sure you want to delete <strong>{aartiToDelete?.name}</strong>
-          ?
-          <br />
-          <span className="text-muted small">
-            This action cannot be undone.
-          </span>
+          Are you sure you want to delete <strong>{aartiToDelete?.name}</strong>?
         </p>
       </ConfirmationModal>
     </div>

@@ -1,21 +1,28 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
+
+import {
+  useStutis,
+  useDeleteStuti,
+  useUpdateStuti
+} from "../../hooks/useStuti";
+
+import { fetchAllGods } from "../../store/god";
+import { staticLanguages } from "../../constants/languages";
 
 import FilterBar from "../../common/FilterBar";
-import { useFilters } from "../../hook/useFilters";
+import { useFilters } from "../../hooks/useFilters";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 
-import { fetchStutis, deleteStuti, updateStuti } from "../../store/stuti/index";
-import { fetchAllGods } from "../../store/god";
-import { staticLanguages } from "../../constants/languages";
-
 export default function StutiManagementPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const {
@@ -25,27 +32,23 @@ export default function StutiManagementPage() {
     resetFilters,
   } = useFilters(1);
 
-  // Redux State
-  const { list: stutis, pagination, status, error } = useSelector(
-    (state) => state.stuti
-  );
+  const { data, isLoading, isError, error } = useStutis({
+    ...filters,
+    limit: itemsPerPage
+  });
+
+  const stutis = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  const deleteMutation = useDeleteStuti();
+  const updateMutation = useUpdateStuti();
+
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
   const [itemToDelete, setItemToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
-
-  const loadStutis = useCallback(() => {
-    dispatch(fetchStutis({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load stutis."));
-  }, [dispatch, filters, itemsPerPage]);
-
-  useEffect(() => {
-    loadStutis();
-  }, [loadStutis]);
 
   useEffect(() => {
     if (godStatus === "idle") {
@@ -53,22 +56,28 @@ export default function StutiManagementPage() {
     }
   }, [dispatch, godStatus]);
 
-  // Actions
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["stutis"]);
+    toast.success("List refreshed!");
+  };
+
+  const handleReset = () => {
+    resetFilters();
+    queryClient.invalidateQueries(["stutis"]);
+    toast.info("Filters reset and list refreshed");
+  };
+
   const handleStatusToggle = async (stuti) => {
     if (togglingId === stuti._id) return;
-
     setTogglingId(stuti._id);
     const newStatus = !stuti.isActive;
 
     try {
-      await dispatch(
-        updateStuti({ id: stuti._id, isActive: newStatus })
-      ).unwrap();
+      await updateMutation.mutateAsync({ id: stuti._id, isActive: newStatus });
       toast.success(
         `Stuti "${stuti.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
     } finally {
       setTogglingId(null);
     }
@@ -76,28 +85,21 @@ export default function StutiManagementPage() {
 
   const confirmDelete = async () => {
     if (!itemToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteStuti(itemToDelete._id)).unwrap();
-      toast.success(`Stuti "${itemToDelete.name}" deleted successfully.`);
+      await deleteMutation.mutateAsync(itemToDelete._id);
 
       if (stutis.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
-      } else {
-        loadStutis();
       }
+
       setItemToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Failed to delete stuti.");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
   const getLanguageNameById = (langId) =>
     staticLanguages.find((lang) => lang._id === langId)?.language || "N/A";
 
-  // Prepare God Options for FilterBar
   const godOptions = [
     { value: "", label: "All Gods" },
     ...allGods.map((god) => ({ value: god._id, label: god.name })),
@@ -105,31 +107,30 @@ export default function StutiManagementPage() {
 
   return (
     <div className="card shadow-sm">
-      {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Stuti Management</h4>
-        <button
-          className="btn btn-labeled btn-success"
-          style={{ fontSize: "17px" }}
-          onClick={() => navigate("/stuti/new")}
-        >
-          <span className="btn-label me-2">
-            <i className="fas fa-plus"></i>
-          </span>
-          Add New Stuti
-        </button>
+        <div>
+          <button
+            className="btn btn-labeled btn-success"
+            style={{ fontSize: "17px" }}
+            onClick={() => navigate("/stuti/new")}
+          >
+            <span className="btn-label me-2">
+              <i className="fas fa-plus"></i>
+            </span>
+            Add New Stuti
+          </button>
+        </div>
       </div>
 
-      {/* ✅ Centralized Filter Bar */}
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={resetFilters}
+        onReset={handleReset}
         godOptions={godOptions}
         godStatus={godStatus}
       />
 
-      {/* Table Content */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
@@ -145,14 +146,14 @@ export default function StutiManagementPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={status}
+                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={stutis.length}
                 colSpan={6}
                 loadingText="Loading stutis..."
                 emptyText="No stutis Found."
               />
-              {status === "succeeded" &&
+              {!isLoading && !isError && Array.isArray(stutis) &&
                 stutis.map((item) => (
                   <tr key={item._id}>
                     <td className="fw-semibold">{item?.name}</td>
@@ -160,7 +161,6 @@ export default function StutiManagementPage() {
                     <td>{item?.god?.name}</td>
                     <td>{item?.sort}</td>
 
-                    {/* Status Toggle Switch */}
                     <td>
                       <div className="form-check form-switch">
                         <input
@@ -186,7 +186,7 @@ export default function StutiManagementPage() {
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
-                        onClick={() => navigate(`/stuti/${item._id}/edit`)}
+                        onClick={() => navigate(`/stuti/edit/${item._id}`)}
                         title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
@@ -206,7 +206,6 @@ export default function StutiManagementPage() {
         </div>
       </div>
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
@@ -219,14 +218,13 @@ export default function StutiManagementPage() {
         </div>
       )}
 
-      {/* Confirmation Modal */}
       <ConfirmationModal
         show={itemToDelete !== null}
         onClose={() => setItemToDelete(null)}
         onConfirm={confirmDelete}
         title="Confirm Deletion"
         confirmText="Delete"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">

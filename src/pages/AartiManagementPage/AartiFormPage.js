@@ -6,13 +6,9 @@ import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 import { uploadImage } from "../../services/uploadService";
 
-import {
-  addAarti,
-  updateAarti,
-  fetchAartiById,
-  clearCurrentAarti,
-} from "../../store/aarti/index";
-import { fetchAllGods } from "../../store/god/index";
+// Import new Hooks
+import { useAarti, useAddAarti, useUpdateAarti } from "../../hooks/useAarti";
+import { fetchAllGods } from "../../store/god/index"; // Redux kept for God
 import { staticLanguages } from "../../constants/languages";
 
 export default function AartiFormPage() {
@@ -20,9 +16,13 @@ export default function AartiFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { currentAarti, detailsStatus, error } = useSelector(
-    (state) => state.aartis
-  );
+  // 1. Fetch Single Data (Only runs if ID exists)
+  const { data: currentAarti, isLoading: isFetching, isError } = useAarti(id);
+
+  // 2. Mutations
+  const addMutation = useAddAarti();
+  const updateMutation = useUpdateAarti();
+
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -42,7 +42,6 @@ export default function AartiFormPage() {
 
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
-  const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
@@ -51,13 +50,24 @@ export default function AartiFormPage() {
     }
   }, [godStatus, dispatch]);
 
+  // 3. Populate Form Data when Query Data arrives
   useEffect(() => {
-    if (id) {
-      console.log("🔄 Edit Mode Detected. Fetching ID:", id);
-      dispatch(fetchAartiById(id));
-    } else {
-      console.log("✨ Add Mode Detected. Clearing previous data.");
-      dispatch(clearCurrentAarti());
+    if (id && currentAarti) {
+      console.log("✅ Data Arrived! Populating Form:", currentAarti);
+      setFormData({
+        name: currentAarti.name || "",
+        sort: currentAarti.sort || "",
+        isActive: currentAarti.isActive ?? true,
+        language: currentAarti.language || "",
+        god: currentAarti.god?._id || currentAarti.god || "",
+        description: currentAarti.description || "",
+        image: currentAarti.image || "",
+        views: currentAarti.views || "",
+        share: currentAarti.share || "",
+        like: currentAarti.like || "",
+      });
+    } else if (!id) {
+      // Reset if Add mode (optional, mostly handled by initial state)
       setFormData({
         name: "",
         sort: "",
@@ -69,33 +79,6 @@ export default function AartiFormPage() {
         views: "",
         share: "",
         like: "",
-      });
-    }
-
-    return () => {
-      dispatch(clearCurrentAarti());
-    };
-  }, [id, dispatch]);
-
-  useEffect(() => {
-    if (
-      id &&
-      currentAarti &&
-      (currentAarti._id === id || currentAarti.id === id)
-    ) {
-      console.log("✅ Data Arrived! Populating Form:", currentAarti);
-
-      setFormData({
-        name: currentAarti.name || "",
-        sort: currentAarti.sort || "",
-        isActive: currentAarti.isActive ?? true,
-        language: currentAarti.language || "",
-        god: currentAarti.god?._id || currentAarti.god || "", 
-        description: currentAarti.description || "",
-        image: currentAarti.image || "",
-        views: currentAarti.views || "",
-        share: currentAarti.share || "",
-        like: currentAarti.like || "",
       });
     }
   }, [currentAarti, id]);
@@ -165,29 +148,28 @@ export default function AartiFormPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    setIsSaving(true);
+    const payload = {
+      ...formData,
+      sort: Number(formData.sort) || 0,
+      views: Number(formData.views) || 0,
+      share: Number(formData.share) || 0,
+      like: Number(formData.like) || 0,
+    };
+
     try {
-      const payload = {
-        ...formData,
-        sort: Number(formData.sort) || 0,
-        views: Number(formData.views) || 0,
-        share: Number(formData.share) || 0,
-        like: Number(formData.like) || 0,
-      };
-
-      const action = id ? updateAarti({ id, ...payload }) : addAarti(payload);
-      await dispatch(action).unwrap();
-
-      toast.success(`Aarti ${id ? "updated" : "created"} successfully!`);
+      if (id) {
+        await updateMutation.mutateAsync({ id, ...payload });
+      } else {
+        await addMutation.mutateAsync(payload);
+      }
       navigate("/aarti");
     } catch (err) {
-      toast.error(err?.message || "Operation failed.");
-    } finally {
-      setIsSaving(false);
+      // Error handled in hook
     }
   };
 
-  if (id && detailsStatus === "loading") {
+  // Loading State
+  if (id && isFetching) {
     return (
       <div
         className="d-flex justify-content-center align-items-center"
@@ -200,17 +182,20 @@ export default function AartiFormPage() {
     );
   }
 
-  if (id && detailsStatus === "failed") {
+  // Error State
+  if (id && isError) {
     return (
       <div className="alert alert-danger text-center m-5">
         <h4>Error Loading Data</h4>
-        <p>{error || "Unable to fetch Aarti details."}</p>
+        <p>Unable to fetch Aarti details.</p>
         <button className="btn btn-primary" onClick={() => navigate("/aarti")}>
           Back to List
         </button>
       </div>
     );
   }
+
+  const isSaving = addMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="content-wrapper p-4">
@@ -244,9 +229,8 @@ export default function AartiFormPage() {
                   <input
                     type="text"
                     name="name"
-                    className={`form-control ${
-                      errors.name ? "is-invalid" : ""
-                    }`}
+                    className={`form-control ${errors.name ? "is-invalid" : ""
+                      }`}
                     value={formData.name}
                     onChange={handleFormChange}
                   />
@@ -310,9 +294,8 @@ export default function AartiFormPage() {
                   <label className="form-label fw-bold">Image *</label>
                   <input
                     type="file"
-                    className={`form-control ${
-                      errors.image ? "is-invalid" : ""
-                    }`}
+                    className={`form-control ${errors.image ? "is-invalid" : ""
+                      }`}
                     onChange={handleImageUpload}
                     disabled={isUploading}
                   />
@@ -338,9 +321,8 @@ export default function AartiFormPage() {
                     <input
                       type="number"
                       name="sort"
-                      className={`form-control ${
-                        errors.sort ? "is-invalid" : ""
-                      }`}
+                      className={`form-control ${errors.sort ? "is-invalid" : ""
+                        }`}
                       value={formData.sort}
                       onChange={handleFormChange}
                     />

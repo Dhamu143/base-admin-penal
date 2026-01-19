@@ -1,70 +1,56 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
+
+// Hooks
+import { useUsers, useDeleteUser } from "../../hooks/useUsers";
 
 import CustomPagination from "../../common/Pagination";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 import { TableStatus } from "../../components/TableStatus";
 
-// Ensure this path matches your file structure
-import { fetchUsers, deleteUser } from "../../store/user2/index";
-
 export default function UserTablePage() {
-  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient(); // For manual refresh
 
-  // Redux State
-  const { list: users, status, error, pagination } = useSelector(
-    (state) => state.users
-  );
-
-  // Local State for Deletion
-  const [userToDelete, setUserToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
+  // Local State
+  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  // Get current page from pagination or default to 1
-  const currentPage = pagination?.currentPage || 1;
 
-  // --- Data Fetching ---
-  const loadUsers = useCallback(
-    (page = 1) => {
-      dispatch(fetchUsers({ page, limit: itemsPerPage }))
-        .unwrap()
-        .catch((err) => toast.error(err || "Failed to load users."));
-    },
-    [dispatch]
-  );
+  // 1. Fetch Data (React Query)
+  const { data, isLoading, isError, error } = useUsers(currentPage, itemsPerPage);
 
-  // Initial Load
-  useEffect(() => {
-    loadUsers(1);
-  }, [loadUsers]);
+  const users = data?.users || [];
+  const pagination = data?.pagination || null;
+
+  // 2. Delete Mutation
+  const deleteMutation = useDeleteUser();
+
+  const [userToDelete, setUserToDelete] = useState(null);
+
+  // ✅ Manual Refresh Handler
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["users"]);
+    toast.success("User list refreshed!");
+  };
 
   // --- Delete Logic ---
   const handleDelete = async () => {
     if (!userToDelete) return;
 
-    setIsDeleting(true);
     try {
-      // 1. Call the Redux Action
-      await dispatch(deleteUser(userToDelete._id)).unwrap();
-      toast.success("User deleted successfully.");
+      await deleteMutation.mutateAsync(userToDelete._id);
 
-      // 2. Determine which page to fetch next
-      // If we deleted the last item on the current page, go back one page
-      const pageToFetch =
-        users.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      // Pagination logic: if deleted last item on page, go back
+      if (users.length === 1 && currentPage > 1) {
+        setCurrentPage((prev) => prev - 1);
+      }
 
-      // 3. Refresh the list
-      loadUsers(pageToFetch);
-
-      // 4. Close Modal
       setUserToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Error deleting user.");
-    } finally {
-      setIsDeleting(false);
+      // Error handled in hook
     }
   };
 
@@ -73,6 +59,16 @@ export default function UserTablePage() {
       {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">User Management</h4>
+        <div>
+          {/* Manual Refresh Button */}
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            onClick={handleManualRefresh}
+            title="Refresh List"
+          >
+            <i className="fas fa-sync-alt me-1"></i> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -94,9 +90,9 @@ export default function UserTablePage() {
               </tr>
             </thead>
             <tbody>
-              {/* Table Status Handling (Loading, Error, Empty) */}
+              {/* Table Status Handling */}
               <TableStatus
-                status={status}
+                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={users.length}
                 colSpan={10}
@@ -104,7 +100,7 @@ export default function UserTablePage() {
                 emptyText="No users found."
               />
 
-              {status === "succeeded" &&
+              {!isLoading && !isError && Array.isArray(users) &&
                 users.map((user) => (
                   <tr key={user._id}>
                     <td>
@@ -140,7 +136,7 @@ export default function UserTablePage() {
                     <td>
                       {user.location?.coordinates?.length === 2 ? (
                         <a
-                          href={`https://www.google.com/maps?q=${user.location.coordinates[1]},${user.location.coordinates[0]}`}
+                          href={`http://maps.google.com/maps?q=${user.location.coordinates[1]},${user.location.coordinates[0]}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn btn-sm btn-outline-primary"
@@ -187,11 +183,11 @@ export default function UserTablePage() {
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
-            currentPage={pagination.currentPage}
+            currentPage={currentPage}
             totalPages={pagination.totalPages}
             totalItems={pagination.totalRecords}
             itemsPerPage={itemsPerPage}
-            onPageChange={loadUsers}
+            onPageChange={setCurrentPage}
           />
         </div>
       )}
@@ -203,7 +199,7 @@ export default function UserTablePage() {
         onConfirm={handleDelete}
         title="Confirm Deletion"
         confirmText="Delete"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">
