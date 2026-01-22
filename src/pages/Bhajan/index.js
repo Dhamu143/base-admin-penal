@@ -14,7 +14,6 @@ import {
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 
-// Reusable Components
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
@@ -24,9 +23,7 @@ import { useFilters } from "../../hooks/useFilters";
 export default function BhajanListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); // Initialize
-
-  // 1. Filters
+  const queryClient = useQueryClient(); 
   const {
     filters,
     handleFilterChange,
@@ -35,7 +32,6 @@ export default function BhajanListPage() {
   } = useFilters();
   const itemsPerPage = 10;
 
-  // 2. Fetch Bhajans (React Query)
   const { data, isLoading, isError, error } = useBhajans({
     ...filters,
     limit: itemsPerPage
@@ -44,11 +40,9 @@ export default function BhajanListPage() {
   const bhajans = data?.data || [];
   const pagination = data?.pagination || null;
 
-  // 3. Mutations
   const deleteMutation = useDeleteBhajan();
   const updateMutation = useUpdateBhajan();
 
-  // 4. Redux for God Filters (Keeping as per previous pattern)
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -62,13 +56,7 @@ export default function BhajanListPage() {
     }
   }, [dispatch, godStatus]);
 
-  // ✅ Manual Refresh Handler
-  const handleManualRefresh = () => {
-    queryClient.invalidateQueries(["bhajans"]);
-    toast.success("List refreshed!");
-  };
 
-  // ✅ Reset Handler (Clear filters + Force Fetch)
   const handleReset = () => {
     resetFilters();
     queryClient.invalidateQueries(["bhajans"]);
@@ -125,7 +113,7 @@ export default function BhajanListPage() {
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={handleReset} // Use custom reset
+        onReset={handleReset} 
         godOptions={godOptions}
         godStatus={godStatus}
       />

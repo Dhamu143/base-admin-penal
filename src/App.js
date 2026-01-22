@@ -50,6 +50,7 @@ import DailyLogListPage from "./pages/DailyLog/index.js";
 import DailyLogFormPage from "./pages/DailyLog/DailyLogFormPage.js";
 import Post from "./pages/Post/index.js";
 import CreatePostPage from "./pages/Post/CreatePostPage.js";
+import SendNotificationPage from "./pages/SendNotificationPage/index.js"
 function App() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -89,6 +90,10 @@ function App() {
             <Route path="/dailylog" element={<DailyLogListPage />} />
             <Route path="/dailylog/new" element={<DailyLogFormPage />} />
             <Route path="/dailylog/edit/:id" element={<DailyLogFormPage />} />
+
+            <Route path="/sendNotification" element={<SendNotificationPage />} />
+
+
 
             <Route path="/aarti" element={<AartiManagementPage />} />
             <Route path="/aartis/new" element={<AartiFormPage />} />

@@ -401,25 +401,15 @@ function Login() {
               </div>
               <div className="clearfix">
                 <div className="checkbox c-checkbox float-left mt-0">
-                  {/* <label>
-                    <input type="checkbox" value="" name="remember" />
-                    <span className="fa fa-check"></span> Remember Me
-                  </label> */}
+                 
                 </div>
-                {/* <div className="float-right">
-                  <a className="text-muted" href="recover.html">
-                    Forgot your password?
-                  </a>
-                </div> */}
+               
               </div>
               <button className="btn btn-block btn-primary mt-3" type="submit">
                 Login
               </button>
             </form>
-            {/* <p className="pt-3 text-center">Need to Signup?</p>
-            <Link className="btn btn-block btn-secondary" to="/signup">
-              Register Now
-            </Link> */}
+           
           </div>
         </div>
         <div className="p-3 text-center">

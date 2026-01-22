@@ -191,7 +191,6 @@ export default function BhajanFormPage() {
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
             <div className="row">
-              {/* Left Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Bhajan Details</h5>
                 <div className="mb-3">
@@ -270,7 +269,6 @@ export default function BhajanFormPage() {
                   )}
                 </div>
 
-                {/* Image Upload Section */}
                 <div className="mb-3">
                   <label className="form-label fw-bold">
                     Bhajan Image <span className="text-danger">*</span>
@@ -304,7 +302,6 @@ export default function BhajanFormPage() {
                   )}
                 </div>
 
-                {/* MODIFIED: Row for Sort and Views */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">
@@ -342,7 +339,6 @@ export default function BhajanFormPage() {
                   </div>
                 </div>
 
-                {/* ADDED: New row for Share and Like */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">Share</label>
@@ -396,7 +392,6 @@ export default function BhajanFormPage() {
                 </div>
               </div>
 
-              {/* Right Column */}
               <div className="col-md-6">
                 <h5 className="mb-4 text-primary">Content & Settings</h5>
                 <div className="mb-3">

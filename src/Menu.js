@@ -43,6 +43,12 @@ const Menu = [
     permissions: ["admin", "users"],
   },
   {
+    name: "SendNotificationPage",
+    path: "/sendNotification",
+    icon: FiUsers,
+    permissions: ["admin", "users"],
+  },
+  {
     name: "Dayly Log",
     path: "/dailylog",
     icon: FiFileText,

@@ -2,9 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useQueryClient } from "@tanstack/react-query"; // Import QueryClient
-
-// Hooks
+import { useQueryClient } from "@tanstack/react-query"; 
 import {
   useMantras,
   useDeleteMantra,
@@ -14,7 +12,6 @@ import {
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 
-// Components
 import FilterBar from "../../common/FilterBar";
 import { useFilters } from "../../hooks/useFilters";
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -35,10 +32,9 @@ const styles = `
 export default function MantraListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); // Initialize Client
+  const queryClient = useQueryClient(); 
   const itemsPerPage = 10;
 
-  // 1. Filters
   const {
     filters,
     handleFilterChange,
@@ -46,7 +42,6 @@ export default function MantraListPage() {
     resetFilters,
   } = useFilters(1);
 
-  // 2. Fetch Mantras (React Query)
   const { data, isLoading, isError, error } = useMantras({
     ...filters,
     limit: itemsPerPage
@@ -55,11 +50,9 @@ export default function MantraListPage() {
   const mantras = data?.data || [];
   const pagination = data?.pagination || null;
 
-  // 3. Mutations
   const deleteMutation = useDeleteMantra();
   const updateMutation = useUpdateMantra();
 
-  // 4. Redux (Gods)
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -73,20 +66,17 @@ export default function MantraListPage() {
     }
   }, [dispatch, godStatus]);
 
-  // ✅ Manual Refresh Handler
   const handleManualRefresh = () => {
     queryClient.invalidateQueries(["mantras"]);
     toast.success("List refreshed!");
   };
 
-  // ✅ Reset Handler
   const handleReset = () => {
     resetFilters();
     queryClient.invalidateQueries(["mantras"]);
     toast.info("Filters reset and list refreshed");
   };
 
-  // Actions
   const handleStatusToggle = async (mantra) => {
     if (togglingId === mantra._id) return;
     setTogglingId(mantra._id);
@@ -109,7 +99,6 @@ export default function MantraListPage() {
     try {
       await deleteMutation.mutateAsync(mantraToDelete._id);
 
-      // Pagination logic: if last item on page, go back
       if (mantras.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
       }
@@ -132,7 +121,6 @@ export default function MantraListPage() {
     <>
       <style>{styles}</style>
       <div className="card shadow-sm">
-        {/* Header */}
         <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
           <h4 className="mb-0 text-primary-emphasis">Mantra Management</h4>
           <div>
@@ -149,16 +137,14 @@ export default function MantraListPage() {
           </div>
         </div>
 
-        {/* Filter Bar */}
         <FilterBar
           filters={filters}
           onFilterChange={handleFilterChange}
-          onReset={handleReset} // Use custom reset
+          onReset={handleReset}
           godOptions={godOptions}
           godStatus={godStatus}
         />
 
-        {/* Table Content */}
         <div className="card-body">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
@@ -246,7 +232,6 @@ export default function MantraListPage() {
           </div>
         </div>
 
-        {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination

@@ -6,9 +6,8 @@ import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 import { uploadImage } from "../../services/uploadService";
 
-// Import new Hooks
 import { useAarti, useAddAarti, useUpdateAarti } from "../../hooks/useAarti";
-import { fetchAllGods } from "../../store/god/index"; // Redux kept for God
+import { fetchAllGods } from "../../store/god/index"; 
 import { staticLanguages } from "../../constants/languages";
 
 export default function AartiFormPage() {
@@ -16,10 +15,8 @@ export default function AartiFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // 1. Fetch Single Data (Only runs if ID exists)
   const { data: currentAarti, isLoading: isFetching, isError } = useAarti(id);
 
-  // 2. Mutations
   const addMutation = useAddAarti();
   const updateMutation = useUpdateAarti();
 
@@ -50,7 +47,6 @@ export default function AartiFormPage() {
     }
   }, [godStatus, dispatch]);
 
-  // 3. Populate Form Data when Query Data arrives
   useEffect(() => {
     if (id && currentAarti) {
       console.log("✅ Data Arrived! Populating Form:", currentAarti);
@@ -67,7 +63,6 @@ export default function AartiFormPage() {
         like: currentAarti.like || "",
       });
     } else if (!id) {
-      // Reset if Add mode (optional, mostly handled by initial state)
       setFormData({
         name: "",
         sort: "",
@@ -168,8 +163,7 @@ export default function AartiFormPage() {
     }
   };
 
-  // Loading State
-  if (id && isFetching) {
+    if (id && isFetching) {
     return (
       <div
         className="d-flex justify-content-center align-items-center"

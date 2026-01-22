@@ -3,26 +3,18 @@ import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
 import RichTextEditor from "../../common/RichTextEditor";
 import { staticLanguages } from "../../constants/languages";
-
-// 1. Import New Hooks
 import { useGod, useAddGod, useUpdateGod } from "../../hooks/useGod";
-// Import the hook from previous step for the "Master God" dropdown
-// We alias it to 'useMasterGodList' to avoid confusion
 import { useGods as useMasterGodList } from "../../hooks/useGodmaster";
 
 export default function GodFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // 2. Fetch Data using React Query
-  // Fetch the current God if in Edit mode
   const { data: currentGod, isLoading: isGodLoading } = useGod(id);
 
-  // Fetch the Master God list for the dropdown (Page 1, large limit to get all)
   const { data: masterGodData } = useMasterGodList(1, 1000);
   const masterGods = masterGodData?.data?.data || [];
 
-  // 3. Mutations
   const addMutation = useAddGod();
   const updateMutation = useUpdateGod();
 
@@ -37,14 +29,12 @@ export default function GodFormPage() {
 
   const [errors, setErrors] = useState({});
 
-  // 4. Populate Form when Data Arrives
   useEffect(() => {
     if (id && currentGod) {
       setFormData({
         name: currentGod.name || "",
         description: currentGod.description || "",
         sort: currentGod.sort || "",
-        // Handle nested object vs ID string
         master: typeof currentGod.master === "object"
           ? currentGod.master?._id
           : currentGod.master || null,
@@ -56,7 +46,6 @@ export default function GodFormPage() {
     }
   }, [id, currentGod]);
 
-  // Validation
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "God name is required.";
@@ -78,17 +67,12 @@ export default function GodFormPage() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
-  // Master God options
   const masterGodOptions = useMemo(() => {
     if (!masterGods) return [];
 
-    // Map API data to Select options
     const options = masterGods.map((g) => ({ value: g._id, label: g.name }));
 
-    // Safety check: If the current god has a master that isn't in the list
-    // (rare, but happens if pagination cuts it off), try to preserve it.
     if (formData.master && !options.find((o) => o.value === formData.master)) {
-      // If currentGod has the master detail populated, add it manually
       if (currentGod?.master && typeof currentGod.master === 'object') {
         options.push({ value: currentGod.master._id, label: currentGod.master.name });
       }
@@ -131,7 +115,6 @@ export default function GodFormPage() {
 
   const isSaving = addMutation.isPending || updateMutation.isPending;
 
-  // Loading State for Edit Mode
   if (id && isGodLoading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>

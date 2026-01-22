@@ -264,7 +264,6 @@ export default function PostVerificationPage() {
           </div>
         </div>
 
-        {/* CUSTOM PAGINATION */}
         {status === "succeeded" && posts.length > 0 && (
           <div className="card-footer bg-white py-3">
             <CustomPagination
@@ -277,7 +276,6 @@ export default function PostVerificationPage() {
           </div>
         )}
 
-        {/* DELETE MODAL */}
         <ConfirmationModal
           show={postToDelete !== null}
           onClose={() => setPostToDelete(null)}

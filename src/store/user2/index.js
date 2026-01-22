@@ -16,7 +16,6 @@ export const fetchUsers = createAsyncThunk(
   }
 );
 
-// 2. Delete a user
 export const deleteUser = createAsyncThunk(
   "users/delete",
   async (id, { rejectWithValue }) => {

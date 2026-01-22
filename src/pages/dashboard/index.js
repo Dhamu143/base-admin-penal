@@ -1,13 +1,11 @@
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import dashboardCards from "../../common/dashboardCards";
-import { useDashboardStats } from "../../hooks/useDashboard"; // Import the hook
+import { useDashboardStats } from "../../hooks/useDashboard"; 
 
 function Dashboard() {
-  // Use the hook (Handles fetching, caching, and socket updates automatically)
   const { data: dashboard, isLoading, isError } = useDashboardStats();
 
-  // Helper to render cards
   const renderCard = (
     title,
     count,
@@ -34,7 +32,6 @@ function Dashboard() {
             <div className="d-flex align-items-center">
               <div className="flex-grow-1">
                 <div className="h2 mb-0 font-weight-bold text-white">
-                  {/* Show 0 while loading, or a spinner if preferred */}
                   {isLoading ? "..." : count}
                 </div>
                 <div className="text-uppercase font-weight-bold text-white small">

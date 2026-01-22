@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-// 1. Import QueryClient Hook
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAartis, useDeleteAarti, useUpdateAarti } from "../../hooks/useAarti";
@@ -18,7 +17,6 @@ import { useFilters } from "../../hooks/useFilters";
 export default function AartiListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  // 2. Initialize QueryClient
   const queryClient = useQueryClient();
 
   const {
@@ -51,15 +49,12 @@ export default function AartiListPage() {
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [dispatch, godStatus]);
 
-  // ✅ 3. New Handle Reset Function
-  // This resets the filters state AND tells React Query to fetch fresh data
   const handleReset = () => {
-    resetFilters(); // 1. Clear State
-    queryClient.invalidateQueries(["aartis"]); // 2. Force API Call
+    resetFilters(); 
+    queryClient.invalidateQueries(["aartis"]); 
     toast.info("Filters reset and list refreshed");
   };
 
-  // ✅ 4. Manual Refresh Button Function
   const handleManualRefresh = () => {
     queryClient.invalidateQueries(["aartis"]);
     toast.success("List refreshed!");
@@ -117,12 +112,11 @@ export default function AartiListPage() {
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={handleReset} // ✅ Pass the new reset handler here
+        onReset={handleReset} 
         godOptions={godOptions}
         godStatus={godStatus}
       />
 
-      {/* Rest of the table code remains the same... */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle">
