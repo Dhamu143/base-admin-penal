@@ -1,34 +1,29 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
-// --- API Functions ---
-
 const fetchNewsApi = async (params = {}) => {
-  const cleanParams = Object.fromEntries(
-    Object.entries(params).filter(
-      ([_, v]) => v !== "" && v !== null && v !== undefined
-    )
-  );
+  const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
+    if (value !== "" && value !== null && value !== undefined) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
 
   const queryString = new URLSearchParams(cleanParams).toString();
   const url = queryString ? `/news?${queryString}` : "/news";
-  const response = await httpService.get(url);
 
-  // Normalize Data Structure
+  const response = await httpService.get(url);
   const apiData = response.data;
 
-  // 1. Check for nested structure: { data: { data: [...], pagination: {...} } }
   if (apiData?.data?.data && Array.isArray(apiData.data.data)) {
-    return apiData.data; 
+    return apiData.data;
   }
-  
-  // 2. Check for intermediate structure: { data: [...] }
+
   if (apiData?.data && Array.isArray(apiData.data)) {
     return { data: apiData.data, pagination: apiData.pagination || null };
   }
 
-  // 3. Fallback: { [...] }
   if (Array.isArray(apiData)) {
     return { data: apiData, pagination: null };
   }
@@ -56,41 +51,40 @@ const deleteNewsApi = async (id) => {
   return response.data;
 };
 
-// --- React Query Hooks ---
 
-// 1. Fetch List (Read)
 export const useNewsList = (filters) => {
   return useQuery({
     queryKey: ["newsList", filters],
     queryFn: () => fetchNewsApi(filters),
-    
-    // ✅ Optimization: Fetch once, keep forever (until mutation/reset)
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 };
 
-// 2. Fetch Single (Read)
 export const useNews = (id) => {
   return useQuery({
     queryKey: ["news", id],
     queryFn: () => fetchNewsByIdApi(id),
     enabled: !!id,
-    
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
 };
+// --- Hooks ---
 
-// 3. Add Mutation (Write)
 export const useAddNews = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: addNewsApi,
     onSuccess: () => {
       toast.success("News added successfully!");
-      queryClient.invalidateQueries(["newsList"]);
+      queryClient.invalidateQueries({ queryKey: ["newsList"] });
+
+      queryClient.invalidateQueries({
+        queryKey: ["dashboardStats"],
+        refetchType: "none"
+      });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to add News");
@@ -98,14 +92,18 @@ export const useAddNews = () => {
   });
 };
 
-// 4. Update Mutation (Write)
 export const useUpdateNews = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: updateNewsApi,
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries(["newsList"]);
-      queryClient.invalidateQueries(["news", variables.id]);
+    onSuccess: (updatedData, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["newsList"] });
+      queryClient.setQueryData(["news", variables.id], updatedData);
+
+      queryClient.invalidateQueries({
+        queryKey: ["dashboardStats"],
+        refetchType: "none"
+      });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to update News");
@@ -113,14 +111,18 @@ export const useUpdateNews = () => {
   });
 };
 
-// 5. Delete Mutation (Write)
 export const useDeleteNews = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteNewsApi,
     onSuccess: () => {
       toast.success("News deleted successfully.");
-      queryClient.invalidateQueries(["newsList"]);
+      queryClient.invalidateQueries({ queryKey: ["newsList"] });
+
+      queryClient.invalidateQueries({
+        queryKey: ["dashboardStats"],
+        refetchType: "none"
+      });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete News");

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -32,11 +32,16 @@ export default function StutiManagementPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { data, isLoading, isError, error } = useStutis({
-    ...filters,
-    limit: itemsPerPage
-  });
+  const apiFilters = useMemo(() => {
+    return {
+      ...filters,
+      limit: itemsPerPage,
+      god: filters.godId || filters.god || "",
+      godId: undefined,
+    };
+  }, [filters, itemsPerPage]);
 
+  const { data, isLoading, isError, error, isFetching } = useStutis(apiFilters);
   const stutis = data?.data || [];
   const pagination = data?.pagination || null;
 
@@ -56,10 +61,11 @@ export default function StutiManagementPage() {
     }
   }, [dispatch, godStatus]);
 
-  const handleManualRefresh = () => {
-    queryClient.invalidateQueries(["stutis"]);
-    toast.success("List refreshed!");
-  };
+  useEffect(() => {
+    if (filters.page > 1 && (filters.godId || filters.god)) {
+      handlePageChange(1);
+    }
+  }, [filters.godId, filters.god]);
 
   const handleReset = () => {
     resetFilters();
@@ -78,6 +84,7 @@ export default function StutiManagementPage() {
         `Stuti "${stuti.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -94,6 +101,7 @@ export default function StutiManagementPage() {
 
       setItemToDelete(null);
     } catch (err) {
+      // Error handled in hook
     }
   };
 
@@ -146,7 +154,7 @@ export default function StutiManagementPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
+                status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={stutis.length}
                 colSpan={6}
@@ -155,7 +163,7 @@ export default function StutiManagementPage() {
               />
               {!isLoading && !isError && Array.isArray(stutis) &&
                 stutis.map((item) => (
-                  <tr key={item._id}>
+                  <tr key={item._id} className={isFetching ? "opacity-50" : ""}>
                     <td className="fw-semibold">{item?.name}</td>
                     <td>{getLanguageNameById(item?.language)}</td>
                     <td>{item?.god?.name}</td>
@@ -186,7 +194,7 @@ export default function StutiManagementPage() {
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
-                        onClick={() => navigate(`/stuti/edit/${item._id}`)}
+                        onClick={() => navigate(`/stuti/${item._id}/edit`)}
                         title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
@@ -211,9 +219,9 @@ export default function StutiManagementPage() {
           <CustomPagination
             currentPage={filters.page}
             totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
             totalItems={pagination.totalRecords}
             itemsPerPage={itemsPerPage}
-            onPageChange={handlePageChange}
           />
         </div>
       )}

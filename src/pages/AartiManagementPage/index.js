@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -26,11 +26,16 @@ export default function AartiListPage() {
     resetFilters,
   } = useFilters();
   const itemsPerPage = 10;
+  const apiFilters = useMemo(() => {
+    return {
+      ...filters,
+      limit: itemsPerPage,
+      god: filters.godId || filters.god || "", 
+      godId: undefined, 
+    };
+  }, [filters, itemsPerPage]);
 
-  const { data, isLoading, isError, error } = useAartis({
-    ...filters,
-    limit: itemsPerPage
-  });
+  const { data, isLoading, isError, error, isFetching } = useAartis(apiFilters);
 
   const aartis = Array.isArray(data?.data) ? data.data : [];
   const pagination = data?.pagination || null;
@@ -49,15 +54,16 @@ export default function AartiListPage() {
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [dispatch, godStatus]);
 
+  useEffect(() => {
+    if (filters.page > 1 && (filters.godId || filters.god)) {
+       handlePageChange(1);
+    }
+  }, [filters.godId, filters.god]);
+
   const handleReset = () => {
     resetFilters(); 
     queryClient.invalidateQueries(["aartis"]); 
     toast.info("Filters reset and list refreshed");
-  };
-
-  const handleManualRefresh = () => {
-    queryClient.invalidateQueries(["aartis"]);
-    toast.success("List refreshed!");
   };
 
   const handleStatusToggle = async (aarti) => {
@@ -81,6 +87,11 @@ export default function AartiListPage() {
     if (!aartiToDelete) return;
     try {
       await deleteMutation.mutateAsync(aartiToDelete._id);
+      
+      if (aartis.length === 1 && filters.page > 1) {
+        handlePageChange(filters.page - 1);
+      }
+      
       setAartiToDelete(null);
     } catch (err) {
       // Error handled in hook
@@ -133,14 +144,16 @@ export default function AartiListPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
+                status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={aartis.length}
                 colSpan={7}
+                loadingText="Loading aartis..."
+                emptyText="No aartis Found."
               />
               {!isLoading && !isError && Array.isArray(aartis) &&
                 aartis.map((aarti) => (
-                  <tr key={aarti._id}>
+                  <tr key={aarti._id} className={isFetching ? "opacity-50" : ""}>
                     <td className="fw-bold">{aarti?.name || "N/A"}</td>
                     <td>{aarti?.god?.name}</td>
                     <td>{getLanguageNameById(aarti?.language)}</td>
@@ -205,7 +218,7 @@ export default function AartiListPage() {
         </div>
       </div>
 
-      {pagination?.totalPages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <div className="card-footer bg-white border-top">
           <CustomPagination
             currentPage={filters.page}

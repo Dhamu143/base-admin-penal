@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
-const fetchStutisApi = async (params = {}) => {
+
+const fetchTemplesApi = async (params = {}) => {
   const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
     if (value !== "" && value !== null && value !== undefined) {
       acc[key] = value;
@@ -11,7 +12,7 @@ const fetchStutisApi = async (params = {}) => {
   }, {});
 
   const queryString = new URLSearchParams(cleanParams).toString();
-  const url = queryString ? `/stuti?${queryString}` : "/stuti";
+  const url = queryString ? `/temple?${queryString}` : "/temple";
 
   const response = await httpService.get(url);
   const apiData = response.data;
@@ -31,92 +32,88 @@ const fetchStutisApi = async (params = {}) => {
   return { data: [], pagination: null };
 };
 
-const fetchStutiByIdApi = async (id) => {
-  const response = await httpService.get(`/stuti/${id}`);
+const fetchTempleByIdApi = async (id) => {
+  const response = await httpService.get(`/temple/${id}`);
   return response.data?.data || response.data;
 };
 
-const addStutiApi = async (data) => {
-  const response = await httpService.post("/stuti/create", {}, data);
+const addTempleApi = async (data) => {
+  const response = await httpService.post("/temple/create", {}, data);
   return response.data?.data;
 };
 
-const updateStutiApi = async ({ id, ...data }) => {
-  const response = await httpService.put(`/stuti/${id}`, {}, data);
+const updateTempleApi = async ({ id, ...data }) => {
+  const response = await httpService.put(`/temple/${id}`, {}, data);
   return response.data?.data;
 };
 
-const deleteStutiApi = async (id) => {
-  const response = await httpService.delete(`/stuti/${id}`);
+const deleteTempleApi = async (id) => {
+  const response = await httpService.delete(`/temple/${id}`);
   return response.data;
 };
 
 
-export const useStutis = (filters) => {
+export const useTemples = (filters) => {
   return useQuery({
-    queryKey: ["stutis", filters],
-    queryFn: () => fetchStutisApi(filters),
+    queryKey: ["temples", filters],
+    queryFn: () => fetchTemplesApi(filters),
 
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, 
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData, 
   });
 };
 
-export const useStuti = (id) => {
+export const useTemple = (id) => {
   return useQuery({
-    queryKey: ["stuti", id],
-    queryFn: () => fetchStutiByIdApi(id),
+    queryKey: ["temple", id],
+    queryFn: () => fetchTempleByIdApi(id),
     enabled: !!id,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
 };
-
-
-export const useAddStuti = () => {
+export const useAddTemple = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: addStutiApi,
+    mutationFn: addTempleApi,
     onSuccess: () => {
-      toast.success("Stuti added successfully!");
-      queryClient.invalidateQueries({ queryKey: ["stutis"] });
+      toast.success("Temple added successfully!");
+      queryClient.invalidateQueries({ queryKey: ["temples"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"], refetchType: "none" });
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to add Stuti");
+      toast.error(err.response?.data?.message || "Failed to add Temple");
     },
   });
 };
 
-export const useUpdateStuti = () => {
+export const useUpdateTemple = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: updateStutiApi,
+    mutationFn: updateTempleApi,
     onSuccess: (updatedData, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["stutis"] });
-
-      queryClient.setQueryData(["stuti", variables.id], updatedData);
-
+      queryClient.invalidateQueries({ queryKey: ["temples"] });
+      queryClient.setQueryData(["temple", variables.id], updatedData);
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"], refetchType: "none" });
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to update Stuti");
+      toast.error(err.response?.data?.message || "Failed to update Temple");
     },
   });
 };
 
-export const useDeleteStuti = () => {
+export const useDeleteTemple = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteStutiApi,
+    mutationFn: deleteTempleApi,
     onSuccess: () => {
-      toast.success("Stuti deleted successfully.");
-      queryClient.invalidateQueries({ queryKey: ["stutis"] });
+      toast.success("Temple deleted successfully.");
+      queryClient.invalidateQueries({ queryKey: ["temples"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"], refetchType: "none" });
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || "Failed to delete Stuti");
+      toast.error(err.response?.data?.message || "Failed to delete Temple");
     },
   });
 };

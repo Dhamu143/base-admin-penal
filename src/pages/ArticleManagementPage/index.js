@@ -1,17 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useQueryClient } from "@tanstack/react-query"; // Import QueryClient
+import { useQueryClient } from "@tanstack/react-query";
 
-// New Hooks
 import {
   useArticles,
   useDeleteArticle,
   useUpdateArticle
 } from "../../hooks/useArticles";
-
-import { fetchAllGods } from "../../store/god/index"; // Keeping God in Redux as requested previously
+import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -35,31 +33,33 @@ const styles = `
 export default function ArticleListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); // Initialize Client
+  const queryClient = useQueryClient();
+  const itemsPerPage = 10;
 
-  // 1. Filters
   const {
     filters,
     handleFilterChange,
     handlePageChange,
     resetFilters,
-  } = useFilters();
-  const itemsPerPage = 10;
+  } = useFilters(1);
 
-  // 2. Fetch Articles (React Query)
-  const { data, isLoading, isError, error } = useArticles({
-    ...filters,
-    limit: itemsPerPage
-  });
+  const apiFilters = useMemo(() => {
+    return {
+      ...filters,
+      limit: itemsPerPage,
+      god: filters.godId || filters.god || "",
+      godId: undefined,
+    };
+  }, [filters, itemsPerPage]);
+
+  const { data, isLoading, isError, error, isFetching } = useArticles(apiFilters);
 
   const articles = Array.isArray(data?.data) ? data.data : [];
   const pagination = data?.pagination || null;
 
-  // 3. Mutations
   const deleteMutation = useDeleteArticle();
   const updateMutation = useUpdateArticle();
 
-  // 4. Gods (Redux)
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
@@ -71,13 +71,12 @@ export default function ArticleListPage() {
     if (godStatus === "idle") dispatch(fetchAllGods());
   }, [dispatch, godStatus]);
 
-  // ✅ Manual Refresh Handler
-  const handleManualRefresh = () => {
-    queryClient.invalidateQueries(["articles"]);
-    toast.success("List refreshed!");
-  };
+  useEffect(() => {
+    if (filters.page > 1 && (filters.godId || filters.god)) {
+      handlePageChange(1);
+    }
+  }, [filters.godId, filters.god]);
 
-  // ✅ Reset Handler (Clear filters + Force Fetch)
   const handleReset = () => {
     resetFilters();
     queryClient.invalidateQueries(["articles"]);
@@ -105,6 +104,11 @@ export default function ArticleListPage() {
     if (!articleToDelete) return;
     try {
       await deleteMutation.mutateAsync(articleToDelete._id);
+
+      if (articles.length === 1 && filters.page > 1) {
+        handlePageChange(filters.page - 1);
+      }
+
       setArticleToDelete(null);
     } catch (err) {
       // Error handled in hook
@@ -138,7 +142,7 @@ export default function ArticleListPage() {
         <FilterBar
           filters={filters}
           onFilterChange={handleFilterChange}
-          onReset={handleReset} // Use custom reset
+          onReset={handleReset}
           godOptions={godOptions}
           godStatus={godStatus}
         />
@@ -160,14 +164,16 @@ export default function ArticleListPage() {
               </thead>
               <tbody>
                 <TableStatus
-                  status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
+                  status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                   error={error}
                   dataLength={articles.length}
                   colSpan={8}
+                  loadingText="Loading articles..."
+                  emptyText="No articles Found."
                 />
                 {!isLoading && !isError && Array.isArray(articles) &&
                   articles.map((article) => (
-                    <tr key={article._id}>
+                    <tr key={article._id} className={isFetching ? "opacity-50" : ""}>
                       <td className="fw-bold">
                         <span className="truncate-text" title={article?.title}>
                           {article?.title}
@@ -219,6 +225,15 @@ export default function ArticleListPage() {
                             onChange={() => handleStatusToggle(article)}
                             style={{ cursor: "pointer" }}
                           />
+                          <label className="form-check-label small ms-1">
+                            {togglingId === article._id ? (
+                              <span className="spinner-border spinner-border-sm text-secondary"></span>
+                            ) : article.isActive ? (
+                              "Active"
+                            ) : (
+                              "Inactive"
+                            )}
+                          </label>
                         </div>
                       </td>
                       <td className="text-center">
@@ -227,12 +242,14 @@ export default function ArticleListPage() {
                           onClick={() =>
                             navigate(`/articles/edit/${article._id}`)
                           }
+                          title="Edit"
                         >
                           <i className="fas fa-pencil-alt"></i>
                         </button>
                         <button
                           className="btn btn-sm btn-outline-danger"
                           onClick={() => setArticleToDelete(article)}
+                          title="Delete"
                         >
                           <i className="fas fa-trash"></i>
                         </button>
@@ -244,7 +261,7 @@ export default function ArticleListPage() {
           </div>
         </div>
 
-        {pagination?.totalPages > 1 && (
+        {pagination && pagination.totalPages > 1 && (
           <div className="card-footer">
             <CustomPagination
               currentPage={filters.page}
@@ -266,7 +283,7 @@ export default function ArticleListPage() {
         confirmButtonVariant="danger"
       >
         <p className="text-center">
-          Are you sure you want to delete{" "}
+          Are you sure you want to delete <br />
           <strong>{articleToDelete?.title}</strong>?
         </p>
       </ConfirmationModal>

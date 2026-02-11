@@ -287,19 +287,19 @@ import { appLoginUser } from "../../store/auth";
 import { Link, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { useContext,useEffect } from "react";
-import { SocketContext } from "../../context/socket";
+// import { SocketContext } from "../../context/socket";
 import PageLoader from "../../components/PageLoader/PageLoader";
 function Login() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const currentTime = new Date();
-  const socket = useContext(SocketContext);
+  // const socket = useContext(SocketContext);
   const isloder = useSelector((state) => state?.auth.isloder);
 
-  useEffect(() => {
-    socket.close();
-    socket.disconnect();
-  }, []);
+  // useEffect(() => {
+  //   socket.close();
+  //   socket.disconnect();
+  // }, []);
 
   const formik = useFormik({
     initialValues: {

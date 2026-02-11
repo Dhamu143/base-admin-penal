@@ -1,21 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import RichTextEditor from "../../common/RichTextEditor";
 import { uploadImage } from "../../services/uploadService";
-import {
-  addDailyLog,
-  updateDailyLog,
-  fetchDailyLogById,
-  clearCurrentDailyLog,
-} from "../../store/dailylog/index";
+import { useCreateDailyLog, useUpdateDailyLog } from "../../hooks/useDailyLog";
 
 export default function DailyLogFormPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
-  const { currentLog, list } = useSelector((state) => state.dailyLog);
+  const location = useLocation();
+
+  const passedLogData = location.state?.logData;
 
   const [formData, setFormData] = useState({
     title: "",
@@ -23,36 +18,22 @@ export default function DailyLogFormPage() {
     image: "",
   });
   const [isUploading, setIsUploading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
-  // Load Data
-  useEffect(() => {
-    if (id) {
-      const existingLog = list.find((log) => log._id === id);
-      if (existingLog) {
-        setFormData({
-          title: existingLog.title || "",
-          description: existingLog.description || "",
-          image: existingLog.image || "",
-        });
-      }
-      dispatch(fetchDailyLogById(id));
-    } else {
-      dispatch(clearCurrentDailyLog());
-      setFormData({ title: "", description: "", image: "" });
-    }
-  }, [id, dispatch, list]);
+  const createMutation = useCreateDailyLog();
+  const updateMutation = useUpdateDailyLog();
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
-  // Sync with API Data
   useEffect(() => {
-    if (id && currentLog && currentLog._id === id) {
+    if (id && passedLogData) {
       setFormData({
-        title: currentLog.title || "",
-        description: currentLog.description || "",
-        image: currentLog.image || "",
+        title: passedLogData.title || "",
+        description: passedLogData.description || "",
+        image: passedLogData.image || "",
       });
+    } else if (id && !passedLogData) {
+      toast.warn("Backend error: Cannot load data on refresh. Please go back to list and click Edit again.");
     }
-  }, [currentLog, id]);
+  }, [id, passedLogData]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -74,22 +55,18 @@ export default function DailyLogFormPage() {
     if (!formData.title || !formData.description)
       return toast.error("Required fields missing.");
 
-    setIsSaving(true);
     try {
       if (id) {
-        // Redux will call httpService.put(url, formData) -> Body Payload
-        await dispatch(updateDailyLog({ id, ...formData })).unwrap();
-        toast.success("Updated!");
+        await updateMutation.mutateAsync({ id, ...formData });
+        toast.success("Updated successfully!");
       } else {
-        await dispatch(addDailyLog(formData)).unwrap();
-        toast.success("Created!");
+        await createMutation.mutateAsync(formData);
+        toast.success("Created successfully!");
       }
       navigate("/dailylog");
     } catch (err) {
       console.error(err);
-      toast.error("Operation failed.");
-    } finally {
-      setIsSaving(false);
+      toast.error(err.message || "Operation failed.");
     }
   };
 
@@ -97,14 +74,18 @@ export default function DailyLogFormPage() {
     <div className="card shadow-sm p-4">
       <div className="card-header bg-white p-3 d-flex justify-content-between">
         <h5 className="mb-0 text-primary">{id ? "Edit Log" : "New Log"}</h5>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => navigate("/dailylog")}
-        >
+        <button className="btn btn-secondary btn-sm" onClick={() => navigate("/dailylog")}>
           Back
         </button>
       </div>
       <div className="card-body p-4">
+        {id && !passedLogData && !formData.title && (
+          <div className="alert alert-warning">
+            <i className="fas fa-exclamation-triangle me-2"></i>
+            Data could not be loaded. Please go back to the list and try editing again.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
             <label className="form-label fw-bold">Title</label>
@@ -112,11 +93,10 @@ export default function DailyLogFormPage() {
               className="form-control"
               type="text"
               value={formData.title}
-              onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             />
           </div>
+
           <div className="mb-3">
             <label className="form-label fw-bold">Image</label>
             <input
@@ -125,31 +105,40 @@ export default function DailyLogFormPage() {
               onChange={handleImageUpload}
               disabled={isUploading}
             />
-            {isUploading && <small>Uploading...</small>}
+            {isUploading && <small className="text-muted">Uploading...</small>}
             {formData.image && (
-              <img
-                src={formData.image}
-                alt="Prev"
-                className="mt-2 rounded"
-                style={{ height: "100px" }}
-              />
+              <div className="mt-2">
+                <img
+                  src={formData.image}
+                  alt="Preview"
+                  className="rounded border"
+                  style={{ height: "100px", objectFit: 'cover' }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-link text-danger btn-sm"
+                  onClick={() => setFormData({ ...formData, image: "" })}
+                >
+                  Remove
+                </button>
+              </div>
             )}
           </div>
+
           <div className="mb-4">
             <label className="form-label fw-bold">Description</label>
             <RichTextEditor
               value={formData.description}
-              onChange={(html) =>
-                setFormData({ ...formData, description: html })
-              }
+              onChange={(html) => setFormData({ ...formData, description: html })}
             />
           </div>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={isSaving || isUploading}
-          >
-            {isSaving ? "Saving..." : "Save"}
+
+          <button type="submit" className="btn btn-primary" disabled={isSaving || isUploading}>
+            {isSaving ? (
+              <span><i className="fas fa-spinner fa-spin me-2"></i>Saving...</span>
+            ) : (
+              "Save Log"
+            )}
           </button>
         </form>
       </div>

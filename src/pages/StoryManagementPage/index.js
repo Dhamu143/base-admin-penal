@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -32,11 +32,16 @@ export default function StoryManagementPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { data, isLoading, isError, error } = useStories({
-    ...filters,
-    limit: itemsPerPage
-  });
+  const apiFilters = useMemo(() => {
+    return {
+      ...filters,
+      limit: itemsPerPage,
+      god: filters.godId || filters.god || "",
+      godId: undefined,
+    };
+  }, [filters, itemsPerPage]);
 
+  const { data, isLoading, isError, error, isFetching } = useStories(apiFilters);
   const stories = data?.data || [];
   const pagination = data?.pagination || null;
 
@@ -56,15 +61,16 @@ export default function StoryManagementPage() {
     }
   }, [dispatch, godStatus]);
 
-  const handleManualRefresh = () => {
-    queryClient.invalidateQueries(["stories"]);
-    toast.success("List refreshed!");
-  };
+  useEffect(() => {
+    if (filters.page > 1 && (filters.godId || filters.god)) {
+      handlePageChange(1);
+    }
+  }, [filters.godId, filters.god]);
 
   const handleReset = () => {
     resetFilters();
     queryClient.invalidateQueries(["stories"]);
-    toast.info("Filters reset and list refreshed");
+    toast.info("Filters reset");
   };
 
   const handleStatusToggle = async (story) => {
@@ -78,6 +84,7 @@ export default function StoryManagementPage() {
         `Story "${story.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -94,6 +101,7 @@ export default function StoryManagementPage() {
 
       setStoryToDelete(null);
     } catch (err) {
+      // Error handled in hook
     }
   };
 
@@ -147,16 +155,16 @@ export default function StoryManagementPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
+                status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={stories.length}
                 colSpan={7}
                 loadingText="Loading stories..."
                 emptyText="No stories Found."
               />
-              {!isLoading && !isError && Array.isArray(stories) &&
+              {!isLoading && Array.isArray(stories) &&
                 stories.map((storyItem) => (
-                  <tr key={storyItem._id}>
+                  <tr key={storyItem._id} className={isFetching ? "opacity-50" : ""}>
                     <td className="fw-semibold">{storyItem?.name}</td>
                     <td>{storyItem?.god?.name}</td>
                     <td>{getLanguageNameById(storyItem?.language)}</td>
@@ -198,7 +206,7 @@ export default function StoryManagementPage() {
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
-                        onClick={() => navigate(`/story/edit/${storyItem._id}`)}
+                        onClick={() => navigate(`/story/${storyItem._id}/edit`)}
                         title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>

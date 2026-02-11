@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -32,11 +32,16 @@ export default function QuizListPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { data, isLoading, isError, error } = useQuizzes({
-    ...filters,
-    limit: itemsPerPage
-  });
+  const apiFilters = useMemo(() => {
+    return {
+      ...filters,
+      limit: itemsPerPage,
+      god: filters.godId || filters.god || "", 
+      godId: undefined, 
+    };
+  }, [filters, itemsPerPage]);
 
+  const { data, isLoading, isError, error, isFetching } = useQuizzes(apiFilters);
   const quizzes = data?.data || [];
   const pagination = data?.pagination || null;
 
@@ -56,6 +61,12 @@ export default function QuizListPage() {
     }
   }, [dispatch, godStatus]);
 
+  useEffect(() => {
+    if (filters.page > 1 && (filters.godId || filters.god)) {
+       handlePageChange(1);
+    }
+  }, [filters.godId, filters.god]);
+
 
   const handleReset = () => {
     resetFilters();
@@ -74,6 +85,7 @@ export default function QuizListPage() {
         `Quiz status updated to ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
+       // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -90,6 +102,7 @@ export default function QuizListPage() {
 
       setQuizToDelete(null);
     } catch (err) {
+       // Error handled in hook
     }
   };
 
@@ -107,7 +120,7 @@ export default function QuizListPage() {
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Quiz Management</h4>
         <div>
-                   <button
+           <button
             className="btn btn-labeled btn-success"
             style={{ fontSize: "17px" }}
             onClick={() => navigate("/quizzes/new")}
@@ -143,7 +156,7 @@ export default function QuizListPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
+                status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={quizzes.length}
                 colSpan={6}
@@ -152,7 +165,7 @@ export default function QuizListPage() {
               />
               {!isLoading && !isError && Array.isArray(quizzes) &&
                 quizzes.map((quiz) => (
-                  <tr key={quiz._id}>
+                  <tr key={quiz._id} className={isFetching ? "opacity-50" : ""}>
                     <td style={{ maxWidth: "200px" }}>{quiz.question}</td>
                     <td>{quiz.correctanswer}</td>
                     <td>{getLanguageNameById(quiz.language)}</td>

@@ -6,7 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { store } from "./store";
 import { createRoot } from "react-dom/client";
-import { SocketContext, socket } from "./context/socket";
+// import { SocketContext, socket } from "./context/socket";
 
 // 1. Import Query Client
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -27,11 +27,11 @@ root.render(
   <Provider store={store}>
     {/* 3. Wrap App with QueryClientProvider */}
     <QueryClientProvider client={queryClient}>
-      <SocketContext.Provider value={socket}>
+      {/* <SocketContext.Provider value={socket}> */}
         <BrowserRouter>
           <App />
         </BrowserRouter>
-      </SocketContext.Provider>
+      {/* </SocketContext.Provider> */}
     </QueryClientProvider>
   </Provider>
   // </React.StrictMode>

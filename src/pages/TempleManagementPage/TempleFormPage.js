@@ -6,7 +6,6 @@ import RichTextEditor from "../../common/RichTextEditor";
 import { toast } from "react-toastify";
 import { uploadImage } from "../../services/uploadService";
 
-// --- Redux Actions ---
 import {
   fetchTemples,
   addTemple,
@@ -20,7 +19,6 @@ export default function TempleFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // --- Redux State ---
   const { list: temples, status: templeStatus } = useSelector(
     (state) => state.temple
   );
@@ -28,7 +26,6 @@ export default function TempleFormPage() {
     (state) => state.God
   );
 
-  // --- Component State ---
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
@@ -49,7 +46,6 @@ export default function TempleFormPage() {
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- Effects ---
   useEffect(() => {
     if (templeStatus === "idle") dispatch(fetchTemples());
     if (godStatus === "idle") dispatch(fetchAllGods());
@@ -89,30 +85,24 @@ export default function TempleFormPage() {
     }
   }, [formData.language, allGods]);
 
-  // --- Validation ---
   const validateForm = () => {
     const newErrors = {};
 
-    // Temple Name
     if (!formData.name.trim()) {
       newErrors.name = "Temple name is required.";
     }
 
-    // God
     if (!formData.god) {
       newErrors.god = "Please select a God.";
     }
 
-    // Language
     if (!formData.language) {
       newErrors.language = "Please select a language.";
     }
 
-    // Description (strip HTML before checking)
     if (!formData.description.replace(/<[^>]*>?/gm, "").trim()) {
       newErrors.description = "Description / Content is required.";
     }
-    // address
     if (formData.sort === "" || !formData.address.trim()) {
       newErrors.address = "address is required.";
     }
@@ -149,7 +139,6 @@ export default function TempleFormPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- Event Handlers ---
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -170,7 +159,6 @@ export default function TempleFormPage() {
     if (!validateForm()) return;
     setIsSaving(true);
     try {
-      // Correct payload for backend
       const payload = {
         name: formData.name,
         sort: Number(formData.sort),
@@ -185,7 +173,7 @@ export default function TempleFormPage() {
         closeTime: formData.closeTime,
         location: {
           type: "Point",
-          coordinates: [formData.longitude, formData.latitude], // GeoJSON [lng, lat]
+          coordinates: [formData.longitude, formData.latitude], 
         },
         rating: formData.rating,
       };
@@ -197,7 +185,7 @@ export default function TempleFormPage() {
       toast.success(
         id ? "Temple updated successfully!" : "Temple added successfully!"
       );
-      navigate("/temple"); // Navigate to singular temple list page
+      navigate("/temple");
     } catch (err) {
       toast.error(err?.message || "An error occurred while saving.");
     } finally {

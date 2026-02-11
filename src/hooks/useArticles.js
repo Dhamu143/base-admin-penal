@@ -1,28 +1,40 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
-// --- API Functions ---
 
 const fetchArticlesApi = async (params = {}) => {
-    const queryString = new URLSearchParams(
-        Object.fromEntries(
-            Object.entries(params).filter(
-                ([_, v]) => v !== "" && v !== undefined && v !== null
-            )
-        )
-    ).toString();
+    const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+            acc[key] = value;
+        }
+        return acc;
+    }, {});
 
-    const url = queryString ? `/articles?${queryString}` : "/articles";
+    const queryString = new URLSearchParams(cleanParams).toString();
+        const url = queryString ? `/articles?${queryString}` : "/articles";
+
+
     const response = await httpService.get(url);
+    const apiData = response.data;
 
-    // Expected return: { data: [...], pagination: {...} }
-    return response.data?.data;
+    if (apiData?.data?.data && Array.isArray(apiData.data.data)) {
+        return apiData.data;
+    }
+
+    if (apiData?.data && Array.isArray(apiData.data)) {
+        return { data: apiData.data, pagination: apiData.pagination || null };
+    }
+
+    if (Array.isArray(apiData)) {
+        return { data: apiData, pagination: null };
+    }
+
+    return { data: [], pagination: null };
 };
 
 const fetchArticleByIdApi = async (id) => {
     const response = await httpService.get(`/articles/${id}`);
-    // Adjust based on your API: usually response.data.data is the object
     return response.data?.data || response.data;
 };
 
@@ -41,41 +53,37 @@ const deleteArticleApi = async (id) => {
     return response.data;
 };
 
-// --- React Query Hooks ---
-
-// 1. Fetch List
 export const useArticles = (filters) => {
     return useQuery({
         queryKey: ["articles", filters],
         queryFn: () => fetchArticlesApi(filters),
-
-        // ✅ Optimization: Fetch once, keep forever (until mutation or manual refresh)
-        staleTime: Infinity,
+        staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false,
-        keepPreviousData: true,
+        placeholderData: keepPreviousData,
     });
 };
 
-// 2. Fetch Single (For Edit Mode)
 export const useArticle = (id) => {
     return useQuery({
         queryKey: ["article", id],
         queryFn: () => fetchArticleByIdApi(id),
         enabled: !!id,
-
         staleTime: Infinity,
         refetchOnWindowFocus: false,
     });
 };
 
-// 3. Add Mutation
 export const useAddArticle = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: addArticleApi,
         onSuccess: () => {
             toast.success("Article added successfully!");
-            queryClient.invalidateQueries(["articles"]);
+            queryClient.invalidateQueries({ queryKey: ["articles"] });
+            queryClient.invalidateQueries({
+                queryKey: ["dashboardStats"],
+                refetchType: "none"
+            });
         },
         onError: (err) => {
             toast.error(err.response?.data?.message || "Failed to add article");
@@ -83,15 +91,18 @@ export const useAddArticle = () => {
     });
 };
 
-// 4. Update Mutation
 export const useUpdateArticle = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: updateArticleApi,
-        onSuccess: (data, variables) => {
-            // Refresh list AND the specific article details
-            queryClient.invalidateQueries(["articles"]);
-            queryClient.invalidateQueries(["article", variables.id]);
+        onSuccess: (updatedData, variables) => {
+            queryClient.invalidateQueries({ queryKey: ["articles"] });
+            queryClient.setQueryData(["article", variables.id], updatedData);
+
+            queryClient.invalidateQueries({
+                queryKey: ["dashboardStats"],
+                refetchType: "none"
+            });
         },
         onError: (err) => {
             toast.error(err.response?.data?.message || "Failed to update article");
@@ -99,14 +110,17 @@ export const useUpdateArticle = () => {
     });
 };
 
-// 5. Delete Mutation
 export const useDeleteArticle = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: deleteArticleApi,
         onSuccess: () => {
             toast.success("Article deleted successfully.");
-            queryClient.invalidateQueries(["articles"]);
+            queryClient.invalidateQueries({ queryKey: ["articles"] });
+            queryClient.invalidateQueries({
+                queryKey: ["dashboardStats"],
+                refetchType: "none"
+            });
         },
         onError: (err) => {
             toast.error(err.response?.data?.message || "Failed to delete article");

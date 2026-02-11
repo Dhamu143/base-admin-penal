@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useQueryClient } from "@tanstack/react-query"; 
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useMantras,
   useDeleteMantra,
@@ -32,7 +32,7 @@ const styles = `
 export default function MantraListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); 
+  const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const {
@@ -42,10 +42,16 @@ export default function MantraListPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { data, isLoading, isError, error } = useMantras({
-    ...filters,
-    limit: itemsPerPage
-  });
+  const apiFilters = useMemo(() => {
+    return {
+      ...filters,
+      limit: itemsPerPage,
+      god: filters.godId || filters.god || "",
+      godId: undefined,
+    };
+  }, [filters, itemsPerPage]);
+
+  const { data, isLoading, isError, error, isFetching } = useMantras(apiFilters);
 
   const mantras = data?.data || [];
   const pagination = data?.pagination || null;
@@ -66,10 +72,11 @@ export default function MantraListPage() {
     }
   }, [dispatch, godStatus]);
 
-  const handleManualRefresh = () => {
-    queryClient.invalidateQueries(["mantras"]);
-    toast.success("List refreshed!");
-  };
+  useEffect(() => {
+    if (filters.page > 1 && (filters.godId || filters.god)) {
+      handlePageChange(1);
+    }
+  }, [filters.godId, filters.god]);
 
   const handleReset = () => {
     resetFilters();
@@ -161,7 +168,7 @@ export default function MantraListPage() {
               </thead>
               <tbody>
                 <TableStatus
-                  status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
+                  status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                   error={error}
                   dataLength={mantras.length}
                   colSpan={7}
@@ -170,7 +177,7 @@ export default function MantraListPage() {
                 />
                 {!isLoading && !isError && Array.isArray(mantras) &&
                   mantras.map((mantra) => (
-                    <tr key={mantra._id}>
+                    <tr key={mantra._id} className={isFetching ? "opacity-50" : ""}>
                       <td style={{ maxWidth: "100px" }}>{mantra?.name}</td>
                       <td>{mantra?.god?.name}</td>
                       <td>{getLanguageNameById(mantra?.language)}</td>

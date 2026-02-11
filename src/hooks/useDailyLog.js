@@ -1,123 +1,90 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import http from "../common/http.service";
-import { toast } from "react-toastify";
 
 const BASE_PATH = "/dailylog";
 
-// --- API Functions ---
-
-const fetchDailyLogsApi = async (params = {}) => {
-    console.log("🔍 [API] Fetching Daily Logs with params:", params);
+const fetchDailyLogsAPI = async ({ page, limit }) => {
+    const params = { page, limit };
     const response = await http.get(`${BASE_PATH}/all`, params);
-
-    // Normalize Data Structure
-    let rawData = response.data?.data || response.data || [];
-    let list = rawData.data || rawData;
-
-    // Ensure list is an array
-    if (!Array.isArray(list) && typeof list === "object") {
-        list = [list];
-    }
-
-    // Return standardized object
-    return {
-        data: list,
-        pagination: rawData.pagination || null,
-    };
+    return response.data?.data || response.data;
 };
 
-const fetchDailyLogByIdApi = async (id) => {
+const fetchDailyLogByIdAPI = async (id) => {
+    if (!id) return null;
     const response = await http.get(`${BASE_PATH}/${id}`);
     return response.data?.data || response.data;
 };
 
-const addDailyLogApi = async (data) => {
-    // Signature: post(url, params, payload) -> we pass {} for params
-    const response = await http.post(`${BASE_PATH}/add`, {}, data);
+const createDailyLogAPI = async (data) => {
+    const response = await http.post(`${BASE_PATH}/add`, null, data);
     return response.data?.data || response.data;
 };
 
-const updateDailyLogApi = async ({ id, ...data }) => {
-    const response = await http.put(`${BASE_PATH}/edit/${id}`, {}, data);
+const updateDailyLogAPI = async ({ id, ...data }) => {
+    const response = await http.put(`${BASE_PATH}/edit/${id}`, null, data);
     return response.data?.data || response.data;
 };
 
-const deleteDailyLogApi = async (id) => {
-    const response = await http.delete(`${BASE_PATH}/delete/${id}`);
-    return response.data;
+const deleteDailyLogAPI = async (id) => {
+    await http.delete(`${BASE_PATH}/delete/${id}`);
+    return id;
 };
 
-// --- React Query Hooks ---
-
-// 1. Fetch List (Read)
-export const useDailyLogs = (filters) => {
+export const useDailyLogs = (params) => {
     return useQuery({
-        queryKey: ["dailyLogs", filters],
-        queryFn: () => fetchDailyLogsApi(filters),
-
-        // ✅ "Fetch Once, Keep Forever" Optimization
-        staleTime: Infinity,
-        refetchOnWindowFocus: false,
-
+        queryKey: ["dailyLogs", params],
+        queryFn: () => fetchDailyLogsAPI(params),
         keepPreviousData: true,
+        staleTime: Infinity,        
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,    
+        retry: 1,  
     });
 };
 
-// 2. Fetch Single Log (Read)
 export const useDailyLog = (id) => {
     return useQuery({
         queryKey: ["dailyLog", id],
-        queryFn: () => fetchDailyLogByIdApi(id),
+        queryFn: () => fetchDailyLogByIdAPI(id),
         enabled: !!id,
-
-        staleTime: Infinity,
+        staleTime: Infinity, 
+        retry: false,
         refetchOnWindowFocus: false,
     });
 };
 
-// 3. Add Mutation (Write)
-export const useAddDailyLog = () => {
+
+export const useCreateDailyLog = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: addDailyLogApi,
+        mutationFn: createDailyLogAPI,
         onSuccess: () => {
-            toast.success("Daily Log added successfully!");
-            // 🚀 Force refresh list
             queryClient.invalidateQueries(["dailyLogs"]);
-        },
-        onError: (err) => {
-            toast.error(err.response?.data?.message || "Failed to add log");
         },
     });
 };
 
-// 4. Update Mutation (Write)
 export const useUpdateDailyLog = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: updateDailyLogApi,
+        mutationFn: updateDailyLogAPI,
         onSuccess: (data, variables) => {
-            // 🚀 Refresh list AND specific detail
             queryClient.invalidateQueries(["dailyLogs"]);
             queryClient.invalidateQueries(["dailyLog", variables.id]);
-        },
-        onError: (err) => {
-            toast.error(err.response?.data?.message || "Failed to update log");
+            queryClient.invalidateQueries(["dashboardStats"]);
+
         },
     });
 };
 
-// 5. Delete Mutation (Write)
 export const useDeleteDailyLog = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: deleteDailyLogApi,
+        mutationFn: deleteDailyLogAPI,
         onSuccess: () => {
-            toast.success("Daily Log deleted successfully.");
             queryClient.invalidateQueries(["dailyLogs"]);
-        },
-        onError: (err) => {
-            toast.error(err.response?.data?.message || "Failed to delete log");
+            queryClient.invalidateQueries(["dashboardStats"]);
+
         },
     });
 };

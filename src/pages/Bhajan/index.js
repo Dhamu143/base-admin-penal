@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useQueryClient } from "@tanstack/react-query"; // Import QueryClient
+import { useQueryClient } from "@tanstack/react-query";
 
-// New Hooks
 import {
   useBhajans,
   useDeleteBhajan,
@@ -23,7 +22,7 @@ import { useFilters } from "../../hooks/useFilters";
 export default function BhajanListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); 
+  const queryClient = useQueryClient();
   const {
     filters,
     handleFilterChange,
@@ -31,12 +30,16 @@ export default function BhajanListPage() {
     resetFilters,
   } = useFilters();
   const itemsPerPage = 10;
+  const apiFilters = useMemo(() => {
+    return {
+      ...filters,
+      limit: itemsPerPage,
+      god: filters.godId || filters.god || "",
+      godId: undefined,
+    };
+  }, [filters, itemsPerPage]);
 
-  const { data, isLoading, isError, error } = useBhajans({
-    ...filters,
-    limit: itemsPerPage
-  });
-
+  const { data, isLoading, isError, error, isFetching } = useBhajans(apiFilters);
   const bhajans = data?.data || [];
   const pagination = data?.pagination || null;
 
@@ -56,6 +59,11 @@ export default function BhajanListPage() {
     }
   }, [dispatch, godStatus]);
 
+  useEffect(() => {
+    if (filters.page > 1 && (filters.godId || filters.god)) {
+      handlePageChange(1);
+    }
+  }, [filters.godId, filters.god]);
 
   const handleReset = () => {
     resetFilters();
@@ -84,6 +92,11 @@ export default function BhajanListPage() {
     if (!bhajanToDelete) return;
     try {
       await deleteMutation.mutateAsync(bhajanToDelete._id);
+
+      if (bhajans.length === 1 && filters.page > 1) {
+        handlePageChange(filters.page - 1);
+      }
+
       setBhajanToDelete(null);
     } catch (err) {
       // Error handled in hook
@@ -100,7 +113,6 @@ export default function BhajanListPage() {
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Bhajan Management</h4>
         <div>
-
           <button
             className="btn btn-success"
             onClick={() => navigate("/bhajans/new")}
@@ -113,7 +125,7 @@ export default function BhajanListPage() {
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={handleReset} 
+        onReset={handleReset}
         godOptions={godOptions}
         godStatus={godStatus}
       />
@@ -134,7 +146,7 @@ export default function BhajanListPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
+                status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={bhajans.length}
                 colSpan={7}
@@ -143,7 +155,7 @@ export default function BhajanListPage() {
               />
               {!isLoading && !isError && Array.isArray(bhajans) &&
                 bhajans.map((b) => (
-                  <tr key={b._id}>
+                  <tr key={b._id} className={isFetching ? "opacity-50" : ""}>
                     <td className="fw-bold">{b.name}</td>
                     <td>{b?.god?.name}</td>
                     <td>

@@ -11,7 +11,7 @@ import PrivateRoute from "./routes/privateRoute";
 import Dashboard from "./pages/dashboard";
 import SignUp from "./pages/signUp";
 import { IsTokenExpired } from "./common/jwtToken";
-import { SocketContext } from "./context/socket";
+// import { SocketContext } from "./context/socket";
 import { useContext } from "react";
 import { useDispatch } from "react-redux";
 
@@ -54,7 +54,7 @@ import SendNotificationPage from "./pages/SendNotificationPage/index.js"
 function App() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const socket = useContext(SocketContext);
+  // const socket = useContext(SocketContext);
   const audioRef = useRef(null);
   const token = localStorage.getItem("token");
   useEffect(() => {
@@ -66,17 +66,17 @@ function App() {
       }
     }
 
-    socket.on("orderplace", async (data) => {
-      console.log(data);
-      if (audioRef.current) {
-        audioRef.current.play().catch((error) => {
-          // Handle errors in case play fails
-          console.error("Error playing audio:", error);
-        });
-      }
-      // dispatch(handleAddOrder(data));
-      // toast.success("You have new order");
-    });
+    // socket.on("orderplace", async (data) => {
+    //   console.log(data);
+    //   if (audioRef.current) {
+    //     audioRef.current.play().catch((error) => {
+    //       // Handle errors in case play fails
+    //       console.error("Error playing audio:", error);
+    //     });
+    //   }
+    //   // dispatch(handleAddOrder(data));
+    //   // toast.success("You have new order");
+    // });
   }, [token]);
 
   return (

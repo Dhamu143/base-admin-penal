@@ -2,10 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
-
-// Hooks
 import { useUsers, useDeleteUser } from "../../hooks/useUsers";
-
 import CustomPagination from "../../common/Pagination";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
@@ -13,37 +10,31 @@ import { TableStatus } from "../../components/TableStatus";
 
 export default function UserTablePage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); // For manual refresh
+  const queryClient = useQueryClient(); 
 
-  // Local State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // 1. Fetch Data (React Query)
   const { data, isLoading, isError, error } = useUsers(currentPage, itemsPerPage);
 
   const users = data?.users || [];
   const pagination = data?.pagination || null;
 
-  // 2. Delete Mutation
   const deleteMutation = useDeleteUser();
 
   const [userToDelete, setUserToDelete] = useState(null);
 
-  // ✅ Manual Refresh Handler
   const handleManualRefresh = () => {
     queryClient.invalidateQueries(["users"]);
     toast.success("User list refreshed!");
   };
 
-  // --- Delete Logic ---
   const handleDelete = async () => {
     if (!userToDelete) return;
 
     try {
       await deleteMutation.mutateAsync(userToDelete._id);
 
-      // Pagination logic: if deleted last item on page, go back
       if (users.length === 1 && currentPage > 1) {
         setCurrentPage((prev) => prev - 1);
       }
@@ -56,11 +47,9 @@ export default function UserTablePage() {
 
   return (
     <div className="card shadow-sm">
-      {/* Header */}
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">User Management</h4>
         <div>
-          {/* Manual Refresh Button */}
           <button
             className="btn btn-outline-secondary btn-sm"
             onClick={handleManualRefresh}
@@ -71,7 +60,6 @@ export default function UserTablePage() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle">
@@ -90,7 +78,6 @@ export default function UserTablePage() {
               </tr>
             </thead>
             <tbody>
-              {/* Table Status Handling */}
               <TableStatus
                 status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
@@ -162,7 +149,6 @@ export default function UserTablePage() {
                       {user.deviceid}
                     </td>
 
-                    {/* Delete Button */}
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-danger"
@@ -179,7 +165,6 @@ export default function UserTablePage() {
         </div>
       </div>
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
         <div className="card-footer">
           <CustomPagination
@@ -192,7 +177,6 @@ export default function UserTablePage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         show={userToDelete !== null}
         onClose={() => setUserToDelete(null)}

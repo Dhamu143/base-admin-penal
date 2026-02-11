@@ -64,15 +64,12 @@ function Dashboard() {
       </div>
 
       <div className="row m-3">
-        {/* Error State Handling */}
         {isError && (
           <div className="alert alert-danger w-100">Failed to load dashboard stats.</div>
         )}
 
-        {/* Data Mapping */}
         {Array.isArray(dashboardCards) &&
           dashboardCards.map((card) => {
-            // Default stats if data hasn't loaded yet
             const stats = dashboard?.[card.valueKey] || {
               total: 0,
               active: 0,

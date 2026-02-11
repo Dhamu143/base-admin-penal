@@ -1,34 +1,29 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
-// --- API Functions ---
 
 const fetchBhajansApi = async (params = {}) => {
-  const cleanParams = Object.fromEntries(
-    Object.entries(params).filter(
-      ([_, v]) => v !== "" && v !== null && v !== undefined
-    )
-  );
+  const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
+    if (value !== "" && value !== null && value !== undefined) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
 
   const queryString = new URLSearchParams(cleanParams).toString();
   const url = queryString ? `/bhajan?${queryString}` : "/bhajan";
   const response = await httpService.get(url);
+  const apiData = response.data;
 
-  const apiData = response.data; // Layer 1
-
-  // ✅ FIX: Check deeper nesting first (response.data.data.data)
-  // This is the common structure for paginated responses
   if (apiData?.data?.data && Array.isArray(apiData.data.data)) {
-    return apiData.data; // Returns object { data: [...], pagination: {...} }
+    return apiData.data;
   }
 
-  // Check shallow nesting (response.data.data is the array)
   if (apiData?.data && Array.isArray(apiData.data)) {
     return { data: apiData.data, pagination: apiData.pagination || null };
   }
 
-  // Fallback: If response.data itself is the array
   if (Array.isArray(apiData)) {
     return { data: apiData, pagination: null };
   }
@@ -55,16 +50,13 @@ const deleteBhajanApi = async (id) => {
   const response = await httpService.delete(`/bhajan/${id}`);
   return response.data;
 };
-
-// --- React Query Hooks ---
-
 export const useBhajans = (filters) => {
   return useQuery({
     queryKey: ["bhajans", filters],
     queryFn: () => fetchBhajansApi(filters),
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -84,7 +76,11 @@ export const useAddBhajan = () => {
     mutationFn: addBhajanApi,
     onSuccess: () => {
       toast.success("Bhajan added successfully!");
-      queryClient.invalidateQueries(["bhajans"]);
+      queryClient.invalidateQueries({ queryKey: ["bhajans"] });
+      queryClient.invalidateQueries({
+        queryKey: ["dashboardStats"],
+        refetchType: "none"
+      });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to add Bhajan");
@@ -96,9 +92,15 @@ export const useUpdateBhajan = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: updateBhajanApi,
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries(["bhajans"]);
-      queryClient.invalidateQueries(["bhajan", variables.id]);
+    onSuccess: (updatedData, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["bhajans"] });
+
+      queryClient.setQueryData(["bhajan", variables.id], updatedData);
+
+      queryClient.invalidateQueries({
+        queryKey: ["dashboardStats"],
+        refetchType: "none"
+      });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to update Bhajan");
@@ -112,7 +114,11 @@ export const useDeleteBhajan = () => {
     mutationFn: deleteBhajanApi,
     onSuccess: () => {
       toast.success("Bhajan deleted successfully.");
-      queryClient.invalidateQueries(["bhajans"]);
+      queryClient.invalidateQueries({ queryKey: ["bhajans"] });
+      queryClient.invalidateQueries({
+        queryKey: ["dashboardStats"],
+        refetchType: "none"
+      });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete Bhajan");

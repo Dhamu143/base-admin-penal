@@ -1,7 +1,16 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useTemples,
+  useDeleteTemple,
+  useUpdateTemple
+} from "../../hooks/useTemple";
+
+import { fetchAllGods } from "../../store/god";
+import { staticLanguages } from "../../constants/languages";
 
 import FilterBar from "../../common/FilterBar";
 import { useFilters } from "../../hooks/useFilters";
@@ -10,13 +19,10 @@ import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 
-import { fetchTemples, deleteTemple, updateTemple } from "../../store/temple";
-import { fetchAllGods } from "../../store/god";
-import { staticLanguages } from "../../constants/languages";
-
 export default function TempleListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const {
@@ -26,26 +32,29 @@ export default function TempleListPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { list: temples, pagination, status, error } = useSelector(
-    (state) => state.temple
-  );
+  const apiFilters = useMemo(() => {
+    return {
+      ...filters,
+      limit: itemsPerPage,
+      god: filters.godId || filters.god || "",
+      godId: undefined,
+    };
+  }, [filters, itemsPerPage]);
+
+  const { data, isLoading, isError, error, isFetching } = useTemples(apiFilters); 
+
+  const temples = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  const deleteMutation = useDeleteTemple();
+  const updateMutation = useUpdateTemple();
+
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
   const [templeToDelete, setTempleToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
-
-  const loadTemples = useCallback(() => {
-    dispatch(fetchTemples({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load temples."));
-  }, [dispatch, filters, itemsPerPage]);
-
-  useEffect(() => {
-    loadTemples();
-  }, [loadTemples]);
 
   useEffect(() => {
     if (godStatus === "idle") {
@@ -53,22 +62,34 @@ export default function TempleListPage() {
     }
   }, [dispatch, godStatus]);
 
+  useEffect(() => {
+    if (filters.page > 1 && (filters.godId || filters.god)) {
+      handlePageChange(1);
+    }
+  }, [filters.godId, filters.god]);
+
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["temples"]);
+    toast.success("List refreshed!");
+  };
+
+  const handleReset = () => {
+    resetFilters();
+    toast.info("Filters reset and list refreshed");
+  };
+
   const handleStatusToggle = async (temple) => {
     if (togglingId === temple._id) return;
-
     setTogglingId(temple._id);
     const newStatus = !temple.isActive;
 
     try {
-      await dispatch(
-        updateTemple({ id: temple._id, isActive: newStatus })
-      ).unwrap();
-
+      await updateMutation.mutateAsync({ id: temple._id, isActive: newStatus });
       toast.success(
         `Temple "${temple.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -76,21 +97,16 @@ export default function TempleListPage() {
 
   const confirmDelete = async () => {
     if (!templeToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteTemple(templeToDelete._id)).unwrap();
-      toast.success(`Temple "${templeToDelete.name}" deleted successfully.`);
+      await deleteMutation.mutateAsync(templeToDelete._id);
 
       if (temples.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
-      } else {
-        loadTemples();
       }
+
       setTempleToDelete(null);
     } catch (err) {
-      toast.error(err?.message || "Failed to delete temple.");
-    } finally {
-      setIsDeleting(false);
+      // Error handled in hook
     }
   };
 
@@ -106,22 +122,24 @@ export default function TempleListPage() {
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Temple Management</h4>
-        <button
-          className="btn btn-labeled btn-success"
-          style={{ fontSize: "17px" }}
-          onClick={() => navigate("/temples/new")}
-        >
-          <span className="btn-label me-2">
-            <i className="fas fa-plus"></i>
-          </span>
-          Add New Temple
-        </button>
+        <div>
+          <button
+            className="btn btn-labeled btn-success"
+            style={{ fontSize: "17px" }}
+            onClick={() => navigate("/temples/new")}
+          >
+            <span className="btn-label me-2">
+              <i className="fas fa-plus"></i>
+            </span>
+            Add New Temple
+          </button>
+        </div>
       </div>
 
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={resetFilters}
+        onReset={handleReset}
         godOptions={godOptions}
         godStatus={godStatus}
       />
@@ -140,16 +158,16 @@ export default function TempleListPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={status}
+                status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={temples.length}
                 colSpan={5}
                 loadingText="Loading temples..."
                 emptyText="No temples Found."
               />
-              {status === "succeeded" &&
+              {!isLoading && !isError && Array.isArray(temples) &&
                 temples.map((temple) => (
-                  <tr key={temple._id}>
+                  <tr key={temple._id} className={isFetching ? "opacity-50" : ""}>
                     <td>
                       {temple.files ? (
                         <DynamicImage
@@ -241,7 +259,7 @@ export default function TempleListPage() {
         onConfirm={confirmDelete}
         title="Confirm Deletion"
         confirmText="Delete"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">

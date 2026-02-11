@@ -1,22 +1,36 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
-// --- API Functions ---
-
 const fetchAartisApi = async (params = {}) => {
-    const queryString = new URLSearchParams(
-        Object.fromEntries(
-            Object.entries(params).filter(
-                ([_, v]) => v !== "" && v !== undefined && v !== null
-            )
-        )
-    ).toString();
+    const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== "" && value !== null && value !== undefined) {
+            acc[key] = value;
+        }
+        return acc;
+    }, {});
+
+    const queryString = new URLSearchParams(cleanParams).toString();
 
     const url = queryString ? `/aarti?${queryString}` : "/aarti";
-    const response = await httpService.get(url);
 
-    return response.data?.data;
+
+    const response = await httpService.get(url);
+    const apiData = response.data;
+
+    if (apiData?.data?.data && Array.isArray(apiData.data.data)) {
+        return apiData.data;
+    }
+
+    if (apiData?.data && Array.isArray(apiData.data)) {
+        return { data: apiData.data, pagination: apiData.pagination || null };
+    }
+
+    if (Array.isArray(apiData)) {
+        return { data: apiData, pagination: null };
+    }
+
+    return { data: [], pagination: null };
 };
 
 const fetchAartiByIdApi = async (id) => {
@@ -39,36 +53,25 @@ const deleteAartiApi = async (id) => {
     return response.data;
 };
 
-// --- React Query Hooks ---
-
-// 1. Fetch List (Optimized)
 export const useAartis = (filters) => {
     return useQuery({
         queryKey: ["aartis", filters],
         queryFn: () => fetchAartisApi(filters),
-
-        // ✅ "Fetch Once, Cache Forever" Logic
-        staleTime: Infinity,
+        staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false,
-
-        keepPreviousData: true,
+        placeholderData: keepPreviousData,
     });
 };
 
-// 2. Fetch Single Detail (Optimized)
 export const useAarti = (id) => {
     return useQuery({
         queryKey: ["aarti", id],
         queryFn: () => fetchAartiByIdApi(id),
         enabled: !!id,
-
-        // ✅ Cache details too so navigating back to edit page is instant
         staleTime: Infinity,
         refetchOnWindowFocus: false,
     });
 };
-
-// 3. Mutations (These force the updates)
 
 export const useAddAarti = () => {
     const queryClient = useQueryClient();
@@ -76,8 +79,11 @@ export const useAddAarti = () => {
         mutationFn: addAartiApi,
         onSuccess: () => {
             toast.success("Aarti added successfully!");
-            // 🚀 Forces a refetch because user added data
-            queryClient.invalidateQueries(["aartis"]);
+            queryClient.invalidateQueries({ queryKey: ["aartis"] });
+            queryClient.invalidateQueries({
+                queryKey: ["dashboardStats"],
+                refetchType: "none"
+            });
         },
         onError: (err) => {
             toast.error(err.response?.data?.message || "Failed to add Aarti");
@@ -89,10 +95,15 @@ export const useUpdateAarti = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: updateAartiApi,
-        onSuccess: (data, variables) => {
-            // 🚀 Forces a refetch because user changed data
-            queryClient.invalidateQueries(["aartis"]);
-            queryClient.invalidateQueries(["aarti", variables.id]);
+        onSuccess: (updatedData, variables) => {
+            queryClient.invalidateQueries({ queryKey: ["aartis"] });
+
+            queryClient.setQueryData(["aarti", variables.id], updatedData);
+
+            queryClient.invalidateQueries({
+                queryKey: ["dashboardStats"],
+                refetchType: "none"
+            });
         },
         onError: (err) => {
             toast.error(err.response?.data?.message || "Failed to update Aarti");
@@ -105,9 +116,12 @@ export const useDeleteAarti = () => {
     return useMutation({
         mutationFn: deleteAartiApi,
         onSuccess: () => {
-            toast.success("Deleted successfully.");
-            // 🚀 Forces a refetch because user deleted data
-            queryClient.invalidateQueries(["aartis"]);
+            toast.success("Aarti deleted successfully.");
+            queryClient.invalidateQueries({ queryKey: ["aartis"] });
+            queryClient.invalidateQueries({
+                queryKey: ["dashboardStats"],
+                refetchType: "none"
+            });
         },
         onError: (err) => {
             toast.error(err.response?.data?.message || "Failed to delete Aarti");

@@ -139,7 +139,6 @@ export default function PostVerificationPage() {
           </ul>
         </div>
 
-        {/* TABLE CONTENT */}
         <div className="card-body p-0">
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">

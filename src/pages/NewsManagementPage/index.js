@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -43,11 +43,16 @@ export default function NewsManagementPage() {
     resetFilters,
   } = useFilters(1);
 
-  const { data, isLoading, isError, error } = useNewsList({
-    ...filters,
-    limit: itemsPerPage
-  });
+  const apiFilters = useMemo(() => {
+    return {
+      ...filters,
+      limit: itemsPerPage,
+      god: filters.godId || filters.god || "",
+      godId: undefined,
+    };
+  }, [filters, itemsPerPage]);
 
+  const { data, isLoading, isError, error, isFetching } = useNewsList(apiFilters);
   const news = data?.data || [];
   const pagination = data?.pagination || null;
 
@@ -67,10 +72,16 @@ export default function NewsManagementPage() {
     }
   }, [dispatch, godStatus]);
 
+  useEffect(() => {
+    if (filters.page > 1 && (filters.godId || filters.god)) {
+      handlePageChange(1);
+    }
+  }, [filters.godId, filters.god]);
+
   const handleReset = () => {
     resetFilters();
     queryClient.invalidateQueries(["newsList"]);
-    toast.info("Filters reset and list refreshed");
+    toast.info("Filters reset");
   };
 
   const handleStatusToggle = async (newsItem) => {
@@ -84,6 +95,7 @@ export default function NewsManagementPage() {
         `News "${newsItem.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -93,13 +105,12 @@ export default function NewsManagementPage() {
     if (!newsToDelete) return;
     try {
       await deleteMutation.mutateAsync(newsToDelete._id);
-
       if (news.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
       }
-
       setNewsToDelete(null);
     } catch (err) {
+      // Error handled in hook
     }
   };
 
@@ -120,6 +131,7 @@ export default function NewsManagementPage() {
         <div>
           <button
             className="btn btn-labeled btn-success"
+            style={{ fontSize: "17px" }}
             onClick={() => navigate("/news/new")}
           >
             <span className="btn-label me-2">
@@ -154,7 +166,7 @@ export default function NewsManagementPage() {
             </thead>
             <tbody>
               <TableStatus
-                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
+                status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={news.length}
                 colSpan={7}
@@ -163,7 +175,7 @@ export default function NewsManagementPage() {
               />
               {!isLoading && !isError && Array.isArray(news) &&
                 news.map((newsItem) => (
-                  <tr key={newsItem._id}>
+                  <tr key={newsItem._id} className={isFetching ? "opacity-50" : ""}>
                     <td className="fw-semibold">{newsItem?.name}</td>
                     <td>{newsItem?.god?.name}</td>
                     <td>{getLanguageNameById(newsItem?.language)}</td>
@@ -188,7 +200,7 @@ export default function NewsManagementPage() {
                         />
                         <label className="form-check-label small ms-1">
                           {togglingId === newsItem._id
-                            ? "..."
+                            ? <span className="spinner-border spinner-border-sm text-secondary"></span>
                             : newsItem.isActive
                               ? "Active"
                               : "Inactive"}
@@ -198,7 +210,7 @@ export default function NewsManagementPage() {
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
-                        onClick={() => navigate(`/news/edit/${newsItem._id}`)}
+                        onClick={() => navigate(`/news/${newsItem._id}/edit`)}
                       >
                         <i className="fas fa-pencil-alt"></i>
                       </button>

@@ -1,37 +1,43 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { toast } from "react-toastify";
-import Select from "react-select";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Select from "react-select";
 
+// Common Components
 import CustomPagination from "../../common/Pagination";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import DynamicImage from "../../components/PostPreview/PostPreview";
-
-import { staticLanguages } from "../../constants/languages";
-import { fetchGods, deleteGod } from "../../store/god/index";
 import { TableStatus } from "../../components/TableStatus";
 
+import { staticLanguages } from "../../constants/languages";
+
+import { useGodsList, useDeleteGod } from "../../hooks/useGod"; 
 export default function GodTablePage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const itemsPerPage = 10;
+
+  const [page, setPage] = useState(1);
+  const [selectedLanguage, setSelectedLanguage] = useState(null); 
+  const [godToDelete, setGodToDelete] = useState(null);
+
+  const languageValue = selectedLanguage?.value || "";
 
   const {
-    list: gods,
-    status,
-    masterList,
-    masterStatus,
-    error,
-    currentPage,
-    totalPages,
-    totalItems,
-  } = useSelector((state) => state.God);
+    data,
+    isLoading,
+    isError,
+    error
+  } = useGodsList({
+    page,
+    limit: itemsPerPage,
+    language: languageValue,
+  });
 
-  const [filters, setFilters] = useState({ language: "" });
-  const [godToDelete, setGodToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const gods = data?.data || []; 
+  const pagination = data?.pagination || {};
+  const totalItems = pagination.totalRecords || 0;
+  const totalPages = pagination.totalPages || 0;
 
-  const itemsPerPage = 10;
+  const deleteMutation = useDeleteGod();
 
   const languageOptions = [
     { value: "", label: "All Languages" },
@@ -41,58 +47,34 @@ export default function GodTablePage() {
     })),
   ];
 
-  const selectedLanguage = languageOptions.find(
-    (opt) => opt.value === filters.language
-  );
   const getLanguageNameById = (langId) =>
     staticLanguages.find((l) => l._id === langId)?.nativeName || "N/A";
 
-  const loadGods = useCallback(
-    (page = 1) => {
-      dispatch(
-        fetchGods({
-          page,
-          limit: itemsPerPage,
-          language: filters.language,
-        })
-      )
-        .unwrap()
-        .catch((err) => toast.error(err || "Failed to load gods."));
-    },
-    [dispatch, filters.language]
-  );
-
-  useEffect(() => {
-    loadGods(1);
-  }, [loadGods]);
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+  };
 
   const handleLanguageChange = (option) => {
-    setFilters({ language: option?.value || "" });
-    loadGods(1);
+    setSelectedLanguage(option);
+    setPage(1); 
   };
 
   const handleResetFilters = () => {
-    setFilters({ language: "" });
-    loadGods(1);
+    setSelectedLanguage(null);
+    setPage(1);
   };
 
   const handleDelete = async () => {
     if (!godToDelete) return;
-    setIsDeleting(true);
-    try {
-      await dispatch(deleteGod(godToDelete._id)).unwrap();
-      toast.success("God deleted successfully.");
 
-      const pageToFetch =
-        gods.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
-      loadGods(pageToFetch);
-
-      setGodToDelete(null);
-    } catch (err) {
-      toast.error(err?.message || "Error deleting god.");
-    } finally {
-      setIsDeleting(false);
-    }
+    deleteMutation.mutate(godToDelete._id, {
+      onSuccess: () => {
+        setGodToDelete(null);
+        if (gods.length === 1 && page > 1) {
+          setPage((prev) => prev - 1);
+        }
+      }
+    });
   };
 
   return (
@@ -128,6 +110,7 @@ export default function GodTablePage() {
         </button>
       </div>
 
+      {/* Table */}
       <div className="card-body">
         <div className="table-responsive">
           <table className="table table-hover align-middle">
@@ -143,61 +126,62 @@ export default function GodTablePage() {
             </thead>
             <tbody>
               <TableStatus
-                status={status}
+                status={isLoading ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={gods.length}
-                colSpan={7}
+                colSpan={6}
                 loadingText="Loading gods..."
                 emptyText="No gods Found."
               />
-              {status === "succeeded" &&
-                gods.map((god) => (
-                  <tr key={god._id}>
-                    <td>
-                      <DynamicImage
-                        src={god.featureimage || god.master?.featureimage}
-                        alt={god.name}
-                        style={{
-                          width: 60,
-                          height: 60,
-                          borderRadius: "50%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    </td>
-                    <td>{god.name}</td>
-                    <td>{getLanguageNameById(god.language)}</td>
-                    <td>{god.master?.name || "None"}</td>
-                    <td>{god.sort}</td>
-                    <td className="text-center">
-                      <button
-                        className="btn btn-sm btn-outline-secondary mr-2"
-                        onClick={() => navigate(`/god-form/${god._id}`)}
-                      >
-                        <em className="fas fa-pencil-alt"></em>
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => setGodToDelete(god)}
-                      >
-                        <em className="fas fa-trash"></em>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+
+              {!isLoading && !isError && gods.map((god) => (
+                <tr key={god._id}>
+                  <td>
+                    <DynamicImage
+                      src={god.featureimage || god.master?.featureimage}
+                      alt={god.name}
+                      style={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  </td>
+                  <td>{god.name}</td>
+                  <td>{getLanguageNameById(god.language)}</td>
+                  <td>{god.master?.name || "None"}</td>
+                  <td>{god.sort}</td>
+                  <td className="text-center">
+                    <button
+                      className="btn btn-sm btn-outline-secondary mr-2"
+                      onClick={() => navigate(`/god-form/${god._id}`)}
+                    >
+                      <em className="fas fa-pencil-alt"></em>
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => setGodToDelete(god)}
+                    >
+                      <em className="fas fa-trash"></em>
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
 
+      {/* Pagination */}
       {totalItems > itemsPerPage && (
         <div className="card-footer">
           <CustomPagination
-            currentPage={currentPage}
+            currentPage={page}
             totalPages={totalPages}
             totalItems={totalItems}
             itemsPerPage={itemsPerPage}
-            onPageChange={loadGods}
+            onPageChange={handlePageChange}
           />
         </div>
       )}
@@ -208,7 +192,7 @@ export default function GodTablePage() {
         onConfirm={handleDelete}
         title="Confirm Deletion"
         confirmText="Delete"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending} 
         confirmButtonVariant="danger"
       >
         <p className="fs-5 text-center">

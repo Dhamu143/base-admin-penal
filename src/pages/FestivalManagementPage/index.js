@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
-  fetchFestivals,
-  deleteFestival,
-  updateFestival,
-} from "../../store/festival/index";
+  useFestivals,
+  useDeleteFestival,
+  useUpdateFestival
+} from "../../hooks/useFestival";
+
 import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -23,300 +25,195 @@ const languageOptions = [
   })),
 ];
 
-const styles = `
-  .truncate-text {
-    max-width: 250px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: inline-block;
-    vertical-align: middle;
-  }
-`;
-
 export default function FestivalListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const { list: festivals, pagination, status, error } = useSelector(
-    (state) => state.festivals
-  );
+  const [filters, setFilters] = useState({ language: "", page: 1 });
+  const [festivalToDelete, setFestivalToDelete] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
+  const itemsPerPage = 10;
+  const { data, isLoading, isError, error, isFetching } = useFestivals({
+    ...filters,
+    limit: itemsPerPage,
+  });
 
-  const { masterList: allGods = [], masterStatus: godStatus } = useSelector(
+  const festivals = data?.data || [];
+  const pagination = data?.pagination || null;
+
+  const deleteMutation = useDeleteFestival();
+  const updateMutation = useUpdateFestival();
+
+  const { masterStatus: godStatus } = useSelector(
     (state) => state.God || {}
   );
 
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [festivalToDelete, setFestivalToDelete] = useState(null);
-
-  // ✅ Track which item is currently toggling to show spinner
-  const [togglingId, setTogglingId] = useState(null);
-
-  const [filters, setFilters] = useState({ language: "", god: "", page: 1 });
-  const itemsPerPage = 10;
-
-  const loadFestivals = useCallback(() => {
-    dispatch(fetchFestivals({ ...filters, limit: itemsPerPage }))
-      .unwrap()
-      .catch((err) => toast.error(err?.message || "Failed to load festivals."));
-  }, [dispatch, filters, itemsPerPage]);
-
   useEffect(() => {
-    loadFestivals();
-  }, [loadFestivals]);
-
-  useEffect(() => {
-    if (godStatus === "idle") {
-      dispatch(fetchAllGods());
-    }
+    if (godStatus === "idle") dispatch(fetchAllGods());
   }, [dispatch, godStatus]);
 
+  // Handlers
   const handleStatusToggle = async (festival) => {
     if (togglingId === festival._id) return;
-    setFilters({ language: "", god: "", page: 1 });
-
     setTogglingId(festival._id);
-    const newStatus = !festival.isActive;
-
     try {
-      await dispatch(
-        updateFestival({ id: festival._id, isActive: newStatus })
-      ).unwrap();
-      toast.success(
-        `Festival "${festival.name}" is now ${
-          newStatus ? "Active" : "Inactive"
-        }`
-      );
+      await updateMutation.mutateAsync({
+        id: festival._id,
+        isActive: !festival.isActive
+      });
+      toast.success(`Festival "${festival.name}" status updated.`);
     } catch (err) {
-      toast.error(err?.message || "Failed to update status.");
+      toast.error("Failed to update status.");
     } finally {
       setTogglingId(null);
     }
   };
 
-  const getLanguageNameById = (langId) =>
-    staticLanguages.find((lang) => lang._id === langId)?.nativeName || "N/A";
-
-  const handleLanguageChange = (option) => {
-    const value = option?.value || "";
-    setFilters((prev) => ({ ...prev, language: value, page: 1 }));
-  };
-
-  const handleResetFilters = () => {
-    setFilters({ language: "", god: "", page: 1 });
-  };
-
-  const handlePageChange = (newPage) => {
-    if (newPage !== filters.page) {
-      setFilters((prev) => ({ ...prev, page: newPage }));
-    }
-  };
-
   const confirmDelete = async () => {
     if (!festivalToDelete) return;
-    setIsDeleting(true);
     try {
-      await dispatch(deleteFestival(festivalToDelete._id)).unwrap();
-      toast.success(
-        `Festival "${festivalToDelete.name}" deleted successfully.`
-      );
-
+      await deleteMutation.mutateAsync(festivalToDelete._id);
       if (festivals.length === 1 && filters.page > 1) {
         setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
-      } else {
-        loadFestivals();
       }
       setFestivalToDelete(null);
+      toast.success("Festival deleted.");
     } catch (err) {
-      toast.error(err?.message || "Failed to delete the festival.");
-    } finally {
-      setIsDeleting(false);
+      toast.error("Delete failed.");
     }
   };
 
-  const godOptions = [
-    { value: "", label: "All Gods" },
-    ...(allGods || []).map((god) => ({ value: god._id, label: god.name })),
-  ];
-
-  const selectedLanguage = languageOptions.find(
-    (opt) => opt.value === filters.language
-  );
-  const selectedGod = godOptions.find((opt) => opt.value === filters.god);
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries(["festivals"]);
+    toast.success("List refreshed!");
+  };
 
   return (
-    <>
-      <style>{styles}</style>
-      <div className="card shadow-sm">
-        <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
-          <h4 className="mb-0 text-primary-emphasis">Festival Management</h4>
+    <div className="card shadow-sm">
+      <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
+        <h4 className="mb-0 text-primary-emphasis">Festival Management</h4>
+        <div>
+
           <button
-            className="btn btn-labeled btn-success"
-            type="button"
-            style={{ fontSize: "17px" }}
+            className="btn btn-success"
             onClick={() => navigate("/festivals/new")}
           >
-            <span className="btn-label me-2">
-              <i className="fas fa-plus"></i>
-            </span>
-            Add New Festival
+            <i className="fas fa-plus mr-2"></i> Add New Festival
           </button>
         </div>
-
-        <div className="card-body border-bottom">
-          <div className="d-flex flex-column flex-md-row align-items-md-center">
-            <div className="me-md-4 mb-3 mb-md-0" style={{ minWidth: "250px" }}>
-              <label className="form-label fw-bold small mb-1">
-                Filter by Language
-              </label>
-              <Select
-                placeholder="Select Language..."
-                options={languageOptions}
-                value={selectedLanguage}
-                onChange={handleLanguageChange}
-                isClearable
-                classNamePrefix="react-select"
-              />
-            </div>
-
-            <div className="mt-md-auto ms-md-auto">
-              <button
-                className="btn btn-outline-secondary w-100 p-2 ml-4"
-                onClick={handleResetFilters}
-              >
-                <i className="fas fa-undo mr-1"></i>Reset
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="card-body">
-          <div className="table-responsive">
-            <table className="table table-hover align-middle">
-              <thead className="table-light">
-                <tr>
-                  <th>Sort Order</th>
-                  <th>Name</th>
-                  <th>Date</th>
-                  <th>Language</th>
-                  <th>Description</th>
-                  <th>Status</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <TableStatus
-                  status={status}
-                  error={error}
-                  dataLength={festivals.length}
-                  colSpan={7}
-                  loadingText="Loading festivals..."
-                  emptyText="No festivals Found."
-                />
-                {status === "succeeded" &&
-                  festivals.map((festival) => (
-                    <tr key={festival._id}>
-                      <td>{festival?.sort}</td>
-                      <td className="fw-bold">{festival?.name}</td>
-                      <td>{festival?.date}</td>
-                      <td>{getLanguageNameById(festival?.language)}</td>
-                      <td
-                        style={{
-                          maxWidth: "400px",
-                        }}
-                      >
-                        <span
-                          title={festival.description.replace(/<[^>]+>/g, "")}
-                        >
-                          {festival.description
-                            .replace(/<[^>]+>/g, "")
-                            .substring(0, 50) + "..."}
-                        </span>
-                      </td>
-
-                      <td>
-                        <div className="form-check form-switch">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            role="switch"
-                            id={`status-switch-${festival._id}`}
-                            checked={festival?.isActive}
-                            disabled={togglingId === festival._id}
-                            onChange={() => handleStatusToggle(festival)}
-                            style={{ cursor: "pointer" }}
-                          />
-                          <label
-                            className="form-check-label small ms-1"
-                            htmlFor={`status-switch-${festival._id}`}
-                          >
-                            {togglingId === festival._id ? (
-                              <span
-                                className="spinner-border spinner-border-sm text-secondary"
-                                role="status"
-                                aria-hidden="true"
-                              ></span>
-                            ) : festival.isActive ? (
-                              "Active"
-                            ) : (
-                              "Inactive"
-                            )}
-                          </label>
-                        </div>
-                      </td>
-
-                      <td className="text-center">
-                        <button
-                          className="btn btn-sm btn-outline-primary mr-2"
-                          onClick={() =>
-                            navigate(`/festivals/edit/${festival._id}`)
-                          }
-                          title="Edit"
-                        >
-                          <i className="fas fa-pencil-alt"></i>
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => setFestivalToDelete(festival)}
-                          title="Delete"
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {pagination && pagination.totalPages > 1 && (
-          <div className="card-footer">
-            <CustomPagination
-              currentPage={filters.page}
-              totalPages={pagination.totalPages}
-              onPageChange={handlePageChange}
-              totalItems={pagination.totalRecords}
-              itemsPerPage={itemsPerPage}
-            />
-          </div>
-        )}
       </div>
 
+      <div className="card-body border-bottom">
+        <div className="d-flex align-items-center gap-3">
+          <div style={{ minWidth: "250px", marginRight: "15px" }}>
+            <Select
+              options={languageOptions}
+              value={languageOptions.find(o => o.value === filters.language)}
+              onChange={(opt) => setFilters({ ...filters, language: opt?.value || "", page: 1 })}
+              placeholder="Filter by Language"
+            />
+          </div>
+          <button
+            className="btn btn-outline-secondary"
+            onClick={() => setFilters({ language: "", page: 1 })}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div className="card-body">
+        <div className="table-responsive">
+          <table className="table table-hover align-middle">
+            <thead className="table-light">
+              <tr>
+                <th>Sort</th>
+                <th>Name</th>
+                <th>Language</th>
+                <th>Status</th>
+                <th className="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <TableStatus
+                status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
+                error={error}
+                dataLength={festivals.length}
+                colSpan={5}
+                loadingText="Loading festivals..."
+                emptyText="No festivals Found."
+              />
+              {!isLoading && festivals.map((item) => (
+                <tr key={item._id} className={isFetching ? "opacity-50" : ""}>
+                  <td>{item.sort}</td>
+                  <td className="fw-bold">{item.name}</td>
+                  <td>{staticLanguages.find(l => l._id === item.language)?.nativeName || "N/A"}</td>
+                  <td>
+                    <div className="form-check form-switch">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        checked={item.isActive}
+                        disabled={togglingId === item._id}
+                        onChange={() => handleStatusToggle(item)}
+                        style={{ cursor: "pointer" }}
+                      />
+                      <label className="ms-2 small form-check-label">
+                        {togglingId === item._id ? (
+                          <span className="spinner-border spinner-border-sm text-secondary"></span>
+                        ) : item.isActive ? "Active" : "Inactive"}
+                      </label>
+                    </div>
+                  </td>
+                  <td className="text-center">
+                    <button
+                      className="btn btn-sm btn-outline-primary mr-2"
+                      onClick={() => navigate(`/festivals/edit/${item._id}`)}
+                      title="Edit"
+                    >
+                      <i className="fas fa-pencil-alt"></i>
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => setFestivalToDelete(item)}
+                      title="Delete"
+                    >
+                      <i className="fas fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {pagination?.totalPages > 1 && (
+        <div className="card-footer">
+          <CustomPagination
+            currentPage={filters.page}
+            totalPages={pagination.totalPages}
+            onPageChange={(p) => setFilters({ ...filters, page: p })}
+            totalItems={pagination.totalRecords}
+            itemsPerPage={itemsPerPage}
+          />
+        </div>
+      )}
+
       <ConfirmationModal
-        show={festivalToDelete !== null}
+        show={!!festivalToDelete}
         onClose={() => setFestivalToDelete(null)}
         onConfirm={confirmDelete}
-        title="Confirm Deletion"
-        confirmText="Delete"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
+        title="Delete Festival"
         confirmButtonVariant="danger"
       >
-        <p className="fs-5 text-center">
+        <p className="text-center">
           Are you sure you want to delete <br />
-          <strong className="text-danger">{festivalToDelete?.name}</strong>?
+          <strong>{festivalToDelete?.name}</strong>?
         </p>
       </ConfirmationModal>
-    </>
+    </div>
   );
 }
