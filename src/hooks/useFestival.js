@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
@@ -19,12 +24,15 @@ const fetchFestivalsApi = async (params = {}) => {
   if (apiData?.data?.data && Array.isArray(apiData.data.data)) {
     return apiData.data;
   }
+
   if (apiData?.data && Array.isArray(apiData.data)) {
     return { data: apiData.data, pagination: apiData.pagination || null };
   }
+
   if (Array.isArray(apiData)) {
     return { data: apiData, pagination: null };
   }
+
   return { data: [], pagination: null };
 };
 
@@ -47,7 +55,8 @@ export const useFestivals = (filters) => {
   return useQuery({
     queryKey: ["festivals", filters],
     queryFn: () => fetchFestivalsApi(filters),
-    staleTime: Infinity,
+
+    staleTime: 0, 
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
   });
@@ -55,50 +64,81 @@ export const useFestivals = (filters) => {
 
 export const useAddFestival = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: addFestivalApi,
-    onSuccess: () => {
+
+    onSuccess: (newFestival) => {
       toast.success("Festival added successfully!");
+
+      queryClient.setQueriesData(
+        { queryKey: ["festivals"], exact: false },
+        (oldData) => {
+          if (!oldData || !oldData.data) return oldData;
+
+          return {
+            ...oldData,
+            data: [newFestival, ...oldData.data],
+          };
+        }
+      );
+
       queryClient.invalidateQueries({ queryKey: ["festivals"] });
+
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
-        refetchType: "none"
+        refetchType: "none",
       });
     },
+
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to add festival");
-    }
+    },
   });
 };
 
 export const useUpdateFestival = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: updateFestivalApi,
-    onSuccess: (updatedData, variables) => {
+
+    onSuccess: (updatedData) => {
+      toast.success("Festival updated successfully!");
+
       queryClient.invalidateQueries({ queryKey: ["festivals"] });
-      queryClient.setQueryData(["festival", variables.id], updatedData);
+
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
-        refetchType: "none"
+        refetchType: "none",
       });
     },
-    onError: (err) => {
-      throw err;
-    }
+
+    onError: () => {
+      toast.error("Failed to update festival");
+    },
   });
 };
 
 export const useDeleteFestival = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: deleteFestivalApi,
+
     onSuccess: () => {
+      toast.success("Festival deleted successfully!");
+
       queryClient.invalidateQueries({ queryKey: ["festivals"] });
+
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
-        refetchType: "none"
+        refetchType: "none",
       });
+    },
+
+    onError: () => {
+      toast.error("Failed to delete festival");
     },
   });
 };

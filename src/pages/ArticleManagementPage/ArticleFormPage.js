@@ -204,7 +204,7 @@ export default function ArticleFormPage() {
           className="btn btn-outline-primary btn-sm"
           onClick={() => navigate("/articles")}
         >
-          <i className="fas fa-arrow-left me-2" />
+          <i className="fas fa-arrow-left mr-2" />
           Back
         </button>
       </div>
@@ -441,7 +441,7 @@ export default function ArticleFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-2"
                 disabled={isSaving}
                 onClick={() => navigate("/articles")}
               >

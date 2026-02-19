@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
@@ -51,12 +56,11 @@ const deleteNewsApi = async (id) => {
   return response.data;
 };
 
-
 export const useNewsList = (filters) => {
   return useQuery({
     queryKey: ["newsList", filters],
     queryFn: () => fetchNewsApi(filters),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
   });
@@ -71,21 +75,36 @@ export const useNews = (id) => {
     refetchOnWindowFocus: false,
   });
 };
-// --- Hooks ---
 
 export const useAddNews = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: addNewsApi,
-    onSuccess: () => {
+
+    onSuccess: (newNews) => {
       toast.success("News added successfully!");
+
+      queryClient.setQueriesData(
+        { queryKey: ["newsList"], exact: false },
+        (oldData) => {
+          if (!oldData || !oldData.data) return oldData;
+
+          return {
+            ...oldData,
+            data: [newNews, ...oldData.data],
+          };
+        }
+      );
+
       queryClient.invalidateQueries({ queryKey: ["newsList"] });
 
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
-        refetchType: "none"
+        refetchType: "none",
       });
     },
+
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to add News");
     },
@@ -94,17 +113,21 @@ export const useAddNews = () => {
 
 export const useUpdateNews = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: updateNewsApi,
-    onSuccess: (updatedData, variables) => {
+
+    onSuccess: (updatedData) => {
+      toast.success("News updated successfully!");
+
       queryClient.invalidateQueries({ queryKey: ["newsList"] });
-      queryClient.setQueryData(["news", variables.id], updatedData);
 
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
-        refetchType: "none"
+        refetchType: "none",
       });
     },
+
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to update News");
     },
@@ -113,17 +136,21 @@ export const useUpdateNews = () => {
 
 export const useDeleteNews = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: deleteNewsApi,
+
     onSuccess: () => {
       toast.success("News deleted successfully.");
+
       queryClient.invalidateQueries({ queryKey: ["newsList"] });
 
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
-        refetchType: "none"
+        refetchType: "none",
       });
     },
+
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete News");
     },

@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
@@ -51,15 +56,13 @@ const deleteStutiApi = async (id) => {
   return response.data;
 };
 
-
 export const useStutis = (filters) => {
   return useQuery({
     queryKey: ["stutis", filters],
     queryFn: () => fetchStutisApi(filters),
-
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
     refetchOnWindowFocus: false,
-    placeholderData: keepPreviousData, 
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -73,16 +76,35 @@ export const useStuti = (id) => {
   });
 };
 
-
 export const useAddStuti = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: addStutiApi,
-    onSuccess: () => {
+
+    onSuccess: (newStuti) => {
       toast.success("Stuti added successfully!");
+
+      queryClient.setQueriesData(
+        { queryKey: ["stutis"], exact: false },
+        (oldData) => {
+          if (!oldData || !oldData.data) return oldData;
+
+          return {
+            ...oldData,
+            data: [newStuti, ...oldData.data],
+          };
+        }
+      );
+
       queryClient.invalidateQueries({ queryKey: ["stutis"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboardStats"], refetchType: "none" });
+
+      queryClient.invalidateQueries({
+        queryKey: ["dashboardStats"],
+        refetchType: "none",
+      });
     },
+
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to add Stuti");
     },
@@ -91,15 +113,21 @@ export const useAddStuti = () => {
 
 export const useUpdateStuti = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: updateStutiApi,
-    onSuccess: (updatedData, variables) => {
+
+    onSuccess: () => {
+      toast.success("Stuti updated successfully!");
+
       queryClient.invalidateQueries({ queryKey: ["stutis"] });
 
-      queryClient.setQueryData(["stuti", variables.id], updatedData);
-
-      queryClient.invalidateQueries({ queryKey: ["dashboardStats"], refetchType: "none" });
+      queryClient.invalidateQueries({
+        queryKey: ["dashboardStats"],
+        refetchType: "none",
+      });
     },
+
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to update Stuti");
     },
@@ -108,13 +136,21 @@ export const useUpdateStuti = () => {
 
 export const useDeleteStuti = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: deleteStutiApi,
+
     onSuccess: () => {
       toast.success("Stuti deleted successfully.");
+
       queryClient.invalidateQueries({ queryKey: ["stutis"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboardStats"], refetchType: "none" });
+
+      queryClient.invalidateQueries({
+        queryKey: ["dashboardStats"],
+        refetchType: "none",
+      });
     },
+
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete Stuti");
     },

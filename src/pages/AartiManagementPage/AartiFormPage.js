@@ -391,7 +391,7 @@ export default function AartiFormPage() {
             <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
               <button
                 type="button"
-                className="btn btn-outline-secondary"
+                className="btn btn-outline-secondary mr-2"
                 onClick={() => navigate("/aarti")}
               >
                 Cancel

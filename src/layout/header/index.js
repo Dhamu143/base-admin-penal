@@ -18,9 +18,9 @@ function Header() {
         <div className="brand-logo" style={{ marginLeft: "3.25rem" }}>
           <img
             className="img-fluid"
-            src="/img/logo1.png"
+            src="/img/logo.png"
             alt="App Logo"
-            style={{ width: "60px", height: "40px" }}
+            style={{ width: "90px", height: "50px" }}
           />
         </div>
         {/* <div className="brand-logo-collapsed">
