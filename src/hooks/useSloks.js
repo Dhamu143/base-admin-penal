@@ -39,41 +39,26 @@ const fetchSloksApi = async (params = {}) => {
   return { data: [], pagination: null };
 };
 
-/* =====================================================
-   FETCH SINGLE
-===================================================== */
-const fetchSlokByIdApi = async (id) => {
-  const response = await httpService.get(`/slok/${id}`);
-  return response.data?.data || response.data;
-};
+// const fetchSlokByIdApi = async (id) => {
+//   const response = await httpService.get(`/slok/${id}`);
+//   return response.data?.data || response.data;
+// };
 
-/* =====================================================
-   ADD
-===================================================== */
 const addSlokApi = async (data) => {
   const response = await httpService.post("/slok/create", {}, data);
   return response.data?.data;
 };
 
-/* =====================================================
-   UPDATE
-===================================================== */
 const updateSlokApi = async ({ id, ...data }) => {
   const response = await httpService.put(`/slok/${id}`, {}, data);
   return response.data?.data;
 };
 
-/* =====================================================
-   DELETE
-===================================================== */
 const deleteSlokApi = async (id) => {
   const response = await httpService.delete(`/slok/${id}`);
   return response.data;
 };
 
-/* =====================================================
-   SLOK LIST QUERY
-===================================================== */
 export const useSloks = (filters) => {
   return useQuery({
     queryKey: ["sloks", filters],
@@ -86,9 +71,6 @@ export const useSloks = (filters) => {
   });
 };
 
-/* =====================================================
-   ADD SLOK (Instant UI Update)
-===================================================== */
 export const useAddSlok = () => {
   const queryClient = useQueryClient();
 
@@ -126,9 +108,6 @@ export const useAddSlok = () => {
   });
 };
 
-/* =====================================================
-   UPDATE SLOK
-===================================================== */
 export const useUpdateSlok = () => {
   const queryClient = useQueryClient();
 
@@ -152,9 +131,6 @@ export const useUpdateSlok = () => {
   });
 };
 
-/* =====================================================
-   DELETE SLOK
-===================================================== */
 export const useDeleteSlok = () => {
   const queryClient = useQueryClient();
 

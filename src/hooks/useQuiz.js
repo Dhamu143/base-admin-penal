@@ -36,10 +36,10 @@ const fetchQuizzesApi = async (params = {}) => {
     return { data: [], pagination: null };
 };
 
-const fetchQuizByIdApi = async (id) => {
-    const response = await httpService.get(`/quiz/${id}`);
-    return response.data?.data || response.data;
-};
+// const fetchQuizByIdApi = async (id) => {
+//     const response = await httpService.get(`/quiz/${id}`);
+//     return response.data?.data || response.data;
+// };
 
 const addQuizApi = async (data) => {
     const response = await httpService.post("/quiz/create", {}, data);
@@ -52,7 +52,7 @@ const updateQuizApi = async ({ id, ...data }) => {
 };
 
 const deleteQuizApi = async (id) => {
-    const response = await httpService.delete(`/quiz/${id}`);
+    // const response = await httpService.delete(`/quiz/${id}`);
     return id;
 };
 

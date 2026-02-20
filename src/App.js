@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef } from "react";
 import { Route, Routes, useNavigate } from "react-router-dom";
-import { toast, ToastContainer } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import "./App.css";
 import Login from "./pages/login";
 import "react-toastify/dist/ReactToastify.css";
@@ -12,8 +12,6 @@ import Dashboard from "./pages/dashboard";
 import SignUp from "./pages/signUp";
 import { IsTokenExpired } from "./common/jwtToken";
 // import { SocketContext } from "./context/socket";
-import { useContext } from "react";
-import { useDispatch } from "react-redux";
 
 import GlobalLoader from "./components/GlobalLoader";
 
@@ -53,7 +51,6 @@ import CreatePostPage from "./pages/Post/CreatePostPage.js";
 import SendNotificationPage from "./pages/SendNotificationPage/index.js"
 function App() {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   // const socket = useContext(SocketContext);
   const audioRef = useRef(null);
   const token = localStorage.getItem("token");
@@ -77,7 +74,7 @@ function App() {
     //   // dispatch(handleAddOrder(data));
     //   // toast.success("You have new order");
     // });
-  }, [token]);
+  }, [token, navigate]);
 
   return (
     <>

@@ -36,8 +36,8 @@ export default function QuizListPage() {
     return {
       ...filters,
       limit: itemsPerPage,
-      god: filters.godId || filters.god || "", 
-      godId: undefined, 
+      god: filters.godId || filters.god || "",
+      godId: undefined,
     };
   }, [filters, itemsPerPage]);
 
@@ -60,12 +60,11 @@ export default function QuizListPage() {
       dispatch(fetchAllGods());
     }
   }, [dispatch, godStatus]);
-
   useEffect(() => {
     if (filters.page > 1 && (filters.godId || filters.god)) {
-       handlePageChange(1);
+      handlePageChange(1);
     }
-  }, [filters.godId, filters.god]);
+  }, [filters.godId, filters.god, filters.page, handlePageChange]);
 
 
   const handleReset = () => {
@@ -85,7 +84,7 @@ export default function QuizListPage() {
         `Quiz status updated to ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-       // Error handled in hook
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -102,7 +101,7 @@ export default function QuizListPage() {
 
       setQuizToDelete(null);
     } catch (err) {
-       // Error handled in hook
+      // Error handled in hook
     }
   };
 
@@ -120,7 +119,7 @@ export default function QuizListPage() {
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Quiz Management</h4>
         <div>
-           <button
+          <button
             className="btn btn-labeled btn-success"
             style={{ fontSize: "17px" }}
             onClick={() => navigate("/quizzes/new")}

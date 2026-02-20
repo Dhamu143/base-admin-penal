@@ -106,9 +106,9 @@ function SignUp() {
                   <label>
                     <input type="checkbox" value="" required name="agreed" />
                     <span className="fa fa-check"></span> I agree with the
-                    <a className="ml-1" href="#">
+                    {/* <a className="ml-1" href="#">
                       terms
-                    </a>
+                    </a> */}
                   </label>
                 </div>
                 <button

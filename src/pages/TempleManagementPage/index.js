@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useQueryClient } from "@tanstack/react-query";
+// import { useQueryClient } from "@tanstack/react-query";
 import {
   useTemples,
   useDeleteTemple,
@@ -22,7 +22,7 @@ import DynamicImage from "../../components/PostPreview/PostPreview";
 export default function TempleListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  // const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const {
@@ -41,7 +41,7 @@ export default function TempleListPage() {
     };
   }, [filters, itemsPerPage]);
 
-  const { data, isLoading, isError, error, isFetching } = useTemples(apiFilters); 
+  const { data, isLoading, isError, error, isFetching } = useTemples(apiFilters);
 
   const temples = data?.data || [];
   const pagination = data?.pagination || null;
@@ -66,12 +66,13 @@ export default function TempleListPage() {
     if (filters.page > 1 && (filters.godId || filters.god)) {
       handlePageChange(1);
     }
-  }, [filters.godId, filters.god]);
+  }, [filters.godId, filters.god, filters.page, handlePageChange]);
 
-  const handleManualRefresh = () => {
-    queryClient.invalidateQueries(["temples"]);
-    toast.success("List refreshed!");
-  };
+
+  // const handleManualRefresh = () => {
+  //   queryClient.invalidateQueries(["temples"]);
+  //   toast.success("List refreshed!");
+  // };
 
   const handleReset = () => {
     resetFilters();

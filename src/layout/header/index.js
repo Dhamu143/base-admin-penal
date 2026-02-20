@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function Header() {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ function Header() {
     <header className="topnavbar-wrapper">
       <nav className="navbar topnavbar">
         {/* <div className="navbar-header"> */}
-        <a className="navbar-brand" href="#/" />
+        <Link className="navbar-brand" to="/" aria-label="Home" />
         <div className="brand-logo" style={{ marginLeft: "3.25rem" }}>
           <img
             className="img-fluid"
@@ -44,7 +44,7 @@ function Header() {
             <Link className="nav-link sidebar-toggle d-md-none" to={"#"}>
               <em className="fas fa-bars"></em>
             </Link> */}
-            <a
+            {/* <a
               className="nav-link d-none d-md-block d-lg-block d-xl-block p-0"
               href="#"
               data-trigger-resize=""
@@ -59,7 +59,25 @@ function Header() {
               data-no-persist="true"
             >
               <em className="fas fa-bars"></em>
-            </a>
+            </a> */}
+            <button
+              type="button"
+              className="nav-link d-none d-md-block d-lg-block d-xl-block p-0 border-0 bg-transparent"
+              data-trigger-resize=""
+              data-toggle-state="aside-collapsed"
+            >
+              <em className="fas fa-bars"></em>
+            </button>
+
+            <button
+              type="button"
+              className="nav-link sidebar-toggle d-md-none border-0 bg-transparent"
+              data-toggle-state="aside-toggled"
+              data-no-persist="true"
+            >
+              <em className="fas fa-bars"></em>
+            </button>
+
           </li>
           {/* <li className="nav-item d-none d-md-block">
             <a
@@ -149,13 +167,14 @@ function Header() {
           </li> */}
 
           <li className="nav-item">
-            <span
-              className="nav-link"
-              onClick={() => handleLogout()}
-              style={{ cursor: "pointer" }}
+            <button
+              type="button"
+              className="nav-link border-0 bg-transparent"
+              onClick={handleLogout}
             >
               Log Out
-            </span>
+            </button>
+
           </li>
         </ul>
 

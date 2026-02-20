@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-import { useQueryClient } from "@tanstack/react-query";
+// import { useQueryClient } from "@tanstack/react-query";
 
 import {
   useFestivals,
@@ -28,7 +28,7 @@ const languageOptions = [
 export default function FestivalListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  // const queryClient = useQueryClient();
 
   const [filters, setFilters] = useState({ language: "", page: 1 });
   const [festivalToDelete, setFestivalToDelete] = useState(null);
@@ -84,10 +84,10 @@ export default function FestivalListPage() {
     }
   };
 
-  const handleManualRefresh = () => {
-    queryClient.invalidateQueries(["festivals"]);
-    toast.success("List refreshed!");
-  };
+  // const handleManualRefresh = () => {
+  //   queryClient.invalidateQueries(["festivals"]);
+  //   toast.success("List refreshed!");
+  // };
 
   return (
     <div className="card shadow-sm">

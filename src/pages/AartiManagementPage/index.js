@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -30,8 +30,8 @@ export default function AartiListPage() {
     return {
       ...filters,
       limit: itemsPerPage,
-      god: filters.godId || filters.god || "", 
-      godId: undefined, 
+      god: filters.godId || filters.god || "",
+      godId: undefined,
     };
   }, [filters, itemsPerPage]);
 
@@ -56,13 +56,14 @@ export default function AartiListPage() {
 
   useEffect(() => {
     if (filters.page > 1 && (filters.godId || filters.god)) {
-       handlePageChange(1);
+      handlePageChange(1);
     }
-  }, [filters.godId, filters.god]);
+  }, [filters.godId, filters.god, filters.page, handlePageChange]);
+
 
   const handleReset = () => {
-    resetFilters(); 
-    queryClient.invalidateQueries(["aartis"]); 
+    resetFilters();
+    queryClient.invalidateQueries(["aartis"]);
     toast.info("Filters reset and list refreshed");
   };
 
@@ -87,11 +88,11 @@ export default function AartiListPage() {
     if (!aartiToDelete) return;
     try {
       await deleteMutation.mutateAsync(aartiToDelete._id);
-      
+
       if (aartis.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
       }
-      
+
       setAartiToDelete(null);
     } catch (err) {
       // Error handled in hook
@@ -123,7 +124,7 @@ export default function AartiListPage() {
       <FilterBar
         filters={filters}
         onFilterChange={handleFilterChange}
-        onReset={handleReset} 
+        onReset={handleReset}
         godOptions={godOptions}
         godStatus={godStatus}
       />

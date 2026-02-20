@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import httpService from "../common/http.service";
 
 const fetchDashboardStats = async () => {

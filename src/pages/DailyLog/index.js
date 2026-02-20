@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useQueryClient } from "@tanstack/react-query";
+// import { useQueryClient } from "@tanstack/react-query";
 
 import { useDailyLogs, useDeleteDailyLog } from "../../hooks/useDailyLog";
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -11,7 +11,7 @@ import DynamicImage from "../../components/PostPreview/PostPreview";
 
 export default function DailyLogListPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  // const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
   const limit = 10;

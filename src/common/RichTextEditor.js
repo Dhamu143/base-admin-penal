@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Editor } from "react-draft-wysiwyg";
 import { EditorState, ContentState, convertToRaw } from "draft-js";
 import htmlToDraft from "html-to-draftjs";
@@ -31,12 +31,23 @@ const RichTextEditor = ({
   const [editorState, setEditorState] = useState(EditorState.createEmpty());
 
   // Only update editorState if `value` changed externally
+  // useEffect(() => {
+  //   if (value !== undefined && value !== null) {
+  //     const currentHtml = editorStateToHtml(editorState);
+  //     if (currentHtml !== value) {
+  //       setEditorState(htmlToEditorState(value));
+  //     }
+  //   }
+  // }, [value]);
   useEffect(() => {
     if (value !== undefined && value !== null) {
-      const currentHtml = editorStateToHtml(editorState);
-      if (currentHtml !== value) {
-        setEditorState(htmlToEditorState(value));
-      }
+      setEditorState((prevState) => {
+        const currentHtml = editorStateToHtml(prevState);
+        if (currentHtml !== value) {
+          return htmlToEditorState(value);
+        }
+        return prevState;
+      });
     }
   }, [value]);
 
@@ -50,9 +61,8 @@ const RichTextEditor = ({
   return (
     <div className="mb-4">
       <div
-        className={`rounded-lg border ${
-          error ? "border-red-500" : "border-gray-300"
-        } shadow-sm bg-white`}
+        className={`rounded-lg border ${error ? "border-red-500" : "border-gray-300"
+          } shadow-sm bg-white`}
       >
         <Editor
           editorState={editorState}

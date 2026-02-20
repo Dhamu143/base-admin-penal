@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useQueryClient } from "@tanstack/react-query";
+// import { useQueryClient } from "@tanstack/react-query";
 
 import {
   useSloks,
@@ -21,7 +21,7 @@ import { TableStatus } from "../../components/TableStatus";
 export default function SlokListPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  // const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const [filters, setFilters] = useState({
@@ -89,10 +89,10 @@ export default function SlokListPage() {
   }, [dispatch, godStatus]);
 
   useEffect(() => {
-    if (filters.page > 1 && (filters.godId || filters.god)) {
-      handlePageChange(1);
+    if (filters.page > 1 && filters.god) {
+      setFilters(prev => ({ ...prev, page: 1 }));
     }
-  }, [filters.godId, filters.god]);
+  }, [filters.god, filters.page]);
 
   const handleStatusToggle = async (slok) => {
     if (togglingId === slok._id) return;

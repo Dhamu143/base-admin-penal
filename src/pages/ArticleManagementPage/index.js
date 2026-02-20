@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -75,7 +75,8 @@ export default function ArticleListPage() {
     if (filters.page > 1 && (filters.godId || filters.god)) {
       handlePageChange(1);
     }
-  }, [filters.godId, filters.god]);
+  }, [filters.godId, filters.god, filters.page, handlePageChange]);
+
 
   const handleReset = () => {
     resetFilters();

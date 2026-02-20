@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUsers, useDeleteUser } from "../../hooks/useUsers";
@@ -9,7 +8,7 @@ import DynamicImage from "../../components/PostPreview/PostPreview";
 import { TableStatus } from "../../components/TableStatus";
 
 export default function UserTablePage() {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const queryClient = useQueryClient(); 
 
   const [currentPage, setCurrentPage] = useState(1);

@@ -63,7 +63,7 @@ export default function BhajanListPage() {
     if (filters.page > 1 && (filters.godId || filters.god)) {
       handlePageChange(1);
     }
-  }, [filters.godId, filters.god]);
+  }, [filters.godId, filters.god, filters.page, handlePageChange]);
 
   const handleReset = () => {
     resetFilters();
