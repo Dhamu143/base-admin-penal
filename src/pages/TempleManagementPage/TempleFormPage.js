@@ -1,34 +1,32 @@
-import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Select from "react-select";
-import RichTextEditor from "../../common/RichTextEditor";
 import { toast } from "react-toastify";
-import { uploadImage } from "../../services/uploadService";
 
-import {
-  fetchTemples,
-  addTemple,
-  updateTemple,
-} from "../../store/temple/index";
-import { fetchAllGods } from "../../store/god/index";
+import RichTextEditor from "../../common/RichTextEditor";
+import ReusableSelect from "../../common/ReusableSelect";
+import FormActionButtons from "../../common/FormActionButtons";
+import PageHeader from "../../common/PageHeader";
+import RelatedContentSelector from "../../common/RelatedContentSelector";
+
+import { uploadImage } from "../../services/uploadService";
 import { staticLanguages } from "../../constants/languages";
 
+import { useTemple, useAddTemple, useUpdateTemple } from "../../hooks/useTemple";
+import { useAllGods } from "../../hooks/useGod";
+
 export default function TempleFormPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { list: temples, status: templeStatus } = useSelector(
-    (state) => state.temple
-  );
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
+  const { data: templeData, isLoading: isLoadingTemple } = useTemple(id);
+  const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
+  const addTempleMutation = useAddTemple();
+  const updateTempleMutation = useUpdateTemple();
 
   const [formData, setFormData] = useState({
     name: "",
     sort: "",
+    isActive: true,
     isFamous: false,
     god: "",
     language: "",
@@ -39,479 +37,262 @@ export default function TempleFormPage() {
     closeTime: "",
     latitude: "",
     longitude: "",
-    rating: "",
+    rating: "0",
+    relatedContent: [],
   });
 
-  const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
-  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    if (templeStatus === "idle") dispatch(fetchTemples());
-    if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [templeStatus, godStatus, dispatch]);
-
-  useEffect(() => {
-    if (id && temples.length > 0) {
-      const temple = temples.find((t) => t._id === id);
-      if (temple) {
-        setFormData({
-          name: temple.name || "",
-          sort: temple.sort || "",
-          isFamous: temple.isFamous === true,
-          god: temple.god?._id || temple.god || "",
-          language: temple.language || "",
-          description: temple.description || "",
-          address: temple.address || "",
-          files: temple.files || "",
-          openTime: temple.openTime || "",
-          closeTime: temple.closeTime || "",
-          latitude: temple.location?.coordinates?.[1] || "",
-          longitude: temple.location?.coordinates?.[0] || "",
-          rating: temple.rating || "0",
-        });
-      }
+    if (id && templeData) {
+      setFormData({
+        name: templeData.name || "",
+        sort: templeData.sort || "",
+        isActive: templeData.isActive ?? true,
+        isFamous: templeData.isFamous === true,
+        god: templeData.god?._id || templeData.god || "",
+        language: templeData.language || "",
+        description: templeData.description || "",
+        address: templeData.address || "",
+        files: templeData.files || "",
+        openTime: templeData.openTime || "",
+        closeTime: templeData.closeTime || "",
+        latitude: templeData.location?.coordinates?.[1] || "",
+        longitude: templeData.location?.coordinates?.[0] || "",
+        rating: templeData.rating || "0",
+        relatedContent: templeData.relatedContent?.map((item) => ({
+          refId: item.refId?._id || item.refId,
+          refModel: item.refModel,
+        })) || [],
+      });
     }
-  }, [id, temples]);
+  }, [id, templeData]);
 
-  useEffect(() => {
-    if (formData.language && allGods.length > 0) {
-      const godsByLang = allGods.filter(
-        (g) => g.language === formData.language
-      );
-      setFilteredGods(godsByLang);
-    } else {
-      setFilteredGods([]);
-    }
+  const filteredGods = useMemo(() => {
+    if (!formData.language || !Array.isArray(allGods)) return [];
+    return allGods.filter((g) => g.language === formData.language);
   }, [formData.language, allGods]);
 
   const validateForm = () => {
     const newErrors = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Temple name is required.";
-    }
-
-    if (!formData.god) {
-      newErrors.god = "Please select a God.";
-    }
-
-    if (!formData.language) {
-      newErrors.language = "Please select a language.";
-    }
-
-    if (!formData.description.replace(/<[^>]*>?/gm, "").trim()) {
-      newErrors.description = "Description / Content is required.";
-    }
-    if (formData.sort === "" || !formData.address.trim()) {
-      newErrors.address = "address is required.";
-    }
+    if (!formData.name.trim()) newErrors.name = "Temple name is required.";
+    if (!formData.god) newErrors.god = "Please select a God.";
+    if (!formData.language) newErrors.language = "Please select a language.";
+    if (!formData.description.replace(/<[^>]*>?/gm, "").trim()) newErrors.description = "Description is required.";
+    if (!formData.address.trim()) newErrors.address = "Address is required.";
     if (!formData.openTime) newErrors.openTime = "Open time is required.";
     if (!formData.closeTime) newErrors.closeTime = "Close time is required.";
 
-    // Sort Order
-    if (formData.sort === "" || isNaN(formData.sort)) {
+    if (formData.sort === "" || isNaN(Number(formData.sort))) {
       newErrors.sort = "Sort order must be a valid number.";
     }
 
-    // Latitude
-    if (formData.latitude === "" || isNaN(formData.latitude)) {
-      newErrors.latitude = "Latitude must be a valid number.";
-    } else if (formData.latitude < -90 || formData.latitude > 90) {
-      newErrors.latitude = "Latitude must be between -90 and 90.";
+    const lat = Number(formData.latitude);
+    const lng = Number(formData.longitude);
+    if (formData.latitude === "" || isNaN(lat) || lat < -90 || lat > 90) {
+      newErrors.latitude = "Invalid Latitude (-90 to 90).";
+    }
+    if (formData.longitude === "" || isNaN(lng) || lng < -180 || lng > 180) {
+      newErrors.longitude = "Invalid Longitude (-180 to 180).";
     }
 
-    // Longitude
-    if (formData.longitude === "" || isNaN(formData.longitude)) {
-      newErrors.longitude = "Longitude must be a valid number.";
-    } else if (formData.longitude < -180 || formData.longitude > 180) {
-      newErrors.longitude = "Longitude must be between -180 and 180.";
-    }
-
-    // Rating
-    if (formData.rating === "" || isNaN(formData.rating)) {
-      newErrors.rating = "Rating must be a valid number.";
-    } else if (formData.rating < 1 || formData.rating > 5) {
-      newErrors.rating = "Rating must be between 1 and 5.";
+    const ratingNum = Number(formData.rating);
+    if (isNaN(ratingNum) || ratingNum < 0 || ratingNum > 5) {
+      newErrors.rating = "Rating must be between 0 and 5.";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+  };
+
+  const handleSelectChange = (name, value) => {
+    setFormData((prev) => {
+      const updates = { ...prev, [name]: value };
+      if (name === "language") {
+        updates.god = ""; 
+        updates.relatedContent = [];
+      }
+      return updates;
+    });
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+  };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsSaving(true);
+
+    setIsUploading(true);
     try {
       const uploadedUrl = await uploadImage(file);
       setFormData((prev) => ({ ...prev, files: uploadedUrl }));
       toast.success("Image uploaded!");
     } catch {
-      toast.error("Image upload failed.");
+      toast.error("Upload failed.");
     } finally {
-      setIsSaving(false);
+      setIsUploading(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
-    setIsSaving(true);
-    try {
-      const payload = {
-        name: formData.name,
-        sort: Number(formData.sort),
-        isActive: formData.isActive,
-        isFamous: formData.isFamous,
-        god: formData.god,
-        language: formData.language,
-        description: formData.description,
-        address: formData.address,
-        files: formData.files,
-        openTime: formData.openTime,
-        closeTime: formData.closeTime,
-        location: {
-          type: "Point",
-          coordinates: [formData.longitude, formData.latitude], 
-        },
-        rating: formData.rating,
-      };
-
-      const action = id ? updateTemple({ id, ...payload }) : addTemple(payload);
-
-      await dispatch(action).unwrap();
-
-      toast.success(
-        id ? "Temple updated successfully!" : "Temple added successfully!"
-      );
-      navigate("/temple");
-    } catch (err) {
-      toast.error(err?.message || "An error occurred while saving.");
-    } finally {
-      setIsSaving(false);
+    if (!validateForm()) {
+      toast.error("Please fix the validation errors.");
+      return;
     }
+
+    const payload = {
+      ...formData,
+      sort: Number(formData.sort),
+      rating: Number(formData.rating),
+      location: {
+        type: "Point",
+        coordinates: [Number(formData.longitude), Number(formData.latitude)],
+      },
+    };
+
+    const mutation = id ? updateTempleMutation : addTempleMutation;
+
+    mutation.mutate(id ? { id, ...payload } : payload, {
+      onSuccess: () => {
+        navigate("/temple");
+      }
+    });
   };
 
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
-  };
+  const languageOptions = staticLanguages.map((l) => ({ value: l._id, label: l.nativeName }));
+  const godOptions = filteredGods.map((g) => ({ value: g._id, label: g.name }));
 
-  const getSelectedOption = (list, id) => {
-    if (!id || !list) return null;
-    const selected = list.find((item) => item._id === id);
-    return selected
-      ? { value: selected._id, label: selected.name || selected.nativeName }
-      : null;
-  };
+  if (id && isLoadingTemple) return <div className="p-5 text-center"><div className="spinner-border text-primary"></div><p className="mt-2">Loading temple data...</p></div>;
 
   return (
     <div className="content-wrapper p-4">
-      <div className="mb-4 d-flex align-items-center justify-content-between">
-        <div>
-          <span
-            style={{ cursor: "pointer", color: "#0d6efd" }}
-            onClick={() => navigate("/temple")}
-          >
-            Temples
-          </span>{" "}
-          / <span>{id ? "Edit Temple" : "New Temple"}</span>
-        </div>
-        <button
-          type="button"
-          className="btn btn-outline-primary btn-sm"
-          onClick={() => navigate("/temple")}
-        >
-          <i className="fas fa-arrow-left me-2"></i> Back
-        </button>
-      </div>
+      <PageHeader breadcrumbTitle="Temples" breadcrumbLink="/temple" currentTitle={id ? "Edit Temple" : "New Temple"} />
 
-      <div className="card shadow-sm">
+      <div className="card shadow-sm mb-4">
         <div className="card-body p-4">
           <form onSubmit={handleSubmit} noValidate>
             <div className="row">
-              {/* --- Left Column --- */}
               <div className="col-md-7">
-                <h5 className="mb-4 text-primary">Temple Content</h5>
+                <h5 className="mb-4 text-primary">Temple Information</h5>
 
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Language <span className="text-danger">*</span>
-                  </label>
-                  <Select
-                    options={staticLanguages.map((l) => ({
-                      value: l._id,
-                      label: l.nativeName,
-                    }))}
-                    value={getSelectedOption(
-                      staticLanguages,
-                      formData.language
-                    )}
-                    onChange={(option) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        language: option?.value || "",
-                        god: "",
-                      }))
-                    }
-                    placeholder="Select Language..."
-                  />
-                  {errors.language && (
-                    <div className="text-danger small mt-1">
-                      {errors.language}
-                    </div>
-                  )}
+                <div className="row">
+                  <div className="col-md-6">
+                    <ReusableSelect label="Language" name="language" options={languageOptions} value={formData.language} onChange={handleSelectChange} error={errors.language} required />
+                  </div>
+                  <div className="col-md-6">
+                    <ReusableSelect label="God" name="god" options={godOptions} value={formData.god} onChange={handleSelectChange} error={errors.god} required isDisabled={!formData.language || isLoadingGods} placeholder="Select God..." />
+                  </div>
                 </div>
 
                 <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    God <span className="text-danger">*</span>
-                  </label>
-                  <Select
-                    options={filteredGods.map((g) => ({
-                      value: g._id,
-                      label: g.name,
-                    }))}
-                    value={getSelectedOption(filteredGods, formData.god)}
-                    onChange={(option) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        god: option?.value || "",
-                      }))
-                    }
-                    placeholder={
-                      formData.language ? "Select God..." : "Language first..."
-                    }
-                    isDisabled={!formData.language}
-                  />
-                  {errors.god && (
-                    <div className="text-danger small mt-1">{errors.god}</div>
-                  )}
+                  <label className="form-label fw-bold">Temple Name *</label>
+                  <input type="text" name="name" className={`form-control ${errors.name ? "is-invalid" : ""}`} value={formData.name} onChange={handleInputChange} />
+                  {errors.name && <div className="invalid-feedback">{errors.name}</div>}
                 </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">Open Time</label>
-                  <input
-                    type="time"
-                    name="openTime"
-                    className={`form-control ${
-                      errors.openTime ? "is-invalid" : ""
-                    }`}
-                    value={formData.openTime}
-                    onChange={handleFormChange}
-                  />
-                  {errors.openTime && (
-                    <div className="invalid-feedback">{errors.openTime}</div>
-                  )}
-                </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">Close Time</label>
-                  <input
-                    type="time"
-                    name="closeTime"
-                    className={`form-control ${
-                      errors.closeTime ? "is-invalid" : ""
-                    }`}
-                    value={formData.closeTime}
-                    onChange={handleFormChange}
-                  />
-                  {errors.closeTime && (
-                    <div className="invalid-feedback">{errors.closeTime}</div>
-                  )}
-                </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Temple Name <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    className={`form-control ${
-                      errors.name ? "is-invalid" : ""
-                    }`}
-                    value={formData.name}
-                    onChange={handleFormChange}
-                  />
-                  {errors.name && (
-                    <div className="invalid-feedback">{errors.name}</div>
-                  )}
+
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Open Time *</label>
+                    <input type="time" name="openTime" className={`form-control ${errors.openTime ? "is-invalid" : ""}`} value={formData.openTime} onChange={handleInputChange} />
+                    {errors.openTime && <div className="invalid-feedback d-block">{errors.openTime}</div>}
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Close Time *</label>
+                    <input type="time" name="closeTime" className={`form-control ${errors.closeTime ? "is-invalid" : ""}`} value={formData.closeTime} onChange={handleInputChange} />
+                    {errors.closeTime && <div className="invalid-feedback d-block">{errors.closeTime}</div>}
+                  </div>
                 </div>
 
                 <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Address <span className="text-danger">*</span>
-                  </label>
-                  <textarea
-                    name="address"
-                    className={`form-control ${
-                      errors.address ? "is-invalid" : ""
-                    }`}
-                    value={formData.address}
-                    onChange={handleFormChange}
-                    rows="3"
-                  ></textarea>
-                  {errors.address && (
-                    <div className="invalid-feedback">{errors.address}</div>
-                  )}
+                  <label className="form-label fw-bold">Address *</label>
+                  <textarea name="address" className={`form-control ${errors.address ? "is-invalid" : ""}`} value={formData.address} onChange={handleInputChange} rows="2"></textarea>
+                  {errors.address && <div className="invalid-feedback">{errors.address}</div>}
                 </div>
 
                 <div className="mb-3">
                   <label className="form-label fw-bold">Temple Image</label>
-                  <input
-                    type="file"
-                    className="form-control"
-                    onChange={handleImageUpload}
-                    accept="image/*"
-                    disabled={isSaving}
-                  />
+                  <input type="file" className="form-control" onChange={handleImageUpload} accept="image/*" disabled={isUploading || addTempleMutation.isPending || updateTempleMutation.isPending} />
                   {formData.files && (
-                    <img
-                      src={formData.files}
-                      alt="Preview"
-                      className="img-fluid rounded mt-2"
-                      style={{ maxHeight: "150px" }}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* --- Right Column --- */}
-              <div className="col-md-5">
-                <h5 className="mb-4 text-primary">Details & Settings</h5>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Description / Content <span className="text-danger">*</span>
-                  </label>
-                  <RichTextEditor
-                    value={formData.description}
-                    onChange={(html) =>
-                      setFormData((prev) => ({ ...prev, description: html }))
-                    }
-                  />
-                  {errors.description && (
-                    <div className="invalid-feedback d-block mt-1">
-                      {errors.description}
+                    <div className="mt-2 position-relative d-inline-block">
+                      <img src={formData.files} alt="Preview" className="img-fluid rounded border" style={{ maxHeight: "150px" }} />
                     </div>
                   )}
                 </div>
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Sort Order <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="sort"
-                    className={`form-control ${
-                      errors.sort ? "is-invalid" : ""
-                    }`}
-                    value={formData.sort}
-                    onChange={handleFormChange}
-                  />
-                  {errors.sort && (
-                    <div className="invalid-feedback">{errors.sort}</div>
-                  )}
+              <div className="col-md-5">
+                <h5 className="mb-4 text-primary">Location & Settings</h5>
+
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Latitude *</label>
+                    <input type="number" name="latitude" step="any" className={`form-control ${errors.latitude ? "is-invalid" : ""}`} value={formData.latitude} onChange={handleInputChange} />
+                    {errors.latitude && <div className="invalid-feedback">{errors.latitude}</div>}
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Longitude *</label>
+                    <input type="number" name="longitude" step="any" className={`form-control ${errors.longitude ? "is-invalid" : ""}`} value={formData.longitude} onChange={handleInputChange} />
+                    {errors.longitude && <div className="invalid-feedback">{errors.longitude}</div>}
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Sort Order *</label>
+                    <input type="number" name="sort" className={`form-control ${errors.sort ? "is-invalid" : ""}`} value={formData.sort} onChange={handleInputChange} />
+                    {errors.sort && <div className="invalid-feedback">{errors.sort}</div>}
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Rating (0-5)</label>
+                    <input type="number" name="rating" step="0.1" className={`form-control ${errors.rating ? "is-invalid" : ""}`} value={formData.rating} onChange={handleInputChange} />
+                    {errors.rating && <div className="invalid-feedback">{errors.rating}</div>}
+                  </div>
+                </div>
+
+                <div className="d-flex gap-4 mb-4 mt-2">
+                  <div className="form-check form-switch">
+                    <input className="form-check-input" type="checkbox" name="isActive" id="isActive" checked={formData.isActive} onChange={handleInputChange} />
+                    <label className="form-check-label fw-bold" htmlFor="isActive">Active Status</label>
+                  </div>
+                  <div className="form-check form-switch">
+                    <input className="form-check-input" type="checkbox" name="isFamous" id="isFamous" checked={formData.isFamous} onChange={handleInputChange} />
+                    <label className="form-check-label fw-bold" htmlFor="isFamous">Famous Temple</label>
+                  </div>
                 </div>
 
                 <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Latitude <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="latitude"
-                    placeholder="Latitude"
-                    value={formData.latitude}
-                    className={`form-control ${
-                      errors.latitude ? "is-invalid" : ""
-                    }`}
-                    onChange={handleFormChange}
+                  <label className="form-label fw-bold">Description *</label>
+                  <RichTextEditor
+                    value={formData.description}
+                    minHeight={200}
+                    onChange={(html) => setFormData((prev) => ({ ...prev, description: html }))}
                   />
-                  {errors.latitude && (
-                    <div className="invalid-feedback">{errors.latitude}</div>
-                  )}
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Longitude <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    name="longitude"
-                    placeholder="Longitude"
-                    className={`form-control ${
-                      errors.longitude ? "is-invalid" : ""
-                    }`}
-                    value={formData.longitude}
-                    onChange={handleFormChange}
-                  />
-                  {errors.longitude && (
-                    <div className="invalid-feedback">{errors.longitude}</div>
-                  )}
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Rating <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    name="rating"
-                    placeholder="Rating (1-5)"
-                    className={`form-control ${
-                      errors.rating ? "is-invalid" : ""
-                    }`}
-                    value={formData.rating}
-                    onChange={handleFormChange}
-                  />
-                  {errors.rating && (
-                    <div className="invalid-feedback">{errors.rating}</div>
-                  )}
-                </div>
-
-                <div className="form-check form-switch fs-5 mb-3">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    role="switch"
-                    name="isFamous"
-                    checked={formData.isFamous}
-                    onChange={handleFormChange}
-                  />
-                  <label className="form-check-label">is Famous</label>
+                  {errors.description && <div className="text-danger small mt-1 d-block">{errors.description}</div>}
                 </div>
               </div>
             </div>
 
-            <div className="d-flex justify-content-end gap-2 mt-4 border-top pt-3">
-              <button
-                type="button"
-                className="btn btn-outline-secondary mr-3"
-                onClick={() => navigate("/temple")}
-                disabled={isSaving}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <span className="spinner-border spinner-border-sm me-2"></span>
-                ) : (
-                  <i className="fas fa-save mr-2"></i>
-                )}
-                {id ? "Update Temple" : "Create Temple"}
-              </button>
-            </div>
+            <hr className="my-4" />
+
+            <RelatedContentSelector
+              languageId={formData.language}
+              relatedContent={formData.relatedContent}
+              onChange={handleSelectChange}
+            />
+
+            <FormActionButtons
+              onCancel={() => navigate("/temple")}
+              isLoading={addTempleMutation.isPending || updateTempleMutation.isPending || isUploading}
+              isEditing={!!id}
+              entityName="Temple"
+            />
           </form>
         </div>
       </div>

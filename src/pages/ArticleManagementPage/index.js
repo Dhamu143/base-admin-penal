@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,7 +8,8 @@ import {
   useDeleteArticle,
   useUpdateArticle
 } from "../../hooks/useArticles";
-import { fetchAllGods } from "../../store/god/index";
+
+import { useAllGods } from "../../hooks/useGod";
 import { staticLanguages } from "../../constants/languages";
 
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -31,7 +31,6 @@ const styles = `
 `;
 
 export default function ArticleListPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const itemsPerPage = 10;
@@ -60,23 +59,17 @@ export default function ArticleListPage() {
   const deleteMutation = useDeleteArticle();
   const updateMutation = useUpdateArticle();
 
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
+  // 🔥 Fetch Master Data via React Query
+  const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [articleToDelete, setArticleToDelete] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
-
-  useEffect(() => {
-    if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [dispatch, godStatus]);
 
   useEffect(() => {
     if (filters.page > 1 && (filters.godId || filters.god)) {
       handlePageChange(1);
     }
   }, [filters.godId, filters.god, filters.page, handlePageChange]);
-
 
   const handleReset = () => {
     resetFilters();
@@ -145,7 +138,7 @@ export default function ArticleListPage() {
           onFilterChange={handleFilterChange}
           onReset={handleReset}
           godOptions={godOptions}
-          godStatus={godStatus}
+          godStatus={isLoadingGods ? "loading" : "succeeded"}
         />
 
         <div className="card-body">

@@ -30,6 +30,12 @@ const Menu = [
     icon: FiUsers,
     permissions: ["admin", "users"],
   },
+    {
+    name: "Image url",
+    path: "/imgurl",
+    icon: FiUsers,
+    permissions: ["admin", "users"],
+  },
   {
     name: "God",
     path: "/god",

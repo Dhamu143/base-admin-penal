@@ -5,16 +5,17 @@ import { toast } from "react-toastify";
 const fetchGodsListApi = async (params = {}) => {
     const queryString = new URLSearchParams(
         Object.fromEntries(
-            Object.entries(params).filter(
-                ([_, v]) => v !== "" && v !== undefined && v !== null
-            )
+            Object.entries(params).filter(([_, v]) => v !== "" && v !== undefined && v !== null)
         )
     ).toString();
-
     const url = queryString ? `/god?${queryString}` : "/god";
     const response = await httpService.get(url);
-
     return response.data?.data;
+};
+
+const fetchAllGodsApi = async () => {
+    const response = await httpService.get("/god?limit=1000");
+    return response.data?.data?.data || [];
 };
 
 const fetchGodByIdApi = async (id) => {
@@ -41,9 +42,17 @@ export const useGodsList = (filters) => {
     return useQuery({
         queryKey: ["godsList", filters],
         queryFn: () => fetchGodsListApi(filters),
-        staleTime: Infinity,
+        staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false,
-        keepPreviousData: true,
+    });
+};
+
+export const useAllGods = () => {
+    return useQuery({
+        queryKey: ["gods", "all"],
+        queryFn: fetchAllGodsApi,
+        staleTime: 10 * 60 * 1000,
+        refetchOnWindowFocus: false,
     });
 };
 
@@ -52,9 +61,7 @@ export const useGod = (id) => {
         queryKey: ["god", id],
         queryFn: () => fetchGodByIdApi(id),
         enabled: !!id,
-
         staleTime: Infinity,
-        refetchOnWindowFocus: false,
     });
 };
 
@@ -65,12 +72,9 @@ export const useAddGod = () => {
         onSuccess: () => {
             toast.success("God added successfully!");
             queryClient.invalidateQueries(["godsList"]);
-            queryClient.invalidateQueries(["dashboardStats"]);
-
+            queryClient.invalidateQueries(["gods", "all"]);
         },
-        onError: (err) => {
-            toast.error(err.response?.data?.message || "Failed to add God.");
-        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to add God."),
     });
 };
 
@@ -79,14 +83,12 @@ export const useUpdateGod = () => {
     return useMutation({
         mutationFn: updateGodApi,
         onSuccess: (data, variables) => {
+            toast.success("God updated successfully!");
             queryClient.invalidateQueries(["godsList"]);
+            queryClient.invalidateQueries(["gods", "all"]);
             queryClient.invalidateQueries(["god", variables.id]);
-            queryClient.invalidateQueries(["dashboardStats"]);
-
         },
-        onError: (err) => {
-            toast.error(err.response?.data?.message || "Failed to update God.");
-        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to update God."),
     });
 };
 
@@ -97,11 +99,8 @@ export const useDeleteGod = () => {
         onSuccess: () => {
             toast.success("God deleted successfully!");
             queryClient.invalidateQueries(["godsList"]);
-            queryClient.invalidateQueries(["dashboardStats"]);
-
+            queryClient.invalidateQueries(["gods", "all"]);
         },
-        onError: (err) => {
-            toast.error(err.response?.data?.message || "Failed to delete God.");
-        },
+        onError: (err) => toast.error(err.response?.data?.message || "Failed to delete God."),
     });
 };

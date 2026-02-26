@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,7 +9,7 @@ import {
   useUpdateBhajan
 } from "../../hooks/useBhajans";
 
-import { fetchAllGods } from "../../store/god";
+import { useAllGods } from "../../hooks/useGod";
 import { staticLanguages } from "../../constants/languages";
 
 import ConfirmationModal from "../../common/ConfirmationModal";
@@ -20,7 +19,6 @@ import FilterBar from "../../common/FilterBar";
 import { useFilters } from "../../hooks/useFilters";
 
 export default function BhajanListPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const {
@@ -30,6 +28,7 @@ export default function BhajanListPage() {
     resetFilters,
   } = useFilters();
   const itemsPerPage = 10;
+
   const apiFilters = useMemo(() => {
     return {
       ...filters,
@@ -46,18 +45,10 @@ export default function BhajanListPage() {
   const deleteMutation = useDeleteBhajan();
   const updateMutation = useUpdateBhajan();
 
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
+  const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [bhajanToDelete, setBhajanToDelete] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
-
-  useEffect(() => {
-    if (godStatus === "idle") {
-      dispatch(fetchAllGods());
-    }
-  }, [dispatch, godStatus]);
 
   useEffect(() => {
     if (filters.page > 1 && (filters.godId || filters.god)) {
@@ -127,7 +118,7 @@ export default function BhajanListPage() {
         onFilterChange={handleFilterChange}
         onReset={handleReset}
         godOptions={godOptions}
-        godStatus={godStatus}
+        godStatus={isLoadingGods ? "loading" : "succeeded"}
       />
 
       <div className="card-body">

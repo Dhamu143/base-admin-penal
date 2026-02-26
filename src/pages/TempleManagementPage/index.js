@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 // import { useQueryClient } from "@tanstack/react-query";
@@ -9,7 +8,7 @@ import {
   useUpdateTemple
 } from "../../hooks/useTemple";
 
-import { fetchAllGods } from "../../store/god";
+import { useAllGods } from "../../hooks/useGod";
 import { staticLanguages } from "../../constants/languages";
 
 import FilterBar from "../../common/FilterBar";
@@ -20,7 +19,6 @@ import { TableStatus } from "../../components/TableStatus";
 import DynamicImage from "../../components/PostPreview/PostPreview";
 
 export default function TempleListPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   // const queryClient = useQueryClient();
   const itemsPerPage = 10;
@@ -49,30 +47,16 @@ export default function TempleListPage() {
   const deleteMutation = useDeleteTemple();
   const updateMutation = useUpdateTemple();
 
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
+  const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [templeToDelete, setTempleToDelete] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
-
-  useEffect(() => {
-    if (godStatus === "idle") {
-      dispatch(fetchAllGods());
-    }
-  }, [dispatch, godStatus]);
 
   useEffect(() => {
     if (filters.page > 1 && (filters.godId || filters.god)) {
       handlePageChange(1);
     }
   }, [filters.godId, filters.god, filters.page, handlePageChange]);
-
-
-  // const handleManualRefresh = () => {
-  //   queryClient.invalidateQueries(["temples"]);
-  //   toast.success("List refreshed!");
-  // };
 
   const handleReset = () => {
     resetFilters();
@@ -90,7 +74,7 @@ export default function TempleListPage() {
         `Temple "${temple.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      // Error handled in hook
+      // Error
     } finally {
       setTogglingId(null);
     }
@@ -107,7 +91,7 @@ export default function TempleListPage() {
 
       setTempleToDelete(null);
     } catch (err) {
-      // Error handled in hook
+      // Error
     }
   };
 
@@ -142,7 +126,7 @@ export default function TempleListPage() {
         onFilterChange={handleFilterChange}
         onReset={handleReset}
         godOptions={godOptions}
-        godStatus={godStatus}
+        godStatus={isLoadingGods ? "loading" : "succeeded"}
       />
 
       <div className="card-body">

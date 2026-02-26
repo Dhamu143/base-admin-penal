@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
 import ConfirmationModal from "../../common/ConfirmationModal";
 import { TableStatus } from "../../components/TableStatus";
-
-import { fetchAdminPosts, verifyPost, deletePost } from "../../store/post";
 import CustomPagination from "../../common/Pagination";
+
+// 🔥 Import your React Query hooks
+import { useAdminPosts, useVerifyPost, useDeletePost } from "../../hooks/usePosts";
 
 const styles = `
   .img-thumbnail-custom {
@@ -26,66 +26,66 @@ const styles = `
 `;
 
 export default function PostVerificationPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const [currentTab, setCurrentTab] = useState("pending");
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    error
+  } = useAdminPosts({ status: currentTab, page, limit });
 
-  const { list: posts, status, error, totalPages, totalCount } = useSelector(
-    (state) => state.posts
-  );
+  const posts = data?.data || [];
+  const totalPages = data?.totalPages || 1;
+  const totalCount = data?.total || 0;
 
-  const loadPosts = useCallback(() => {
-    dispatch(fetchAdminPosts({ status: currentTab, page, limit }))
-      .unwrap()
-      .catch((err) => toast.error(err));
-  }, [dispatch, currentTab, page, limit]);
+  const tableStatus = isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded";
 
-  useEffect(() => {
-    loadPosts();
-  }, [loadPosts]);
+  const verifyMutation = useVerifyPost();
+  const deleteMutation = useDeletePost();
 
   const handleTabChange = (tab) => {
-    setCurrentTab(tab);
-    setPage(1);
+    if (tab !== currentTab) {
+      setCurrentTab(tab);
+      setPage(1);
+    }
   };
 
   const handleApprove = async (post) => {
     try {
-      await dispatch(verifyPost({ id: post._id, isVerified: true })).unwrap();
+      await verifyMutation.mutateAsync({ id: post._id, isVerified: true });
       toast.success("Post Approved Successfully! ");
-      loadPosts();
     } catch (err) {
-      toast.error(err || "Failed to approve post.");
+      // Errors 
     }
   };
 
   const handleUnpublish = async (post) => {
     try {
-      await dispatch(verifyPost({ id: post._id, isVerified: false })).unwrap();
+      await verifyMutation.mutateAsync({ id: post._id, isVerified: false });
       toast.warning("Post Unpublished (Moved to Pending). ⚠️");
-      loadPosts();
     } catch (err) {
-      toast.error(err || "Failed to unpublish post.");
+      // Errors 
     }
   };
 
   const confirmDelete = async () => {
     if (!postToDelete) return;
-    setIsProcessing(true);
     try {
-      await dispatch(deletePost(postToDelete._id)).unwrap();
-      toast.success("Post deleted successfully. 🗑️");
+      await deleteMutation.mutateAsync(postToDelete._id);
+
+      if (posts.length === 1 && page > 1) {
+        setPage((prev) => prev - 1);
+      }
+
       setPostToDelete(null);
-      loadPosts();
     } catch (err) {
-      toast.error(err || "Failed to delete post.");
-    } finally {
-      setIsProcessing(false);
+      // Errors 
     }
   };
 
@@ -112,7 +112,6 @@ export default function PostVerificationPage() {
             </button>
           </div>
 
-          {/* TABS */}
           <ul className="nav nav-tabs mt-3 card-header-tabs">
             <li className="nav-item">
               <button
@@ -155,7 +154,7 @@ export default function PostVerificationPage() {
               </thead>
               <tbody>
                 <TableStatus
-                  status={status}
+                  status={tableStatus}
                   error={error}
                   dataLength={posts.length}
                   colSpan={7}
@@ -167,9 +166,9 @@ export default function PostVerificationPage() {
                   }
                 />
 
-                {status === "succeeded" &&
+                {!isLoading && !isError && Array.isArray(posts) &&
                   posts.map((post) => (
-                    <tr key={post._id}>
+                    <tr key={post._id} className={isFetching ? "opacity-50" : ""}>
                       <td className="ps-4">
                         <a href={post.image} target="_blank" rel="noreferrer">
                           <img
@@ -187,7 +186,7 @@ export default function PostVerificationPage() {
                         <div className="fw-bold text-dark">
                           {post.title || "No Title"}
                         </div>
-                        <div className="text-muted small truncate-desc">
+                        <div className="text-muted small truncate-desc" title={post.description}>
                           {post.description || "No description"}
                         </div>
                         {post.isAdmin && (
@@ -233,6 +232,7 @@ export default function PostVerificationPage() {
                             <button
                               className="btn btn-sm btn-success mr-2"
                               onClick={() => handleApprove(post)}
+                              disabled={verifyMutation.isPending}
                               title="Approve Post"
                             >
                               <i className="fas fa-check"></i>
@@ -242,6 +242,7 @@ export default function PostVerificationPage() {
                             <button
                               className="btn btn-sm btn-outline-warning mr-2"
                               onClick={() => handleUnpublish(post)}
+                              disabled={verifyMutation.isPending}
                               title="Unpublish"
                             >
                               <i className="fas fa-ban"></i>
@@ -263,7 +264,7 @@ export default function PostVerificationPage() {
           </div>
         </div>
 
-        {status === "succeeded" && posts.length > 0 && (
+        {tableStatus === "succeeded" && posts.length > 0 && (
           <div className="card-footer bg-white py-3">
             <CustomPagination
               currentPage={page}
@@ -281,7 +282,7 @@ export default function PostVerificationPage() {
           onConfirm={confirmDelete}
           title="Delete Post?"
           confirmText="Yes, Delete"
-          isLoading={isProcessing}
+          isLoading={deleteMutation.isPending}
           confirmButtonVariant="danger"
         >
           <div className="text-center">

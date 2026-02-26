@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
-// import { useQueryClient } from "@tanstack/react-query";
 
 import {
   useFestivals,
   useDeleteFestival,
   useUpdateFestival
-} from "../../hooks/useFestival";
+} from "../../hooks/useFestival"; 
 
-import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 import ConfirmationModal from "../../common/ConfirmationModal";
 import CustomPagination from "../../common/Pagination";
@@ -25,15 +22,26 @@ const languageOptions = [
   })),
 ];
 
+const formatDate = (date) => {
+  if (!date) return "N/A";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "N/A";
+
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+
+  return `${day}-${month}-${year}`;
+};
+
 export default function FestivalListPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
-  // const queryClient = useQueryClient();
 
   const [filters, setFilters] = useState({ language: "", page: 1 });
   const [festivalToDelete, setFestivalToDelete] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
   const itemsPerPage = 10;
+
   const { data, isLoading, isError, error, isFetching } = useFestivals({
     ...filters,
     limit: itemsPerPage,
@@ -45,15 +53,6 @@ export default function FestivalListPage() {
   const deleteMutation = useDeleteFestival();
   const updateMutation = useUpdateFestival();
 
-  const { masterStatus: godStatus } = useSelector(
-    (state) => state.God || {}
-  );
-
-  useEffect(() => {
-    if (godStatus === "idle") dispatch(fetchAllGods());
-  }, [dispatch, godStatus]);
-
-  // Handlers
   const handleStatusToggle = async (festival) => {
     if (togglingId === festival._id) return;
     setTogglingId(festival._id);
@@ -74,27 +73,22 @@ export default function FestivalListPage() {
     if (!festivalToDelete) return;
     try {
       await deleteMutation.mutateAsync(festivalToDelete._id);
+
       if (festivals.length === 1 && filters.page > 1) {
         setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
       }
+
       setFestivalToDelete(null);
-      toast.success("Festival deleted.");
     } catch (err) {
-      toast.error("Delete failed.");
+      // Error
     }
   };
-
-  // const handleManualRefresh = () => {
-  //   queryClient.invalidateQueries(["festivals"]);
-  //   toast.success("List refreshed!");
-  // };
 
   return (
     <div className="card shadow-sm">
       <div className="card-header bg-light d-flex justify-content-between align-items-center p-3">
         <h4 className="mb-0 text-primary-emphasis">Festival Management</h4>
         <div>
-
           <button
             className="btn btn-success"
             onClick={() => navigate("/festivals/new")}
@@ -130,6 +124,7 @@ export default function FestivalListPage() {
               <tr>
                 <th>Sort</th>
                 <th>Name</th>
+                <th>Date</th>
                 <th>Language</th>
                 <th>Status</th>
                 <th className="text-center">Actions</th>
@@ -140,15 +135,20 @@ export default function FestivalListPage() {
                 status={isLoading || isFetching ? "loading" : isError ? "failed" : "succeeded"}
                 error={error}
                 dataLength={festivals.length}
-                colSpan={5}
+                colSpan={6}
                 loadingText="Loading festivals..."
                 emptyText="No festivals Found."
               />
-              {!isLoading && festivals.map((item) => (
+              {!isLoading && !isError && festivals.map((item) => (
                 <tr key={item._id} className={isFetching ? "opacity-50" : ""}>
                   <td>{item.sort}</td>
                   <td className="fw-bold">{item.name}</td>
-                  <td>{staticLanguages.find(l => l._id === item.language)?.nativeName || "N/A"}</td>
+                  <td>{formatDate(item.date)}</td>
+                  <td>
+                    {
+                      staticLanguages.find(l => l._id === item.language)?.nativeName || "N/A"
+                    }
+                  </td>
                   <td>
                     <div className="form-check form-switch">
                       <input

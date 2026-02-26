@@ -1,25 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import Select from "react-select";
 
 import { uploadImage } from "../../services/uploadService";
 import RichTextEditor from "../../common/RichTextEditor";
-
-import { createPost } from "../../store/post";
-import { fetchAllGods } from "../../store/god";
 import { staticLanguages } from "../../constants/languages";
 
+import { useCreatePost } from "../../hooks/usePosts";
+import { useAllGods } from "../../hooks/useGod";
+
 export default function CreatePostPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { masterList: allGods = [], masterStatus } = useSelector(
-    (state) => state.God
-  );
+  const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { mutateAsync: createPostMutate, isPending: isCreating } = useCreatePost();
+
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [filteredGods, setFilteredGods] = useState([]);
   const [errors, setErrors] = useState({});
 
@@ -32,12 +30,6 @@ export default function CreatePostPage() {
     deviceId: "ADMIN_DEVICE_001",
     isAdmin: true,
   });
-
-  useEffect(() => {
-    if (masterStatus === "idle") {
-      dispatch(fetchAllGods());
-    }
-  }, [dispatch, masterStatus]);
 
   useEffect(() => {
     if (formData.languageId && Array.isArray(allGods)) {
@@ -60,7 +52,7 @@ export default function CreatePostPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsProcessing(true);
+    setIsProcessingImage(true);
     try {
       const uploadedUrl = await uploadImage(file);
       setFormData((prev) => ({ ...prev, image: uploadedUrl }));
@@ -70,7 +62,7 @@ export default function CreatePostPage() {
       toast.error("Failed to upload image.");
       console.error("Image upload error:", err);
     } finally {
-      setIsProcessing(false);
+      setIsProcessingImage(false);
     }
   };
 
@@ -90,15 +82,11 @@ export default function CreatePostPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    setIsProcessing(true);
     try {
-      await dispatch(createPost(formData)).unwrap();
-      toast.success("New Post Created & Verified! 🎉");
+      await createPostMutate(formData);
       navigate("/post");
     } catch (err) {
-      toast.error(err || "Failed to create post.");
-    } finally {
-      setIsProcessing(false);
+      console.error("Failed to create post:", err);
     }
   };
 
@@ -109,6 +97,8 @@ export default function CreatePostPage() {
       ? { value: item._id, label: item[labelKey] || item.nativeName }
       : null;
   };
+
+  const isFormDisabled = isCreating || isProcessingImage;
 
   return (
     <div className="content-wrapper p-4">
@@ -205,11 +195,13 @@ export default function CreatePostPage() {
                     }))
                   }
                   placeholder={
-                    formData.languageId
-                      ? "Select God..."
-                      : "Select Language first..."
+                    isLoadingGods
+                      ? "Loading Gods..."
+                      : formData.languageId
+                        ? "Select God..."
+                        : "Select Language first..."
                   }
-                  isDisabled={!formData.languageId}
+                  isDisabled={!formData.languageId || isLoadingGods}
                   noOptionsMessage={() => "No Gods found for this language"}
                 />
                 {errors.godId && (
@@ -227,12 +219,13 @@ export default function CreatePostPage() {
                   className={`form-control ${errors.image ? "is-invalid" : ""}`}
                   onChange={handleImageUpload}
                   accept="image/*"
-                  disabled={isProcessing}
+                  disabled={isFormDisabled}
                 />
+                {isProcessingImage && <div className="text-primary small mt-1">Uploading...</div>}
                 {errors.image && (
                   <div className="text-danger small mt-1">{errors.image}</div>
                 )}
-                {formData.image && (
+                {formData.image && !isProcessingImage && (
                   <div className="mt-2">
                     <img
                       src={formData.image}
@@ -269,16 +262,16 @@ export default function CreatePostPage() {
               type="button"
               className="btn btn-outline-secondary mr-2"
               onClick={() => navigate("/post")}
-              disabled={isProcessing}
+              disabled={isFormDisabled}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="btn btn-success"
-              disabled={isProcessing}
+              disabled={isFormDisabled}
             >
-              {isProcessing ? (
+              {isCreating ? (
                 <>
                   <span className="spinner-border spinner-border-sm mr-2"></span>
                   Publishing...

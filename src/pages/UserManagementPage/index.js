@@ -8,7 +8,6 @@ import DynamicImage from "../../components/PostPreview/PostPreview";
 import { TableStatus } from "../../components/TableStatus";
 
 export default function UserTablePage() {
-  // const navigate = useNavigate();
   const queryClient = useQueryClient(); 
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,7 +39,7 @@ export default function UserTablePage() {
 
       setUserToDelete(null);
     } catch (err) {
-      // Error handled in hook
+      // Error
     }
   };
 

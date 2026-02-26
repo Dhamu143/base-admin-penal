@@ -60,8 +60,6 @@ export const useMantras = (filters) => {
   return useQuery({
     queryKey: ["mantras", filters],
     queryFn: () => fetchMantrasApi(filters),
-
-    // 🔥 Important fix
     staleTime: 0,
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,

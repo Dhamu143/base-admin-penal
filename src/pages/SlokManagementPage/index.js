@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 // import { useQueryClient } from "@tanstack/react-query";
@@ -10,7 +9,7 @@ import {
   useUpdateSlok
 } from "../../hooks/useSloks";
 
-import { fetchAllGods } from "../../store/god";
+import { useAllGods } from "../../hooks/useGod";
 import { staticLanguages } from "../../constants/languages";
 
 import FilterBar from "../../common/FilterBar";
@@ -19,7 +18,6 @@ import CustomPagination from "../../common/Pagination";
 import { TableStatus } from "../../components/TableStatus";
 
 export default function SlokListPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   // const queryClient = useQueryClient();
   const itemsPerPage = 10;
@@ -75,18 +73,10 @@ export default function SlokListPage() {
   const deleteMutation = useDeleteSlok();
   const updateMutation = useUpdateSlok();
 
-  const { masterList: allGods, masterStatus: godStatus } = useSelector(
-    (state) => state.God
-  );
+  const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [slokToDelete, setSlokToDelete] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
-
-  useEffect(() => {
-    if (godStatus === "idle") {
-      dispatch(fetchAllGods());
-    }
-  }, [dispatch, godStatus]);
 
   useEffect(() => {
     if (filters.page > 1 && filters.god) {
@@ -167,7 +157,7 @@ export default function SlokListPage() {
           onFilterChange={handleFilterChange}
           onReset={handleReset}
           godOptions={godOptions}
-          godStatus={godStatus}
+          godStatus={isLoadingGods ? "loading" : "succeeded"}
         />
 
         <div className="card-body">

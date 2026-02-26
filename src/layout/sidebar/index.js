@@ -229,15 +229,13 @@ function Sidebar() {
             {item.label.value}
           </Badge>
         )}
-        {item.icon && <item.icon className="me-2" size={18} />}
+        {item.icon && <item.icon className="mr-2" size={18} />}
         <span className="align-middle">{item.name}</span>
       </Link>
     </li>
   );
 
-  /**
-   * Submenu Item
-   */
+
   const SidebarSubItem = ({
     item,
     isActive,
@@ -252,7 +250,7 @@ function Sidebar() {
         style={{ cursor: "pointer" }}
       >
         <div className="d-flex align-items-center">
-          {item.icon && <item.icon className="me-2" size={18} />}
+          {item.icon && <item.icon className="mr-2" size={18} />}
           <span>{item.name}</span>
         </div>
         <span>{isOpen ? "▾" : "▸"}</span>
