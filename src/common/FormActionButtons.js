@@ -33,7 +33,7 @@ export default function FormActionButtons({
                 {isLoading ? (
                     <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                 ) : (
-                    <i className="fas fa-save me-2"></i>
+                    <i className="fas fa-save mr-2"></i>
                 )}
                 {finalSubmitText}
             </button>

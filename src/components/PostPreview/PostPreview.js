@@ -1,35 +1,31 @@
 import React, { useState } from "react";
 
 const DynamicImage = ({
-  src, // image or video URL
-  alt = "Preview", // alt text
-  size = 60, // width & height in px
+  src,
+  alt = "Preview", 
+  size = 60, 
   className = "",
   style = {},
   ...rest
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Use default fallback from public folder
   const finalSrc = src || "/user.jpg";
 
-  // Detect video file
   const isVideo = /\.(mp4|webm|mov)$/i.test(finalSrc);
 
-  // Thumbnail styles
   const thumbnailStyle = {
     width: `${size}px`,
     height: `${size}px`,
     objectFit: "cover",
-    borderRadius: "50%", // fully circular
-    border: "1px solid #ccc", // 1px gray border
+    borderRadius: "50%", 
+    border: "1px solid #ccc", 
     cursor: "pointer",
     ...style,
   };
 
   return (
     <>
-      {/* --- Thumbnail --- */}
       <div
         onClick={() => setIsOpen(true)}
         className={`dynamic-image-thumbnail ${className}`}
@@ -52,7 +48,6 @@ const DynamicImage = ({
         )}
       </div>
 
-      {/* --- Modal Preview --- */}
       {isOpen && (
         <>
           <div

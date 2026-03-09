@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import Select from "react-select";
 
 import {
-  useQuizzes,
+  useQuizById, 
   useAddQuiz,
   useUpdateQuiz
 } from "../../hooks/useQuiz";
@@ -17,8 +17,7 @@ export default function QuizFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { data: quizzesData } = useQuizzes({});
-  const quizzes = quizzesData?.data || [];
+  const { data: quiz, isLoading: isQuizLoading } = useQuizById(id);
 
   const { data: allGods = [], isLoading: godLoading } = useAllGods();
 
@@ -44,28 +43,25 @@ export default function QuizFormPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (id && quizzes.length > 0 && allGods.length > 0) {
-      const quiz = quizzes.find((q) => q._id === id);
-      if (quiz) {
-        setFormData({
-          question: quiz.question || "",
-          option1: quiz.options?.[0] || "",
-          option2: quiz.options?.[1] || "",
-          option3: quiz.options?.[2] || "",
-          option4: quiz.options?.[3] || "",
-          correctanswer: quiz.correctanswer || "",
-          sort: quiz.sort || "",
-          language: quiz.language,
-          god: quiz.god?._id || quiz.god,
-          isActive: quiz.isActive !== undefined ? quiz.isActive : true,
-          files: quiz.files || "",
-        });
+    if (id && quiz && allGods.length > 0) {
+      setFormData({
+        question: quiz.question || "",
+        option1: quiz.options?.[0] || "",
+        option2: quiz.options?.[1] || "",
+        option3: quiz.options?.[2] || "",
+        option4: quiz.options?.[3] || "",
+        correctanswer: quiz.correctanswer || "",
+        sort: quiz.sort || "",
+        language: quiz.language || "",
+        god: quiz.god?._id || quiz.god || "",
+        isActive: quiz.isActive !== undefined ? quiz.isActive : true,
+        files: quiz.files || "",
+      });
 
-        const godsByLang = allGods.filter((g) => g.language === quiz.language);
-        setFilteredGods(godsByLang);
-      }
+      const godsByLang = allGods.filter((g) => g.language === quiz.language);
+      setFilteredGods(godsByLang);
     }
-  }, [id, quizzes, allGods]);
+  }, [id, quiz, allGods]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -137,7 +133,6 @@ export default function QuizFormPage() {
       } else {
         await addMutation.mutateAsync(payload);
       }
-
       navigate("/quiz");
     } catch (err) {
       toast.error(err?.message || "An error occurred while saving.");
@@ -214,6 +209,16 @@ export default function QuizFormPage() {
     .filter((opt) => opt && opt.trim() !== "")
     .map((opt) => ({ value: opt, label: opt }));
 
+  if (id && isQuizLoading) {
+    return (
+      <div className="content-wrapper p-4 d-flex justify-content-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="content-wrapper p-4">
       <div className="mb-4 d-flex align-items-center justify-content-between">
@@ -246,8 +251,7 @@ export default function QuizFormPage() {
               <textarea
                 name="question"
                 rows="3"
-                className={`form-control ${errors.question ? "is-invalid" : ""
-                  }`}
+                className={`form-control ${errors.question ? "is-invalid" : ""}`}
                 value={formData.question}
                 onChange={handleFormChange}
               ></textarea>
@@ -283,8 +287,7 @@ export default function QuizFormPage() {
                 <input
                   type="text"
                   name="option1"
-                  className={`form-control ${errors.option1 ? "is-invalid" : ""
-                    }`}
+                  className={`form-control ${errors.option1 ? "is-invalid" : ""}`}
                   value={formData.option1}
                   onChange={handleFormChange}
                 />
@@ -299,8 +302,7 @@ export default function QuizFormPage() {
                 <input
                   type="text"
                   name="option2"
-                  className={`form-control ${errors.option2 ? "is-invalid" : ""
-                    }`}
+                  className={`form-control ${errors.option2 ? "is-invalid" : ""}`}
                   value={formData.option2}
                   onChange={handleFormChange}
                 />
@@ -313,8 +315,7 @@ export default function QuizFormPage() {
                 <input
                   type="text"
                   name="option3"
-                  className={`form-control ${errors.option3 ? "is-invalid" : ""
-                    }`}
+                  className={`form-control ${errors.option3 ? "is-invalid" : ""}`}
                   value={formData.option3}
                   onChange={handleFormChange}
                 />
@@ -327,8 +328,7 @@ export default function QuizFormPage() {
                 <input
                   type="text"
                   name="option4"
-                  className={`form-control ${errors.option4 ? "is-invalid" : ""
-                    }`}
+                  className={`form-control ${errors.option4 ? "is-invalid" : ""}`}
                   value={formData.option4}
                   onChange={handleFormChange}
                 />
@@ -388,7 +388,6 @@ export default function QuizFormPage() {
                       : "Select Language first..."
                   }
                   isDisabled={!formData.language}
-                  // isLoading={godStatus === "loading"}
                 />
                 {errors.god && (
                   <div className="text-danger small mt-1">{errors.god}</div>

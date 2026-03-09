@@ -30,7 +30,7 @@ const Menu = [
     icon: FiUsers,
     permissions: ["admin", "users"],
   },
-    {
+  {
     name: "Image url",
     path: "/imgurl",
     icon: FiUsers,
@@ -46,6 +46,12 @@ const Menu = [
     name: "Users",
     path: "/users",
     icon: FiUsers,
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Badges",
+    path: "/badges",
+    icon: FiAward,
     permissions: ["admin", "users"],
   },
   {

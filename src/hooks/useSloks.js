@@ -42,12 +42,14 @@ const fetchSlokByIdApi = async (id) => {
 };
 
 const addSlokApi = async (data) => {
-  const response = await httpService.post("/slok/create", {}, data);
+  // FIXED: Removed the empty {} so data is sent as the payload
+  const response = await httpService.post("/slok/create", data);
   return response.data?.data;
 };
 
 const updateSlokApi = async ({ id, ...data }) => {
-  const response = await httpService.put(`/slok/${id}`, {}, data);
+  // FIXED: Removed the empty {} so data is sent as the payload
+  const response = await httpService.put(`/slok/${id}`, data);
   return response.data?.data;
 };
 

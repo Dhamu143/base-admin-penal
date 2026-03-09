@@ -90,7 +90,7 @@ export default function UserTablePage() {
                   <tr key={user._id}>
                     <td>
                       <DynamicImage
-                        src={user.featureimage || "/img/user.jpg"}
+                        src={user.profilePic || "/img/user.jpg"}
                         alt={user.firstName}
                         style={{
                           width: 50,

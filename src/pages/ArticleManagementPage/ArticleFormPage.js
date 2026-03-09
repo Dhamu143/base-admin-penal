@@ -37,7 +37,7 @@ export default function ArticleFormPage() {
     share: "0",
     like: "0",
     isGlobal: false,
-    relatedContent: [], 
+    relatedContent: [],
   });
 
   const [filteredGods, setFilteredGods] = useState([]);
@@ -141,7 +141,7 @@ export default function ArticleFormPage() {
         toast.success("Article updated!");
       } else {
         await addMutation.mutateAsync(payload);
-        toast.success("Article created!");
+        // toast.success("Article created!");
       }
       navigate("/articles");
     } catch (err) { }
@@ -149,8 +149,9 @@ export default function ArticleFormPage() {
 
   if (id && isFetching) return <div className="text-center p-5"><div className="spinner-border text-primary"></div></div>;
 
-  const languageOptions = staticLanguages.map((l) => ({ value: l._id, label: l.nativeName }));
-  const godOptions = filteredGods.map((g) => ({ value: g._id, label: g.name }));
+  // Fallback to l.id or g.id in case the data structure doesn't use _id
+  const languageOptions = staticLanguages.map((l) => ({ value: l._id || l.id, label: l.nativeName }));
+  const godOptions = filteredGods.map((g) => ({ value: g._id || g.id, label: g.name }));
 
   return (
     <div className="content-wrapper p-4">
@@ -196,9 +197,11 @@ export default function ArticleFormPage() {
                   <div className="col-md-6">
                     <ReusableSelect
                       label="Language"
+                      name="language" // Added name prop
                       options={languageOptions}
                       value={formData.language}
-                      onChange={(val) => handleSelectChange("language", val)}
+                      // Catch the SECOND argument (value)
+                      onChange={(name, value) => handleSelectChange("language", value)}
                       error={errors.language}
                       required
                     />
@@ -206,9 +209,10 @@ export default function ArticleFormPage() {
                   <div className="col-md-6">
                     <ReusableSelect
                       label="God"
+                      name="god" 
                       options={godOptions}
                       value={formData.god}
-                      onChange={(val) => handleSelectChange("god", val)}
+                      onChange={(name, value) => handleSelectChange("god", value)}
                       error={errors.god}
                       isDisabled={formData.isGlobal || !formData.language || isLoadingGods}
                       placeholder={

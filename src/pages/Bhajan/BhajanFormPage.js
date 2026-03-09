@@ -189,9 +189,10 @@ export default function BhajanFormPage() {
                   <div className="col-md-6">
                     <ReusableSelect
                       label="Language"
+                      name="language"
                       options={languageOptions}
                       value={formData.language}
-                      onChange={(val) => handleSelectChange("language", val)}
+                      onChange={handleSelectChange}
                       error={errors.language}
                       required
                     />
@@ -199,9 +200,10 @@ export default function BhajanFormPage() {
                   <div className="col-md-6">
                     <ReusableSelect
                       label="God"
+                      name="god"
                       options={godOptions}
                       value={formData.god}
-                      onChange={(val) => handleSelectChange("god", val)}
+                      onChange={handleSelectChange}
                       error={errors.god}
                       isDisabled={!formData.language || isLoadingGods}
                       placeholder={isLoadingGods ? "Loading Gods..." : (formData.language ? "Select God..." : "Select Language first...")}

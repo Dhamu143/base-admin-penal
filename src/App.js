@@ -50,6 +50,8 @@ import Post from "./pages/Post/index.js";
 import CreatePostPage from "./pages/Post/CreatePostPage.js";
 import SendNotificationPage from "./pages/SendNotificationPage/index.js"
 import ImageurlPage from "./pages/ImageurlPage/index.js";
+import BadgeListPage from "./pages/BadgeListPage/index.js";
+import BadgeFormPage from "./pages/BadgeListPage/BadgeFormPage.js";
 function App() {
   const navigate = useNavigate();
   // const socket = useContext(SocketContext);
@@ -91,7 +93,9 @@ function App() {
 
             <Route path="/sendNotification" element={<SendNotificationPage />} />
             <Route path="/imgurl" element={<ImageurlPage />} />
-
+            <Route path="/badges" element={<BadgeListPage />} />
+            <Route path="/badges/new" element={<BadgeFormPage />} />
+            <Route path="/badges/edit/:id" element={<BadgeFormPage />} />
 
 
 

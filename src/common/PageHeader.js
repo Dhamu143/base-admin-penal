@@ -27,7 +27,7 @@ export default function PageHeader({
         className="btn btn-outline-primary btn-sm d-flex align-items-center"
         onClick={() => navigate(breadcrumbLink)}
       >
-        <i className="fas fa-arrow-left me-2"></i> Back
+        <i className="fas fa-arrow-left mr-2"></i> Back
       </button>
     </div>
   );

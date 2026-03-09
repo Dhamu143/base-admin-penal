@@ -145,6 +145,7 @@ export default function QuizListPage() {
                 <th>Language</th>
                 <th>God</th>
                 <th>Status</th>
+                <th>Sort</th>
                 <th className="text-center">Actions</th>
               </tr>
             </thead>
@@ -186,7 +187,9 @@ export default function QuizListPage() {
                         </label>
                       </div>
                     </td>
-
+                    <td>
+                      <p>{quiz?.sort}</p>
+                    </td>
                     <td className="text-center">
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"

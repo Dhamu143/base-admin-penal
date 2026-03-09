@@ -6,13 +6,13 @@ const FilterBar = ({
   filters,
   onFilterChange,
   onReset,
-  godOptions,
+  godOptions = [], // ✅ ADDED DEFAULT VALUE HERE
   godStatus,
 }) => {
   const languageOptions = useMemo(
     () => [
       { value: "", label: "All Languages" },
-      ...staticLanguages.map((lang) => ({
+      ...(staticLanguages || []).map((lang) => ({
         value: lang._id,
         label: `${lang.language} (${lang.nativeName})`,
       })),
@@ -23,6 +23,7 @@ const FilterBar = ({
   const selectedLanguage =
     languageOptions.find((opt) => opt.value === filters.language) || null;
 
+  // Now this will never crash because godOptions is guaranteed to be an array
   const selectedGod =
     godOptions.find((opt) => opt.value === filters.godId) || null;
 
