@@ -71,7 +71,7 @@ export const useFestival = (id) => {
     queryKey: ["festival", id],
     queryFn: () => fetchFestivalByIdApi(id),
     enabled: !!id,
-    staleTime: Infinity,
+    staleTime: 0,
     refetchOnWindowFocus: false,
   });
 };

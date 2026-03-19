@@ -3,19 +3,18 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import Select from "react-select";
 
 // Reusable Components
 import RichTextEditor from "../../common/RichTextEditor";
-import ReusableSelect from "../../common/ReusableSelect";
 import FormActionButtons from "../../common/FormActionButtons";
 import PageHeader from "../../common/PageHeader";
-// import RelatedContentSelector from "../../common/RelatedContentSelector";
 
 import { uploadImage } from "../../services/uploadService";
 import { staticLanguages } from "../../constants/languages";
 import { indianStates } from "../../common/indianStates";
 
-import { useFestival, useAddFestival, useUpdateFestival } from "../../hooks/useFestival"; 
+import { useFestival, useAddFestival, useUpdateFestival } from "../../hooks/useFestival";
 
 export default function FestivalFormPage() {
   const navigate = useNavigate();
@@ -33,13 +32,25 @@ export default function FestivalFormPage() {
     language: "",
     date: null,
     image: "",
-    state: "",
+    isVrat: false,
+    state: [],
     tag: "",
-    relatedContent: [], 
+    relatedContent: [],
   });
 
   const [errors, setErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
+
+  // ✅ Ensure state options are correctly formatted as { value, label } for react-select
+  const stateOptions = indianStates.map((state) =>
+    typeof state === "string" ? { value: state, label: state } : state
+  );
+
+  // ✅ Ensure language options are formatted correctly
+  const languageOptions = staticLanguages.map((l) => ({
+    value: l._id,
+    label: `${l.nativeName} (${l.language})`,
+  }));
 
   useEffect(() => {
     if (id && fetchedFestival) {
@@ -51,7 +62,10 @@ export default function FestivalFormPage() {
         language: fetchedFestival.language?._id || fetchedFestival.language || "",
         date: fetchedFestival.date ? new Date(fetchedFestival.date) : null,
         image: fetchedFestival.image || "",
-        state: fetchedFestival.state || "",
+        isVrat: fetchedFestival.isVrat ?? false,
+        state: Array.isArray(fetchedFestival.state)
+          ? fetchedFestival.state
+          : (fetchedFestival.state ? [fetchedFestival.state] : []),
         tag: fetchedFestival.tag || "",
         relatedContent: fetchedFestival.relatedContent?.map((item) => ({
           refId: item.refId?._id || item.refId,
@@ -83,7 +97,7 @@ export default function FestivalFormPage() {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Festival name is required.";
     if (!formData.language) newErrors.language = "Language is required.";
-    if (!formData.state) newErrors.state = "State is required.";
+    if (!formData.state || formData.state.length === 0) newErrors.state = "At least one state is required.";
     if (!formData.date) newErrors.date = "Festival date is required.";
     if (!formData.image) newErrors.image = "Festival image is required.";
     if (formData.sort === "" || isNaN(formData.sort)) newErrors.sort = "Sort order is required.";
@@ -130,11 +144,6 @@ export default function FestivalFormPage() {
       console.error("Error saving festival:", err);
     }
   };
-
-  const languageOptions = staticLanguages.map((l) => ({
-    value: l._id,
-    label: `${l.nativeName} (${l.language})`,
-  }));
 
   const isSaving = addMutation.isPending || updateMutation.isPending || isUploading;
 
@@ -183,28 +192,38 @@ export default function FestivalFormPage() {
                     </div>
                     {errors.date && <div className="text-danger small mt-1">{errors.date}</div>}
                   </div>
-                  <div className="col-md-6">
-                    <ReusableSelect
-                      label="Language"
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">Language *</label>
+                    <Select
                       options={languageOptions}
-                      value={formData.language}
-                      onChange={(val) => handleSelectChange("language", val)}
-                      error={errors.language}
-                      required
+                      value={languageOptions.find((opt) => opt.value === formData.language) || null}
+                      onChange={(selectedOption) => {
+                        handleSelectChange("language", selectedOption ? selectedOption.value : "");
+                      }}
+                      placeholder="Select Language..."
+                      classNamePrefix="react-select"
                     />
+                    {errors.language && <div className="text-danger small mt-1">{errors.language}</div>}
                   </div>
                 </div>
 
                 <div className="row">
-                  <div className="col-md-6">
-                    <ReusableSelect
-                      label="State"
-                      options={indianStates}
-                      value={formData.state}
-                      onChange={(val) => handleSelectChange("state", val)}
-                      error={errors.state}
-                      required
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label fw-bold">State *</label>
+                    <Select
+                      isMulti
+                      options={stateOptions}
+                      // matches the strings saved in state to the full object from options
+                      value={stateOptions.filter((opt) => formData.state.includes(opt.value))}
+                      onChange={(selectedOptions) => {
+                        // Extracts only the strings to save to formData.state
+                        const values = selectedOptions ? selectedOptions.map((opt) => opt.value) : [];
+                        handleSelectChange("state", values);
+                      }}
+                      placeholder="Select States..."
+                      classNamePrefix="react-select"
                     />
+                    {errors.state && <div className="text-danger small mt-1">{errors.state}</div>}
                   </div>
                   <div className="col-md-6 mb-3">
                     <label className="form-label fw-bold">Tag</label>
@@ -237,6 +256,12 @@ export default function FestivalFormPage() {
                       <label className="form-check-label fw-bold">Status Active</label>
                     </div>
                   </div>
+                  <div className="col-md-4 d-flex align-items-center mt-3">
+                    <div className="form-check form-switch">
+                      <input className="form-check-input" type="checkbox" name="isVrat" checked={formData.isVrat} onChange={handleInputChange} />
+                      <label className="form-check-label fw-bold ms-2">Is Vrat (Fast)?</label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -254,12 +279,6 @@ export default function FestivalFormPage() {
             </div>
 
             <hr className="my-4" />
-
-            {/* <RelatedContentSelector
-              languageId={formData.language}
-              relatedContent={formData.relatedContent}
-              onChange={handleSelectChange}
-            /> */}
 
             <FormActionButtons
               onCancel={() => navigate("/festival")}

@@ -49,6 +49,12 @@ const Menu = [
     permissions: ["admin", "users"],
   },
   {
+    name: "Events",
+    path: "/events",
+    icon: FiCalendar,
+    permissions: ["admin", "users"],
+  },
+  {
     name: "Badges",
     path: "/badges",
     icon: FiAward,
