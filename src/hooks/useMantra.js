@@ -56,6 +56,12 @@ const deleteMantraApi = async (id) => {
   return response.data;
 };
 
+// NEW: API call for sending manual notifications
+const sendMantraNotificationApi = async (id) => {
+  const response = await httpService.post(`/mantra/${id}/notify`);
+  return response.data;
+};
+
 export const useMantras = (filters) => {
   return useQuery({
     queryKey: ["mantras", filters],
@@ -81,7 +87,6 @@ export const useAddMantra = () => {
 
   return useMutation({
     mutationFn: addMantraApi,
-
     onSuccess: (newMantra) => {
       toast.success("Mantra added successfully!");
 
@@ -98,13 +103,11 @@ export const useAddMantra = () => {
       );
 
       queryClient.invalidateQueries({ queryKey: ["mantras"] });
-
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
       });
     },
-
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to add Mantra");
     },
@@ -116,18 +119,15 @@ export const useUpdateMantra = () => {
 
   return useMutation({
     mutationFn: updateMantraApi,
-
     onSuccess: () => {
       toast.success("Mantra updated successfully!");
 
       queryClient.invalidateQueries({ queryKey: ["mantras"] });
-
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
       });
     },
-
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to update Mantra");
     },
@@ -139,20 +139,30 @@ export const useDeleteMantra = () => {
 
   return useMutation({
     mutationFn: deleteMantraApi,
-
     onSuccess: () => {
       toast.success("Mantra deleted successfully.");
 
       queryClient.invalidateQueries({ queryKey: ["mantras"] });
-
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
       });
     },
-
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete Mantra");
+    },
+  });
+};
+
+// NEW: Hook for sending manual notifications
+export const useSendMantraNotification = () => {
+  return useMutation({
+    mutationFn: sendMantraNotificationApi,
+    onSuccess: (data) => {
+      toast.success(data.message || "Notification sent successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to send notification");
     },
   });
 };

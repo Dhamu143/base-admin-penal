@@ -6,7 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useStories,
   useDeleteStory,
-  useUpdateStory
+  useUpdateStory,
+  useSendStoryNotification // <-- 1. Import new hook
 } from "../../hooks/useStory";
 
 import { useAllGods } from "../../hooks/useGod";
@@ -45,10 +46,12 @@ export default function StoryManagementPage() {
 
   const deleteMutation = useDeleteStory();
   const updateMutation = useUpdateStory();
+  const notifyMutation = useSendStoryNotification(); // <-- 2. Initialize hook
 
   const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [storyToDelete, setStoryToDelete] = useState(null);
+  const [storyToNotify, setStoryToNotify] = useState(null); // <-- 3. Add notify state
   const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
@@ -84,15 +87,20 @@ export default function StoryManagementPage() {
     if (!storyToDelete) return;
     try {
       await deleteMutation.mutateAsync(storyToDelete._id);
-
       if (stories.length === 1 && filters.page > 1) {
         handlePageChange(filters.page - 1);
       }
-
       setStoryToDelete(null);
-    } catch (err) {
-      // Error handled in hook
-    }
+    } catch (err) {}
+  };
+
+  // <-- 4. Add confirm notification handler
+  const confirmNotification = async () => {
+    if (!storyToNotify) return;
+    try {
+      await notifyMutation.mutateAsync(storyToNotify._id);
+      setStoryToNotify(null);
+    } catch (err) {}
   };
 
   const getLanguageNameById = (langId) =>
@@ -195,12 +203,21 @@ export default function StoryManagementPage() {
 
                     <td className="text-center">
                       <button
+                        className="btn btn-sm btn-outline-warning mr-2"
+                        onClick={() => setStoryToNotify(storyItem)}
+                        title="Send Notification"
+                      >
+                        <i className="fas fa-bell"></i>
+                      </button>
+
+                      <button
                         className="btn btn-sm btn-outline-primary mr-2"
                         onClick={() => navigate(`/story/${storyItem._id}/edit`)}
                         title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
                       </button>
+                      
                       <button
                         className="btn btn-sm btn-outline-danger"
                         onClick={() => setStoryToDelete(storyItem)}
@@ -228,6 +245,7 @@ export default function StoryManagementPage() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         show={storyToDelete !== null}
         onClose={() => setStoryToDelete(null)}
@@ -242,6 +260,23 @@ export default function StoryManagementPage() {
           <strong className="text-danger">{storyToDelete?.name}</strong>?
         </p>
       </ConfirmationModal>
+
+      {/* <-- 6. Add Notification Confirmation Modal --> */}
+      <ConfirmationModal
+        show={storyToNotify !== null}
+        onClose={() => setStoryToNotify(null)}
+        onConfirm={confirmNotification}
+        title="Send Push Notification"
+        confirmText="Send Notification"
+        isLoading={notifyMutation.isPending}
+        confirmButtonVariant="warning"
+      >
+        <p className="fs-5 text-center">
+          Are you sure you want to broadcast a notification to all users for <br />
+          <strong className="text-warning">{storyToNotify?.name}</strong>?
+        </p>
+      </ConfirmationModal>
+      
     </div>
   );
 }

@@ -42,19 +42,23 @@ const fetchSlokByIdApi = async (id) => {
 };
 
 const addSlokApi = async (data) => {
-  // FIXED: Removed the empty {} so data is sent as the payload
-  const response = await httpService.post("/slok/create", data);
+  const response = await httpService.post("/slok/create", {}, data);
   return response.data?.data;
 };
 
 const updateSlokApi = async ({ id, ...data }) => {
-  // FIXED: Removed the empty {} so data is sent as the payload
-  const response = await httpService.put(`/slok/${id}`, data);
+  const response = await httpService.put(`/slok/${id}`, {}, data);
   return response.data?.data;
 };
 
 const deleteSlokApi = async (id) => {
   const response = await httpService.delete(`/slok/${id}`);
+  return response.data;
+};
+
+// NEW: API call for sending manual notifications
+const sendSlokNotificationApi = async (id) => {
+  const response = await httpService.post(`/slok/${id}/notify`);
   return response.data;
 };
 
@@ -114,9 +118,11 @@ export const useUpdateSlok = () => {
 
   return useMutation({
     mutationFn: updateSlokApi,
-    onSuccess: () => {
+    onSuccess: (updatedData, variables) => {
       toast.success("Sloka updated successfully!");
-      queryClient.invalidateQueries({ queryKey: ["sloks"] });
+      
+      queryClient.invalidateQueries({ queryKey: ["sloks"] }); 
+      queryClient.invalidateQueries({ queryKey: ["slok", variables.id] }); 
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
@@ -143,6 +149,19 @@ export const useDeleteSlok = () => {
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete Sloka");
+    },
+  });
+};
+
+// NEW: Hook for sending manual notifications
+export const useSendSlokNotification = () => {
+  return useMutation({
+    mutationFn: sendSlokNotificationApi,
+    onSuccess: (data) => {
+      toast.success(data.message || "Notification sent successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to send notification");
     },
   });
 };

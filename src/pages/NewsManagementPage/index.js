@@ -6,7 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useNewsList,
   useDeleteNews,
-  useUpdateNews
+  useUpdateNews,
+  useSendNewsNotification
 } from "../../hooks/useNews";
 
 import { useAllGods } from "../../hooks/useGod";
@@ -56,10 +57,12 @@ export default function NewsManagementPage() {
 
   const deleteMutation = useDeleteNews();
   const updateMutation = useUpdateNews();
+  const notifyMutation = useSendNewsNotification(); // <-- 2. Initialize hook
 
   const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [newsToDelete, setNewsToDelete] = useState(null);
+  const [newsToNotify, setNewsToNotify] = useState(null); // <-- 3. Add notify state
   const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
@@ -102,6 +105,15 @@ export default function NewsManagementPage() {
     } catch (err) {
       // Error handled in hook
     }
+  };
+
+  // <-- 4. Add confirm notification handler
+  const confirmNotification = async () => {
+    if (!newsToNotify) return;
+    try {
+      await notifyMutation.mutateAsync(newsToNotify._id);
+      setNewsToNotify(null);
+    } catch (err) { }
   };
 
   const getLanguageNameById = (langId) =>
@@ -199,14 +211,24 @@ export default function NewsManagementPage() {
                     </td>
                     <td className="text-center">
                       <button
+                        className="btn btn-sm btn-outline-warning mr-2"
+                        onClick={() => setNewsToNotify(newsItem)}
+                        title="Send Notification"
+                      >
+                        <i className="fas fa-bell"></i>
+                      </button>
+
+                      <button
                         className="btn btn-sm btn-outline-primary mr-2"
                         onClick={() => navigate(`/news/${newsItem._id}/edit`)}
+                        title="Edit"
                       >
                         <i className="fas fa-pencil-alt"></i>
                       </button>
                       <button
                         className="btn btn-sm btn-outline-danger"
                         onClick={() => setNewsToDelete(newsItem)}
+                        title="Delete"
                       >
                         <i className="fas fa-trash"></i>
                       </button>
@@ -230,6 +252,7 @@ export default function NewsManagementPage() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         show={newsToDelete !== null}
         onClose={() => setNewsToDelete(null)}
@@ -244,6 +267,23 @@ export default function NewsManagementPage() {
           <strong className="text-danger">{newsToDelete?.name}</strong>?
         </p>
       </ConfirmationModal>
+
+      {/* <-- 6. Add Notification Confirmation Modal --> */}
+      <ConfirmationModal
+        show={newsToNotify !== null}
+        onClose={() => setNewsToNotify(null)}
+        onConfirm={confirmNotification}
+        title="Send Push Notification"
+        confirmText="Send Notification"
+        isLoading={notifyMutation.isPending}
+        confirmButtonVariant="warning"
+      >
+        <p className="fs-5 text-center">
+          Are you sure you want to broadcast a notification to all users for <br />
+          <strong className="text-warning">{newsToNotify?.name}</strong>?
+        </p>
+      </ConfirmationModal>
+
     </div>
   );
 }

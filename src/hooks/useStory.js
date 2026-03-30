@@ -7,6 +7,7 @@ import {
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
+
 const fetchStoriesApi = async (params = {}) => {
   const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
     if (value !== "" && value !== null && value !== undefined) {
@@ -56,12 +57,18 @@ const deleteStoryApi = async (id) => {
   return response.data;
 };
 
+// NEW: API call for sending manual notifications
+const sendStoryNotificationApi = async (id) => {
+  const response = await httpService.post(`/story/${id}/notify`);
+  return response.data;
+};
+
+// ─── HOOKS ────────────────────────────────────────────────────────────────
+
 export const useStories = (filters) => {
   return useQuery({
     queryKey: ["stories", filters],
     queryFn: () => fetchStoriesApi(filters),
-
-    // 🔥 Important Fix
     staleTime: 0,
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
@@ -83,7 +90,6 @@ export const useAddStory = () => {
 
   return useMutation({
     mutationFn: addStoryApi,
-
     onSuccess: (newStory) => {
       toast.success("Story added successfully!");
 
@@ -91,7 +97,6 @@ export const useAddStory = () => {
         { queryKey: ["stories"], exact: false },
         (oldData) => {
           if (!oldData || !oldData.data) return oldData;
-
           return {
             ...oldData,
             data: [newStory, ...oldData.data],
@@ -100,13 +105,11 @@ export const useAddStory = () => {
       );
 
       queryClient.invalidateQueries({ queryKey: ["stories"] });
-
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
       });
     },
-
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to add Story");
     },
@@ -118,18 +121,15 @@ export const useUpdateStory = () => {
 
   return useMutation({
     mutationFn: updateStoryApi,
-
     onSuccess: () => {
       toast.success("Story updated successfully!");
 
       queryClient.invalidateQueries({ queryKey: ["stories"] });
-
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
       });
     },
-
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to update Story");
     },
@@ -141,20 +141,30 @@ export const useDeleteStory = () => {
 
   return useMutation({
     mutationFn: deleteStoryApi,
-
     onSuccess: () => {
       toast.success("Story deleted successfully.");
 
       queryClient.invalidateQueries({ queryKey: ["stories"] });
-
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
       });
     },
-
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete Story");
+    },
+  });
+};
+
+// NEW: Hook for sending manual notifications
+export const useSendStoryNotification = () => {
+  return useMutation({
+    mutationFn: sendStoryNotificationApi,
+    onSuccess: (data) => {
+      toast.success(data.message || "Notification sent successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to send notification");
     },
   });
 };

@@ -4,7 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { useAartis, useDeleteAarti, useUpdateAarti } from "../../hooks/useAarti";
+import { 
+  useAartis, 
+  useDeleteAarti, 
+  useUpdateAarti,
+  useSendAartiNotification // <-- 1. Import new hook
+} from "../../hooks/useAarti";
 import { fetchAllGods } from "../../store/god/index";
 import { staticLanguages } from "../../constants/languages";
 
@@ -26,6 +31,7 @@ export default function AartiListPage() {
     resetFilters,
   } = useFilters();
   const itemsPerPage = 10;
+  
   const apiFilters = useMemo(() => {
     return {
       ...filters,
@@ -42,12 +48,14 @@ export default function AartiListPage() {
 
   const deleteMutation = useDeleteAarti();
   const updateMutation = useUpdateAarti();
+  const notifyMutation = useSendAartiNotification(); // <-- 2. Initialize hook
 
   const { masterList: allGods, masterStatus: godStatus } = useSelector(
     (state) => state.God
   );
 
   const [aartiToDelete, setAartiToDelete] = useState(null);
+  const [aartiToNotify, setAartiToNotify] = useState(null); // <-- 3. Add notify state
   const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
@@ -59,7 +67,6 @@ export default function AartiListPage() {
       handlePageChange(1);
     }
   }, [filters.godId, filters.god, filters.page, handlePageChange]);
-
 
   const handleReset = () => {
     resetFilters();
@@ -97,6 +104,15 @@ export default function AartiListPage() {
     } catch (err) {
       // Error handled in hook
     }
+  };
+
+  // <-- 4. Add confirm notification handler
+  const confirmNotification = async () => {
+    if (!aartiToNotify) return;
+    try {
+      await notifyMutation.mutateAsync(aartiToNotify._id);
+      setAartiToNotify(null);
+    } catch (err) {}
   };
 
   const godOptions = [
@@ -197,6 +213,15 @@ export default function AartiListPage() {
                       </div>
                     </td>
                     <td className="text-center">
+                      {/* <-- 5. Add Bell Button for notifications --> */}
+                      <button
+                        className="btn btn-sm btn-outline-warning mr-2"
+                        onClick={() => setAartiToNotify(aarti)}
+                        title="Send Notification"
+                      >
+                        <i className="fas fa-bell"></i>
+                      </button>
+
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
                         onClick={() => navigate(`/aartis/edit/${aarti._id}`)}
@@ -231,6 +256,7 @@ export default function AartiListPage() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         show={aartiToDelete !== null}
         onClose={() => setAartiToDelete(null)}
@@ -243,6 +269,23 @@ export default function AartiListPage() {
           Are you sure you want to delete <strong>{aartiToDelete?.name}</strong>?
         </p>
       </ConfirmationModal>
+
+      {/* <-- 6. Add Notification Confirmation Modal --> */}
+      <ConfirmationModal
+        show={aartiToNotify !== null}
+        onClose={() => setAartiToNotify(null)}
+        onConfirm={confirmNotification}
+        title="Send Push Notification"
+        confirmText="Send Notification"
+        isLoading={notifyMutation.isPending}
+        confirmButtonVariant="warning"
+      >
+        <p className="fs-5 text-center">
+          Are you sure you want to broadcast a notification to all users for <br />
+          <strong className="text-warning">{aartiToNotify?.name}</strong>?
+        </p>
+      </ConfirmationModal>
+
     </div>
   );
 }

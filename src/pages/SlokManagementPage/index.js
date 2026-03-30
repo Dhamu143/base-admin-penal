@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-// import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query"; // UNCOMMENTED to fix error
 
 import {
   useSloks,
   useDeleteSlok,
-  useUpdateSlok
+  useUpdateSlok,
+  useSendSlokNotification // <-- 1. Import new hook
 } from "../../hooks/useSloks";
 
 import { useAllGods } from "../../hooks/useGod";
@@ -19,7 +20,7 @@ import { TableStatus } from "../../components/TableStatus";
 
 export default function SlokListPage() {
   const navigate = useNavigate();
-  // const queryClient = useQueryClient();
+  const queryClient = useQueryClient(); // UNCOMMENTED to fix `queryClient.invalidateQueries` bug
   const itemsPerPage = 10;
 
   const [filters, setFilters] = useState({
@@ -54,6 +55,7 @@ export default function SlokListPage() {
       language: "",
       search: ""
     });
+    queryClient.invalidateQueries(["sloks"]);
     toast.info("Filters reset");
   };
 
@@ -72,10 +74,12 @@ export default function SlokListPage() {
 
   const deleteMutation = useDeleteSlok();
   const updateMutation = useUpdateSlok();
+  const notifyMutation = useSendSlokNotification(); // <-- 2. Initialize hook
 
   const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [slokToDelete, setSlokToDelete] = useState(null);
+  const [slokToNotify, setSlokToNotify] = useState(null); // <-- 3. Add notify state
   const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
@@ -112,6 +116,15 @@ export default function SlokListPage() {
     } catch (err) {
       // Error handled in hook
     }
+  };
+
+  // <-- 4. Add confirm notification handler
+  const confirmNotification = async () => {
+    if (!slokToNotify) return;
+    try {
+      await notifyMutation.mutateAsync(slokToNotify._id);
+      setSlokToNotify(null);
+    } catch (err) {}
   };
 
   const getLanguageNameById = (langId) =>
@@ -226,6 +239,14 @@ export default function SlokListPage() {
                       </td>
                       <td className="text-center">
                         <button
+                          className="btn btn-sm btn-outline-warning mr-2"
+                          onClick={() => setSlokToNotify(slok)}
+                          title="Send Notification"
+                        >
+                          <i className="fas fa-bell"></i>
+                        </button>
+
+                        <button
                           className="btn btn-sm btn-outline-primary mr-2"
                           onClick={() => navigate(`/sloks/edit/${slok._id}`)}
                           title="Edit"
@@ -259,6 +280,7 @@ export default function SlokListPage() {
           </div>
         )}
 
+        {/* Delete Confirmation Modal */}
         <ConfirmationModal
           show={slokToDelete !== null}
           onClose={() => setSlokToDelete(null)}
@@ -273,6 +295,23 @@ export default function SlokListPage() {
             <strong className="text-danger">{slokToDelete?.name}</strong>?
           </p>
         </ConfirmationModal>
+
+        {/* <-- 6. Add Notification Confirmation Modal --> */}
+        <ConfirmationModal
+          show={slokToNotify !== null}
+          onClose={() => setSlokToNotify(null)}
+          onConfirm={confirmNotification}
+          title="Send Push Notification"
+          confirmText="Send Notification"
+          isLoading={notifyMutation.isPending}
+          confirmButtonVariant="warning"
+        >
+          <p className="fs-5 text-center">
+            Are you sure you want to broadcast a notification to all users for <br />
+            <strong className="text-warning">{slokToNotify?.name}</strong>?
+          </p>
+        </ConfirmationModal>
+
       </div>
     </>
   );

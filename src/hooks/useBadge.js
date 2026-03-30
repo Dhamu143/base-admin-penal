@@ -7,7 +7,6 @@ import {
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
-// Adjust these endpoints if your backend route prefix is different (e.g., /api/badge)
 const fetchBadgesApi = async (params = {}) => {
     const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
         if (value !== "" && value !== null && value !== undefined) {

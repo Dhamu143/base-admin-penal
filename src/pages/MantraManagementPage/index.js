@@ -5,7 +5,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useMantras,
   useDeleteMantra,
-  useUpdateMantra
+  useUpdateMantra,
+  useSendMantraNotification // <-- 1. Import new hook
 } from "../../hooks/useMantra";
 
 import { useAllGods } from "../../hooks/useGod";
@@ -56,11 +57,13 @@ export default function MantraListPage() {
 
   const deleteMutation = useDeleteMantra();
   const updateMutation = useUpdateMantra();
+  const notifyMutation = useSendMantraNotification(); // <-- 2. Initialize hook
 
   // 🔥 Fetch Master Data via React Query
   const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [mantraToDelete, setMantraToDelete] = useState(null);
+  const [mantraToNotify, setMantraToNotify] = useState(null); // <-- 3. Add notify state
   const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
@@ -105,6 +108,15 @@ export default function MantraListPage() {
     } catch (err) {
       // Error handled in hook
     }
+  };
+
+  // <-- 4. Add confirm notification handler
+  const confirmNotification = async () => {
+    if (!mantraToNotify) return;
+    try {
+      await notifyMutation.mutateAsync(mantraToNotify._id);
+      setMantraToNotify(null);
+    } catch (err) { }
   };
 
   const getLanguageNameById = (langId) =>
@@ -207,6 +219,14 @@ export default function MantraListPage() {
 
                       <td className="text-center">
                         <button
+                          className="btn btn-sm btn-outline-warning mr-2"
+                          onClick={() => setMantraToNotify(mantra)}
+                          title="Send Notification"
+                        >
+                          <i className="fas fa-bell"></i>
+                        </button>
+
+                        <button
                           className="btn btn-sm btn-outline-primary mr-2"
                           onClick={() =>
                             navigate(`/mantras/edit/${mantra._id}`)
@@ -256,6 +276,22 @@ export default function MantraListPage() {
             <strong className="text-danger">{mantraToDelete?.name}</strong>?
           </p>
         </ConfirmationModal>
+
+        <ConfirmationModal
+          show={mantraToNotify !== null}
+          onClose={() => setMantraToNotify(null)}
+          onConfirm={confirmNotification}
+          title="Send Push Notification"
+          confirmText="Send Notification"
+          isLoading={notifyMutation.isPending}
+          confirmButtonVariant="warning"
+        >
+          <p className="fs-5 text-center">
+            Are you sure you want to broadcast a notification to all users for <br />
+            <strong className="text-warning">{mantraToNotify?.name}</strong>?
+          </p>
+        </ConfirmationModal>
+
       </div>
     </>
   );

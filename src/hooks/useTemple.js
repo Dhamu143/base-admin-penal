@@ -58,9 +58,9 @@ export const useTemples = (filters) => {
     queryKey: ["temples", filters],
     queryFn: () => fetchTemplesApi(filters),
 
-    staleTime: 5 * 60 * 1000, 
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    placeholderData: keepPreviousData, 
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -114,6 +114,24 @@ export const useDeleteTemple = () => {
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete Temple");
+    },
+  });
+};
+const sendTempleNotificationApi = async (id) => {
+  // Adjust this route if your backend route is different (e.g., /temple/notify/${id})
+  const response = await httpService.post(`/temple/${id}/notify`);
+  return response.data;
+};
+
+// Add this exported hook at the bottom of the file
+export const useSendTempleNotification = () => {
+  return useMutation({
+    mutationFn: sendTempleNotificationApi,
+    onSuccess: () => {
+      toast.success("Notification sent successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to send notification");
     },
   });
 };

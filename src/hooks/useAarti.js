@@ -53,6 +53,12 @@ const deleteAartiApi = async (id) => {
     return response.data;
 };
 
+// FIXED: Changed endpoint to /aarti and updated function name
+const sendAartiNotificationApi = async (id) => {
+    const response = await httpService.post(`/aarti/${id}/notify`);
+    return response.data;
+};
+
 export const useAartis = (filters) => {
     return useQuery({
         queryKey: ["aartis", filters],
@@ -125,6 +131,19 @@ export const useDeleteAarti = () => {
         },
         onError: (err) => {
             toast.error(err.response?.data?.message || "Failed to delete Aarti");
+        },
+    });
+};
+
+// FIXED: Renamed hook and linked correct API function
+export const useSendAartiNotification = () => {
+    return useMutation({
+        mutationFn: sendAartiNotificationApi,
+        onSuccess: (data) => {
+            toast.success(data.message || "Notification sent successfully!");
+        },
+        onError: (err) => {
+            toast.error(err.response?.data?.message || "Failed to send notification");
         },
     });
 };

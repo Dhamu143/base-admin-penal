@@ -6,7 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useStutis,
   useDeleteStuti,
-  useUpdateStuti
+  useUpdateStuti,
+  useSendStutiNotification // <-- 1. Import new hook
 } from "../../hooks/useStuti"; 
 
 import { useAllGods } from "../../hooks/useGod";
@@ -45,10 +46,12 @@ export default function StutiManagementPage() {
 
   const deleteMutation = useDeleteStuti();
   const updateMutation = useUpdateStuti();
+  const notifyMutation = useSendStutiNotification(); // <-- 2. Initialize hook
 
   const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [itemToNotify, setItemToNotify] = useState(null); // <-- 3. Add notify state
   const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
@@ -93,6 +96,15 @@ export default function StutiManagementPage() {
     } catch (err) {
       // Error handled in hook
     }
+  };
+
+  // <-- 4. Add confirm notification handler
+  const confirmNotification = async () => {
+    if (!itemToNotify) return;
+    try {
+      await notifyMutation.mutateAsync(itemToNotify._id);
+      setItemToNotify(null);
+    } catch (err) {}
   };
 
   const getLanguageNameById = (langId) =>
@@ -182,6 +194,15 @@ export default function StutiManagementPage() {
                     </td>
 
                     <td className="text-center">
+                      {/* <-- 5. Add Bell Button for notifications --> */}
+                      <button
+                        className="btn btn-sm btn-outline-warning mr-2"
+                        onClick={() => setItemToNotify(item)}
+                        title="Send Notification"
+                      >
+                        <i className="fas fa-bell"></i>
+                      </button>
+
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
                         onClick={() => navigate(`/stuti/${item._id}/edit`)}
@@ -216,6 +237,7 @@ export default function StutiManagementPage() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         show={itemToDelete !== null}
         onClose={() => setItemToDelete(null)}
@@ -228,6 +250,22 @@ export default function StutiManagementPage() {
         <p className="fs-5 text-center">
           Are you sure you want to delete <br />
           <strong className="text-danger">{itemToDelete?.name}</strong>?
+        </p>
+      </ConfirmationModal>
+
+      {/* <-- 6. Add Notification Confirmation Modal --> */}
+      <ConfirmationModal
+        show={itemToNotify !== null}
+        onClose={() => setItemToNotify(null)}
+        onConfirm={confirmNotification}
+        title="Send Push Notification"
+        confirmText="Send Notification"
+        isLoading={notifyMutation.isPending}
+        confirmButtonVariant="warning"
+      >
+        <p className="fs-5 text-center">
+          Are you sure you want to broadcast a notification to all users for <br />
+          <strong className="text-warning">{itemToNotify?.name}</strong>?
         </p>
       </ConfirmationModal>
     </div>

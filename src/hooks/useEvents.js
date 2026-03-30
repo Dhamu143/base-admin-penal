@@ -1,12 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "../common/http.service"; 
 
-// Fetch all events with pagination & filters
 export const useEvents = (filters) => {
   return useQuery({
     queryKey: ["events", filters],
     queryFn: async () => {
-      // FIX: Pass 'filters' directly as the second argument
       const { data } = await apiClient.get("/events", filters);
       return data;
     },
@@ -14,12 +12,10 @@ export const useEvents = (filters) => {
   });
 };
 
-// Fetch single event
 export const useEvent = (id) => {
   return useQuery({
     queryKey: ["event", id],
     queryFn: async () => {
-      // FIX: No params needed here, so pass an empty object
       const { data } = await apiClient.get(`/events/${id}`, {});
       return data.data;
     },

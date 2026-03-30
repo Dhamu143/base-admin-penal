@@ -12,12 +12,13 @@ import {
   FiAward,
   FiLayers,
   FiGlobe,
+  FiStar,      // 👈 for Premium Plans
+  FiCrown,     // 👈 not in fi, use FiStar as fallback
+  FiUserCheck, // 👈 for Premium Users
 } from "react-icons/fi";
 
 const Menu = [
-  {
-    heading: "Main Navigation",
-  },
+  { heading: "Main Navigation" },
   {
     name: "Dashboard",
     path: "/dashboard",
@@ -30,10 +31,22 @@ const Menu = [
     icon: FiUsers,
     permissions: ["admin", "users"],
   },
-  {
-    name: "Image url",
-    path: "/imgurl",
+    {
+    name: "Chat",
+    path: "/chats",
     icon: FiUsers,
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Image Url",
+    path: "/imgurl",
+    icon: FiFileText,
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Wallpaper",
+    path: "/wallpaper",
+    icon: FiFileText,
     permissions: ["admin", "users"],
   },
   {
@@ -54,20 +67,38 @@ const Menu = [
     icon: FiCalendar,
     permissions: ["admin", "users"],
   },
+
+  // ── PREMIUM ───────────────────────────────────
+  { heading: "Premium" },
   {
-    name: "Badges",
-    path: "/badges",
+    name: "Premium Plans",
+    path: "/premium",
+    icon: FiStar,
+    permissions: ["admin"],
+  },
+  {
+    name: "Premium Users",
+    path: "/premium/users",
+    icon: FiUserCheck,
+    permissions: ["admin"],
+  },
+  {
+    name: "Order",
+    path: "/orders",
+    icon: FiUserCheck,
+    permissions: ["admin"],
+  },
+  {
+    name: "Grant Premium",
+    path: "/premium/grant",
     icon: FiAward,
-    permissions: ["admin", "users"],
+    permissions: ["admin"],
   },
+
+  // ── CONTENT ───────────────────────────────────
+  { heading: "Content" },
   {
-    name: "SendNotificationPage",
-    path: "/sendNotification",
-    icon: FiUsers,
-    permissions: ["admin", "users"],
-  },
-  {
-    name: "Dayly Log",
+    name: "Daily Log",
     path: "/dailylog",
     icon: FiFileText,
     permissions: ["admin", "users"],
@@ -103,12 +134,6 @@ const Menu = [
     permissions: ["admin", "users"],
   },
   {
-    name: "Temple",
-    path: "/temple",
-    icon: FiHome,
-    permissions: ["admin", "users"],
-  },
-  {
     name: "Stuti",
     path: "/stuti",
     icon: FiBookOpen,
@@ -118,24 +143,6 @@ const Menu = [
     name: "Articles",
     path: "/articles",
     icon: FiFileText,
-    permissions: ["admin", "users"],
-  },
-  {
-    name: "Festival",
-    path: "/festival",
-    icon: FiCalendar,
-    permissions: ["admin", "users"],
-  },
-  {
-    name: "Ringtones",
-    path: "/ringtones",
-    icon: FiBell,
-    permissions: ["admin", "users"],
-  },
-  {
-    name: "Quiz",
-    path: "/quiz",
-    icon: FiAward,
     permissions: ["admin", "users"],
   },
   {
@@ -149,6 +156,45 @@ const Menu = [
     path: "/news",
     icon: FiGlobe,
     permissions: ["admin", "users"],
+  },
+
+  // ── OTHERS ────────────────────────────────────
+  { heading: "Others" },
+  {
+    name: "Temple",
+    path: "/temple",
+    icon: FiHome,
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Festival",
+    path: "/festival",
+    icon: FiCalendar,
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Quiz",
+    path: "/quiz",
+    icon: FiAward,
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Ringtones",
+    path: "/ringtones",
+    icon: FiBell,
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Badges",
+    path: "/badges",
+    icon: FiAward,
+    permissions: ["admin", "users"],
+  },
+  {
+    name: "Notifications",
+    path: "/sendNotification",
+    icon: FiBell,
+    permissions: ["admin"],
   },
 ];
 

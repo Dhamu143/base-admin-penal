@@ -56,6 +56,11 @@ const deleteBhajanApi = async (id) => {
   return response.data;
 };
 
+const sendBhajanNotificationApi = async (id) => {
+  const response = await httpService.post(`/bhajan/${id}/notify`);
+  return response.data;
+};
+
 export const useBhajans = (filters) => {
   return useQuery({
     queryKey: ["bhajans", filters],
@@ -153,6 +158,18 @@ export const useDeleteBhajan = () => {
 
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete Bhajan");
+    },
+  });
+};
+
+export const useSendBhajanNotification = () => {
+  return useMutation({
+    mutationFn: sendBhajanNotificationApi,
+    onSuccess: (data) => {
+      toast.success(data.message || "Notification sent successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to send notification");
     },
   });
 };

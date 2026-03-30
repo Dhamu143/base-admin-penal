@@ -7,6 +7,8 @@ import {
 import httpService from "../common/http.service";
 import { toast } from "react-toastify";
 
+// ─── API FUNCTIONS ────────────────────────────────────────────────────────
+
 const fetchStutisApi = async (params = {}) => {
   const cleanParams = Object.entries(params).reduce((acc, [key, value]) => {
     if (value !== "" && value !== null && value !== undefined) {
@@ -56,6 +58,14 @@ const deleteStutiApi = async (id) => {
   return response.data;
 };
 
+// NEW: API call for sending manual notifications
+const sendStutiNotificationApi = async (id) => {
+  const response = await httpService.post(`/stuti/${id}/notify`);
+  return response.data;
+};
+
+// ─── HOOKS ────────────────────────────────────────────────────────────────
+
 export const useStutis = (filters) => {
   return useQuery({
     queryKey: ["stutis", filters],
@@ -81,7 +91,6 @@ export const useAddStuti = () => {
 
   return useMutation({
     mutationFn: addStutiApi,
-
     onSuccess: (newStuti) => {
       toast.success("Stuti added successfully!");
 
@@ -98,13 +107,11 @@ export const useAddStuti = () => {
       );
 
       queryClient.invalidateQueries({ queryKey: ["stutis"] });
-
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
       });
     },
-
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to add Stuti");
     },
@@ -116,18 +123,15 @@ export const useUpdateStuti = () => {
 
   return useMutation({
     mutationFn: updateStutiApi,
-
     onSuccess: () => {
       toast.success("Stuti updated successfully!");
 
       queryClient.invalidateQueries({ queryKey: ["stutis"] });
-
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
       });
     },
-
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to update Stuti");
     },
@@ -139,20 +143,30 @@ export const useDeleteStuti = () => {
 
   return useMutation({
     mutationFn: deleteStutiApi,
-
     onSuccess: () => {
       toast.success("Stuti deleted successfully.");
 
       queryClient.invalidateQueries({ queryKey: ["stutis"] });
-
       queryClient.invalidateQueries({
         queryKey: ["dashboardStats"],
         refetchType: "none",
       });
     },
-
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete Stuti");
+    },
+  });
+};
+
+// NEW: Hook for sending manual notifications
+export const useSendStutiNotification = () => {
+  return useMutation({
+    mutationFn: sendStutiNotificationApi,
+    onSuccess: (data) => {
+      toast.success(data.message || "Notification sent successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to send notification");
     },
   });
 };

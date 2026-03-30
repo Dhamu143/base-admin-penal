@@ -150,7 +150,6 @@ export default function SlokFormPage() {
       navigate("/sloka");
     } catch (err) {
       console.error("Failed to save sloka:", err);
-      // Errors 
     }
   };
 

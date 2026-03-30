@@ -50,7 +50,10 @@ const updateNewsApi = async ({ id, ...data }) => {
   const response = await httpService.put(`/news/${id}`, {}, data);
   return response.data?.data;
 };
-
+const sendNewsNotificationApi = async (id) => {
+  const response = await httpService.post(`/news/${id}/notify`);
+  return response.data;
+};
 const deleteNewsApi = async (id) => {
   const response = await httpService.delete(`/news/${id}`);
   return response.data;
@@ -153,6 +156,17 @@ export const useDeleteNews = () => {
 
     onError: (err) => {
       toast.error(err.response?.data?.message || "Failed to delete News");
+    },
+  });
+};
+export const useSendNewsNotification = () => {
+  return useMutation({
+    mutationFn: sendNewsNotificationApi,
+    onSuccess: (data) => {
+      toast.success(data.message || "Notification sent successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to send notification");
     },
   });
 };

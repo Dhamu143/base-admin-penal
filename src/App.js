@@ -54,6 +54,17 @@ import BadgeListPage from "./pages/BadgeListPage/index.js";
 import BadgeFormPage from "./pages/BadgeListPage/BadgeFormPage.js";
 import EventsAdmin from "./pages/EventsPage/index.js";
 import EventForm from "./pages/EventsPage/EventForm.js";
+import OrderListPage from "./pages/OrderListPage/index.js";
+import PremiumListPage from "./pages/PremiumListPage/index.js";
+import PremiumFormPage from "./pages/PremiumListPage/PremiumFormPage.js";
+import UserPremiumListPage from "./pages/UserPremiumListPage/index.js";
+import UserPremiumHistoryPage from "./pages/UserPremiumListPage/UserPremiumHistoryPage.js";
+import GrantPremiumPage from "./pages/UserPremiumListPage/GrantPremiumPage.js";
+import WallpaperListPage from "./pages/WallpaperListPage/index.js";
+import WallpaperFormPage from "./pages/WallpaperListPage/WallpaperFormPage.js";
+import ChatListPage from "./pages/ChatListPag/index.js";
+import ChatFormPage from "./pages/ChatListPag/ChatFormPage.js";
+
 function App() {
   const navigate = useNavigate();
   // const socket = useContext(SocketContext);
@@ -101,6 +112,13 @@ function App() {
             <Route path="/events" element={<EventsAdmin />} />
             <Route path="/events/new" element={<EventForm />} />
             <Route path="/events/edit/:id" element={<EventForm />} />
+            <Route path="/wallpaper" element={<WallpaperListPage />} />
+            <Route path="/wallpaper/new" element={<WallpaperFormPage />} />
+            <Route path="/wallpaper/edit/:id" element={<WallpaperFormPage />} />
+            <Route path="/chats" element={<ChatListPage />} />
+            <Route path="/chats/new" element={<ChatFormPage />} />
+            <Route path="/chats/edit/:id" element={<ChatFormPage />} />
+
 
 
             <Route path="/aarti" element={<AartiManagementPage />} />
@@ -121,7 +139,7 @@ function App() {
             <Route path="/god" element={<GodManagementPage />} />
             <Route path="/god-form" element={<GodFormPage />} />
             <Route path="/god-form/:id" element={<GodFormPage />} />
-
+            <Route path="/orders" element={<OrderListPage />} />
             <Route path="/sloka" element={<SlokManagementPage />} />
             <Route path="/sloks/new" element={<SlokFormPage />} />
             <Route path="/sloks/edit/:id" element={<SlokFormPage />} />
@@ -140,6 +158,14 @@ function App() {
             <Route path="/news" element={<NewsManagementPage />} />
             <Route path="/news/new" element={<NewsFormPage />} />
             <Route path="/news/:id/edit" element={<NewsFormPage />} />
+
+            <Route path="/premium" element={<PremiumListPage />} />
+            <Route path="/premium/new" element={<PremiumFormPage />} />
+            <Route path="/premium/edit/:id" element={<PremiumFormPage />} />
+
+            <Route path="/premium/users" element={<UserPremiumListPage />} />
+            <Route path="/premium/users/:userId/history" element={<UserPremiumHistoryPage />} />
+            <Route path="/premium/grant" element={<GrantPremiumPage />} />
 
             <Route path="/story" element={<StoryManagementPage />} />
             <Route path="/story/new" element={<StoryFormPage />} />

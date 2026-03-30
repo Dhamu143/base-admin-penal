@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-// import { useQueryClient } from "@tanstack/react-query";
 import {
   useTemples,
   useDeleteTemple,
-  useUpdateTemple
+  useUpdateTemple,
+  useSendTempleNotification // <-- 1. Import new hook
 } from "../../hooks/useTemple";
 
 import { useAllGods } from "../../hooks/useGod";
@@ -20,7 +20,6 @@ import DynamicImage from "../../components/PostPreview/PostPreview";
 
 export default function TempleListPage() {
   const navigate = useNavigate();
-  // const queryClient = useQueryClient();
   const itemsPerPage = 10;
 
   const {
@@ -46,10 +45,12 @@ export default function TempleListPage() {
 
   const deleteMutation = useDeleteTemple();
   const updateMutation = useUpdateTemple();
+  const notifyMutation = useSendTempleNotification(); // <-- 2. Initialize hook
 
   const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [templeToDelete, setTempleToDelete] = useState(null);
+  const [templeToNotify, setTempleToNotify] = useState(null); // <-- 3. Add notify state
   const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
@@ -74,7 +75,7 @@ export default function TempleListPage() {
         `Temple "${temple.name}" is now ${newStatus ? "Active" : "Inactive"}`
       );
     } catch (err) {
-      // Error
+      // Error handled in hook
     } finally {
       setTogglingId(null);
     }
@@ -91,8 +92,17 @@ export default function TempleListPage() {
 
       setTempleToDelete(null);
     } catch (err) {
-      // Error
+      // Error handled in hook
     }
+  };
+
+  // <-- 4. Add confirm notification handler -->
+  const confirmNotification = async () => {
+    if (!templeToNotify) return;
+    try {
+      await notifyMutation.mutateAsync(templeToNotify._id);
+      setTempleToNotify(null);
+    } catch (err) { }
   };
 
   const getLanguageName = (langId) =>
@@ -204,6 +214,15 @@ export default function TempleListPage() {
                     </td>
 
                     <td className="text-center">
+                      {/* <-- 5. Add Bell Button for notifications --> */}
+                      <button
+                        className="btn btn-sm btn-outline-warning mr-2"
+                        onClick={() => setTempleToNotify(temple)}
+                        title="Send Notification"
+                      >
+                        <i className="fas fa-bell"></i>
+                      </button>
+
                       <button
                         className="btn btn-sm btn-outline-primary mr-2"
                         onClick={() => navigate(`/temples/edit/${temple._id}`)}
@@ -238,6 +257,7 @@ export default function TempleListPage() {
         </div>
       )}
 
+      {/* Delete Modal */}
       <ConfirmationModal
         show={templeToDelete !== null}
         onClose={() => setTempleToDelete(null)}
@@ -252,6 +272,23 @@ export default function TempleListPage() {
           <strong className="text-danger">{templeToDelete?.name}</strong>?
         </p>
       </ConfirmationModal>
+
+      {/* <-- 6. Add Notification Confirmation Modal --> */}
+      <ConfirmationModal
+        show={templeToNotify !== null}
+        onClose={() => setTempleToNotify(null)}
+        onConfirm={confirmNotification}
+        title="Send Push Notification"
+        confirmText="Send Notification"
+        isLoading={notifyMutation.isPending}
+        confirmButtonVariant="warning"
+      >
+        <p className="fs-5 text-center">
+          Are you sure you want to broadcast a notification to all users for <br />
+          <strong className="text-warning">{templeToNotify?.name}</strong>?
+        </p>
+      </ConfirmationModal>
+
     </div>
   );
-}
+} 

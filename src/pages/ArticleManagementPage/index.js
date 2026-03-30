@@ -6,7 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useArticles,
   useDeleteArticle,
-  useUpdateArticle
+  useUpdateArticle,
+  useSendArticleNotification // <-- 1. Import new hook
 } from "../../hooks/useArticles";
 
 import { useAllGods } from "../../hooks/useGod";
@@ -58,11 +59,13 @@ export default function ArticleListPage() {
 
   const deleteMutation = useDeleteArticle();
   const updateMutation = useUpdateArticle();
+  const notifyMutation = useSendArticleNotification(); // <-- 2. Initialize hook
 
   // 🔥 Fetch Master Data via React Query
   const { data: allGods = [], isLoading: isLoadingGods } = useAllGods();
 
   const [articleToDelete, setArticleToDelete] = useState(null);
+  const [articleToNotify, setArticleToNotify] = useState(null); // <-- 3. Add notify state
   const [togglingId, setTogglingId] = useState(null);
 
   useEffect(() => {
@@ -107,6 +110,15 @@ export default function ArticleListPage() {
     } catch (err) {
       // Error handled in hook
     }
+  };
+
+  // <-- 4. Add confirm notification handler
+  const confirmNotification = async () => {
+    if (!articleToNotify) return;
+    try {
+      await notifyMutation.mutateAsync(articleToNotify._id);
+      setArticleToNotify(null);
+    } catch (err) { }
   };
 
   const godOptions = [
@@ -232,6 +244,14 @@ export default function ArticleListPage() {
                       </td>
                       <td className="text-center">
                         <button
+                          className="btn btn-sm btn-outline-warning mr-2"
+                          onClick={() => setArticleToNotify(article)}
+                          title="Send Notification"
+                        >
+                          <i className="fas fa-bell"></i>
+                        </button>
+
+                        <button
                           className="btn btn-sm btn-outline-primary mr-2"
                           onClick={() =>
                             navigate(`/articles/edit/${article._id}`)
@@ -281,6 +301,23 @@ export default function ArticleListPage() {
           <strong>{articleToDelete?.title}</strong>?
         </p>
       </ConfirmationModal>
+
+      {/* <-- 6. Add Notification Confirmation Modal --> */}
+      <ConfirmationModal
+        show={articleToNotify !== null}
+        onClose={() => setArticleToNotify(null)}
+        onConfirm={confirmNotification}
+        title="Send Push Notification"
+        confirmText="Send Notification"
+        isLoading={notifyMutation.isPending}
+        confirmButtonVariant="warning"
+      >
+        <p className="fs-5 text-center">
+          Are you sure you want to broadcast a notification to all users for <br />
+          <strong className="text-warning">{articleToNotify?.title}</strong>?
+        </p>
+      </ConfirmationModal>
+
     </>
   );
 }

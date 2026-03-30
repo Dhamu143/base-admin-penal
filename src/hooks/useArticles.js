@@ -12,7 +12,7 @@ const fetchArticlesApi = async (params = {}) => {
     }, {});
 
     const queryString = new URLSearchParams(cleanParams).toString();
-        const url = queryString ? `/articles?${queryString}` : "/articles";
+    const url = queryString ? `/articles?${queryString}` : "/articles";
 
 
     const response = await httpService.get(url);
@@ -50,6 +50,10 @@ const updateArticleApi = async ({ id, ...data }) => {
 
 const deleteArticleApi = async (id) => {
     const response = await httpService.delete(`/articles/${id}`);
+    return response.data;
+};
+const sendArticleNotificationApi = async (id) => {
+    const response = await httpService.post(`/articles/${id}/notify`);
     return response.data;
 };
 
@@ -124,6 +128,18 @@ export const useDeleteArticle = () => {
         },
         onError: (err) => {
             toast.error(err.response?.data?.message || "Failed to delete article");
+        },
+    });
+};
+
+export const useSendArticleNotification = () => {
+    return useMutation({
+        mutationFn: sendArticleNotificationApi,
+        onSuccess: (data) => {
+            toast.success(data.message || "Notification sent successfully!");
+        },
+        onError: (err) => {
+            toast.error(err.response?.data?.message || "Failed to send notification");
         },
     });
 };
